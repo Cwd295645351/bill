@@ -1,7 +1,7 @@
-import Vue from "vue";
+import Vue from "vue"
 
-import App from "./App.vue";
+import App from "./App.vue"
 
-const vue = new Vue({ render: (h) => h(App) }).$mount("#app");
+const vue = new Vue({ render: (h) => h(App) }).$mount("#app")
 
-export default vue;
+export default vue

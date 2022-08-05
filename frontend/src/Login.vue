@@ -9,7 +9,7 @@ export default {
 	components: {},
 
 	data() {
-		return {};
+		return {}
 	},
 
 	computed: {},
@@ -17,6 +17,6 @@ export default {
 	mounted() {},
 
 	methods: {}
-};
+}
 </script>
 <style scoped></style>

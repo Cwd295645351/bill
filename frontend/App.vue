@@ -6,7 +6,7 @@
 </template>
 
 <script>
-import Login from "./src/Login.vue";
+import Login from "./src/Login.vue"
 export default {
 	name: "app",
 	props: {},
@@ -14,16 +14,16 @@ export default {
 	components: { Login },
 
 	data() {
-		return {};
+		return {}
 	},
 
 	computed: {},
 
 	mounted() {
-		console.log("vue");
+		console.log("vue")
 	},
 
 	methods: {}
-};
+}
 </script>
 <style scoped></style>

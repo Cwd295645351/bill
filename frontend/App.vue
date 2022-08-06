@@ -1,29 +1,30 @@
 <template>
-	<div>
-		初始化项目
-		<Login></Login>
-	</div>
+  <div>
+    初始化项目
+    <Login></Login>
+  </div>
 </template>
 
 <script>
-import Login from "./src/Login.vue"
+import Login from '@/Login.vue'
 export default {
-	name: "app",
-	props: {},
+  name: 'app',
+  props: {},
 
-	components: { Login },
+  components: { Login },
 
-	data() {
-		return {}
-	},
+  data() {
+    return {}
+  },
 
-	computed: {},
+  computed: {},
 
-	mounted() {
-		console.log("vue")
-	},
+  mounted() {
+    console.log('%cRUNNING_AT:', 'color: #fff;background:#008000;padding: 0 10px;', ENV)
+    console.log('%cBUILD_TIME:', 'color: #fff;background:#008000;padding: 0 10px;', BUILD_TIME)
+  },
 
-	methods: {}
+  methods: {},
 }
 </script>
 <style scoped></style>

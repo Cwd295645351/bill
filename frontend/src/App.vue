@@ -1,17 +1,15 @@
 <template>
   <div>
-    初始化项目
-    <Login></Login>
+    <router-view></router-view>
   </div>
 </template>
 
 <script>
-import Login from '@/Login.vue'
 export default {
   name: 'app',
   props: {},
 
-  components: { Login },
+  components: {},
 
   data() {
     return {}

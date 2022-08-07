@@ -18,7 +18,7 @@ module.exports = (env) => {
    */
   const config = {
     mode: isBuild ? 'production' : 'development',
-    entry: './main',
+    entry: './src/main',
     output: {
       path: path.resolve(__dirname, 'dist'),
       filename: '[name].js',
@@ -65,10 +65,17 @@ module.exports = (env) => {
         ],
       }),
     ],
+    watch: true,
+    watchOptions: {
+      aggregateTimeout: 300,
+      ignored: '**/node_modules',
+      stdin: true,
+    },
     devServer: {
       host: 'localhost',
       port: 8880,
       hot: true,
+      compress: true,
       open: true,
     },
   }

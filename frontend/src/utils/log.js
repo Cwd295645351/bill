@@ -1,4 +1,4 @@
-const log = {}
+
 
 /**
  * 根据类型返回对应色值
@@ -69,29 +69,34 @@ function typeFormatStr(textArr) {
  * @param {string} type - 类型
  * @param {Array} textArr - 日志内容
  */
-log.colorful = (type, textArr) => {
+const colorful = (type, textArr) => {
   const str = typeFormatStr(textArr)
-  console.log(`%c${str}`, `background-color: ${typeColor(type)};color: #fff;padding: 4px;font-weight: bold; border-radius: 4px;`, ...textArr)
+  console.log(`%c${str}`, `background-color: ${typeColor(type)};color: #fff;padding: 2px 10px;font-weight: bold; border-radius: 4px;`, ...textArr)
+}
+
+
+const log = function (...rest) {
+  colorful('default', rest)
 }
 
 log.default = function (...rest) {
-  log.colorful('default', rest)
+  colorful('default', rest)
 }
 
 log.primary = function (...rest) {
-  log.colorful('primary', rest)
+  colorful('primary', rest)
 }
 
 log.success = function (...rest) {
-  log.colorful('success', rest)
+  colorful('success', rest)
 }
 
 log.warning = function (...rest) {
-  log.colorful('warning', rest)
+  colorful('warning', rest)
 }
 
 log.danger = function (...rest) {
-  log.colorful('danger', rest)
+  colorful('danger', rest)
 }
 
 export { log }

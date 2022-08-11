@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div id="app">
     <router-view></router-view>
   </div>
 </template>
@@ -22,7 +22,14 @@ export default {
     console.log('%cBUILD_TIME:', 'color: #fff;background:#008000;padding: 0 10px;', BUILD_TIME)
   },
 
-  methods: {},
+  methods: {}
 }
 </script>
-<style scoped></style>
+<style>
+#app {
+  height: 100vh;
+  width: 100vw;
+  margin: 0;
+  padding: 0;
+}
+</style>

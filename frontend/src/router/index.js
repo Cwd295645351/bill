@@ -3,7 +3,7 @@ import VueRouter from 'vue-router'
 
 Vue.use(VueRouter)
 
-const routes = []
+const routes = [{ path: '/', redirect: '/login' }]
 
 // 读取 views 页面中定义的路由
 const viewsRouteDoc = require.context('../views', true, /router.js$/)

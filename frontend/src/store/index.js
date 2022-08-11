@@ -19,7 +19,7 @@ const store = new Vuex.Store({
      */
     updateState(state, paylod) {
       state[paylod.key] = paylod.value
-    },
+    }
   },
   actions: {
     updateState({ commit }, payload) {
@@ -30,8 +30,8 @@ const store = new Vuex.Store({
       } else {
         commit('updateState', payload)
       }
-    },
-  },
+    }
+  }
 })
 
 export default store

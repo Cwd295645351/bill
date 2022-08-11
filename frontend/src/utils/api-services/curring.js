@@ -174,7 +174,7 @@ function curringHttp(axiosInstance, initConfig = () => {}) {
     post: request('post'),
     put: request('put'),
     patch: request('patch'),
-    delete: request('delete'),
+    delete: request('delete')
   }
 }
 

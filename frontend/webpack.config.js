@@ -21,63 +21,67 @@ module.exports = (env) => {
     entry: './src/main',
     output: {
       path: path.resolve(__dirname, 'dist'),
-      filename: '[name].js',
+      filename: '[name].js'
     },
     resolve: {
       extensions: ['.js', '.vue', '.json', 'scss'],
       alias: {
-        '@': path.join(__dirname, 'src'),
-      },
+        '@': path.join(__dirname, 'src')
+      }
     },
     devtool: isBuild ? false : 'eval-cheap-module-source-map',
     module: {
       rules: [
         {
+          test: /\.(sc|c)ss$/,
+          use: ['style-loader', 'css-loader', 'sass-loader']
+        },
+        {
           test: /\.vue$/,
-          use: 'vue-loader',
+          use: 'vue-loader'
         },
         {
           test: /\.js$/,
-          use: 'babel-loader',
-        },
-      ],
+          use: 'babel-loader'
+        }
+      ]
     },
     plugins: [
       new webpack.DefinePlugin({
         BUILD_TIME: JSON.stringify(dayjs().format('YYYY-MM-DD HH:mm:ss')),
-        ENV: env.to ? JSON.stringify(env.to) : JSON.stringify('prod'),
+        ENV: env.to ? JSON.stringify(env.to) : JSON.stringify('prod')
       }),
       new CleanWebpackPlugin(),
       new VueLoaderPlugin(),
       new HtmlWepackPlugin({
         title: '记账',
         templateParameters: {
-          envPath: isBuild ? '/env.js' : 'env.local.js',
+          envPath: isBuild ? '/env.js' : 'env.local.js'
         },
-        template: './index.html',
+        template: './index.html'
       }),
       new CopyWebpackPlugin({
         patterns: [
           {
             from: path.resolve(__dirname, 'public'),
-            to: path.resolve(__dirname, 'dist'),
-          },
-        ],
-      }),
+            to: path.resolve(__dirname, 'dist')
+          }
+        ]
+      })
     ],
     watch: true,
     watchOptions: {
       aggregateTimeout: 300,
       ignored: '**/node_modules',
-      stdin: true,
+      stdin: true
     },
     devServer: {
       host: 'localhost',
       port: 8880,
       hot: true,
       compress: true,
-      open: true,
-    },
+      open: true
+    }
   }
 
   return config

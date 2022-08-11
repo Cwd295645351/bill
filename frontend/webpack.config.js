@@ -6,6 +6,7 @@ const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const { VueLoaderPlugin } = require('vue-loader')
 const HtmlWepackPlugin = require('html-webpack-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 
 const dayjs = require('dayjs')
 
@@ -34,7 +35,7 @@ module.exports = (env) => {
       rules: [
         {
           test: /\.(sc|c)ss$/,
-          use: ['style-loader', 'css-loader', 'sass-loader']
+          use: ['style-loader', 'css-loader', 'postcss-loader', 'sass-loader']
         },
         {
           test: /\.vue$/,
@@ -52,6 +53,9 @@ module.exports = (env) => {
         ENV: env.to ? JSON.stringify(env.to) : JSON.stringify('prod')
       }),
       new CleanWebpackPlugin(),
+      new MiniCssExtractPlugin({
+        filename: isBuild ? '[name].[contenthash].css' : '[name].css'
+      }),
       new VueLoaderPlugin(),
       new HtmlWepackPlugin({
         title: '记账',

@@ -7,7 +7,7 @@ import koaStatic from 'koa-static'
 import koaBody from 'koa-body'
 import path from 'path'
 
-import index from './routes/index'
+import common from './routes/common'
 
 const app = new Koa()
 
@@ -47,7 +47,7 @@ app.use(
 )
 
 // routes
-app.use(index.routes(), index.allowedMethods())
+app.use(common.routes(), common.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

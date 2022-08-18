@@ -34,6 +34,7 @@
 </template>
 
 <script>
+import rs from 'jsrsasign'
 export default {
   props: {},
 
@@ -81,7 +82,9 @@ export default {
         ]
       },
       operationDisabled: true, // 操作按钮禁用状态；先禁用，后续再拓展
-      status: 'login' // 当前表单状态：login=登录；register=注册；forget=忘记密码
+      status: 'login', // 当前表单状态：login=登录；register=注册；forget=忘记密码
+      publicKey:
+        '-----BEGIN PUBLIC KEY-----\nMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL9FpCebYmJT0cThQcCCRJFGcKVhThPJ\nsWP2kRi+pqSCue4+7oCyLrq7bEVRUoPhP0IDpJMHNHVUeetIGaU0Aa8CAwEAAQ==\n-----END PUBLIC KEY-----\n' // rsa公钥
     }
   },
 
@@ -97,6 +100,12 @@ export default {
     forgetPassword() {
       console.log('忘记密码')
     },
+    // 密码机密
+    encryptPassword() {
+      const pub = rs.KEYUTIL.getKey(this.publicKey)
+      const encryptData = rs.KJUR.crypto.Cipher.encrypt(this.formInfo.password, pub)
+      return rs.hextob64(encryptData)
+    },
     // 登录
     login(formName) {
       this.$refs[formName].validate(async (valid) => {
@@ -107,6 +116,7 @@ export default {
           return false
         }
       })
+      console.log('password:', this.encryptPassword())
     }
   }
 }

@@ -7,7 +7,7 @@ import koaStatic from 'koa-static'
 import koaBody from 'koa-body'
 import path from 'path'
 
-import common from './routes/common'
+import common from './routes/common/index'
 
 const app = new Koa()
 

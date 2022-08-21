@@ -17,7 +17,9 @@
     "koa-logger": "^3.2.0",
     "koa-onerror": "^4.1.0",
     "koa-router": "^7.4.0",
-    "koa-static": "^5.0.0"
+    "koa-static": "^5.0.0",
+    "mongoose": "^6.5.2",
+    "xss": "^1.0.14"
   },
   "devDependencies": {
     "babel-cli": "^6.26.0",

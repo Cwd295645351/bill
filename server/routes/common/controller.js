@@ -1,5 +1,6 @@
 import crypto from 'crypto'
 import xss from 'xss'
+import jwt from 'jsonwebtoken'
 import Encryption from '../../database/modules/Encryption'
 import User from '../../database/modules/User'
 
@@ -67,7 +68,7 @@ export const login = async (username, password) => {
       password: password
     })
     if (res) {
-      return [null, true]
+      return [null, res]
     } else {
       return ['账号密码不匹配', null]
     }
@@ -75,4 +76,16 @@ export const login = async (username, password) => {
     console.error(err)
     return [err, null]
   }
+}
+
+// 生成jwt授权
+export const createJwt = (data) => {
+  const SECRET_KEY = 'admin_jwt_token'
+  const EXPIRES_TIME = 24 * 60 * 60 // 有效时间
+  // jwt生成token
+  const accessToken = jwt.sign(data, SECRET_KEY, { expiresIn: EXPIRES_TIME })
+  // refresh token
+  const refreshToken = accessToken.slice(accessToken.lastIndexOf('.') + 1)
+
+  return { accessToken, refreshToken, EXPIRES_TIME }
 }

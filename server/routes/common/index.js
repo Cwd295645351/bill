@@ -1,18 +1,12 @@
 import koaRouter from 'koa-router'
-import { decrypt } from '../../utils/cryp'
 import { ResModel } from '../../model/resModel'
-
-import { getLoginConfig, updateEncryptionKey, login } from './controller'
+import { getLoginConfig, updateEncryptionKey, login, createJwt } from './controller'
 
 const router = koaRouter({ prefix: '/api/common' })
 
-const MANAGER = { username: 'admin', password: '123456' }
-
-const character_reg = /^\w{3,20}/
-
 // 登录
 router.post('/login', async (ctx, next) => {
-//   decrypt('NtNw6cfOgYazY6ioKlDhpPLzsYN2H6YhB0dEgdo8SeS5rYTbMmzOUkLv9dscHzpBQ9bGf5vTdxRx+q6Bz0JxIw==')
+  const character_reg = /^\w{3,20}/ // 账号、密码校验规则
   const data = ctx.request.body
   const username = data.username
   const password = data.password
@@ -25,8 +19,41 @@ router.post('/login', async (ctx, next) => {
     return
   }
   const [err, res] = await login(username, password)
-  if (res) ctx.body = new ResModel(null, '登录成功')
-  else ctx.body = new ResModel(null, err, 'error')
+  if (res) {
+    // jwt生成token
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ user_id: res._id })
+    ctx.session.user_id = res._id
+    ctx.session.refreshToken = refreshToken
+    const retData = {
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: EXPIRES_TIME,
+      userId: res._id
+    }
+    ctx.body = new ResModel(retData, '登录成功')
+  } else ctx.body = new ResModel(null, err, 'error')
+})
+
+// 刷新token
+router.post('/refreshToken', async (ctx, next) => {
+  const { refreshToken } = ctx.request.body
+  console.log(refreshToken)
+  if (refreshToken && ctx.session.refreshToken === refreshToken) {
+    // 当前用户已登录，刷新token
+    // jwt生成token
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ user_id: ctx.session.user_id })
+    ctx.session.refreshToken = refreshToken
+    const retData = {
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+      expiresIn: EXPIRES_TIME,
+      userId: ctx.session.user_id
+    }
+
+    ctx.body = new ResModel(retData, '刷新成功')
+  } else {
+    ctx.body = new ResModel(null, '无效参数refreshToken', 'error')
+  }
 })
 
 // 获取登录配置
@@ -38,6 +65,7 @@ router.get('/getLoginConfig', async (ctx, next) => {
 
 // 生成密钥
 router.post('/createEncryption', async (ctx, next) => {
+  const MANAGER = { username: 'admin', password: '123456' } // 管理员账号
   const data = ctx.request.body
   if (data.username !== MANAGER.username || data.password !== MANAGER.password) {
     ctx.body = new ResModel(null, '非管理员没有权限生成密钥', 'error')

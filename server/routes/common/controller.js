@@ -63,11 +63,22 @@ export const login = async (username, password) => {
       .toString()
     username = xss(username)
     password = xss(genPassword(decryptoPassword)) // 对密码进行加密
-    const res = await User.findOne({
-      username: username,
-      password: password
-    })
+    const res = await User.findOne(
+      {
+        username: username,
+        password: password
+      },
+      {
+        nickName: 1,
+        avatarUrl: 1,
+        bills: 1,
+        incomes: 1,
+        expenses: 1
+      }
+    )
+    console.log(res);
     if (res) {
+      
       return [null, res]
     } else {
       return ['账号密码不匹配', null]

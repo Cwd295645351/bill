@@ -28,7 +28,7 @@ router.post('/login', async (ctx, next) => {
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: EXPIRES_TIME,
-      userId: res._id
+      userInfo: res
     }
     ctx.body = new ResModel(retData, '登录成功')
   } else ctx.body = new ResModel(null, err, 'error')

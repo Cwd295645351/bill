@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import xss from 'xss'
+import { xssData } from '../../utils/xss'
 import jwt from 'jsonwebtoken'
 import Encryption from '../../database/modules/Encryption'
 import User from '../../database/modules/User'
@@ -61,8 +61,8 @@ export const login = async (username, password) => {
         Buffer.from(password.toString('base64'), 'base64')
       )
       .toString()
-    username = xss(username)
-    password = xss(genPassword(decryptoPassword)) // 对密码进行加密
+    username = xssData(username)
+    password = xssData(genPassword(decryptoPassword)) // 对密码进行加密
     const res = await User.findOne(
       {
         username: username,

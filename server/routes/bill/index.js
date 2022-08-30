@@ -20,16 +20,45 @@ router.post('/create', async (ctx, next) => {
   }
 })
 
-// 编辑账本
-router.post('/edit', async (ctx, next) => {})
+// 编辑账本名称
+router.post('/edit', async (ctx, next) => {
+  const data = ctx.request.body
+  const name = data.name
+  const id = data.id
+  if (id === null || id === undefined) {
+    ctx.body = new ResModel(null, 'id不能为空', 'error')
+    return
+  } else if (name === null || name === undefined || !name_reg.test(name)) {
+    ctx.body = new ResModel(null, '账本名称不符合规范', 'error')
+    return
+  } else {
+    const [err, res] = await BILL.editBill({ name, id })
+    if (res) ctx.body = new ResModel(null, '编辑成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
 
 // 删除账本
-router.post('/delete', async (ctx, next) => {})
+router.post('/delete', async (ctx, next) => {
+  const data = ctx.request.body
+  const id = data.id
+  if (id === null || id === undefined) {
+    ctx.body = new ResModel(null, 'id不能为空', 'error')
+    return
+  } else {
+    const [err, res] = await BILL.delBill({ id })
+    if (res) ctx.body = new ResModel(null, '删除成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
 
 // 生成邀请码，共享账本
 router.post('/invite', async (ctx, next) => {})
 
 // 加入账本
 router.post('/join', async (ctx, next) => {})
+
+// 退出账本/将某人移出账本
+router.post('/quit', async (ctx, next) => {})
 
 export default router

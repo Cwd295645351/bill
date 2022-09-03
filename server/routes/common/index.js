@@ -21,8 +21,8 @@ router.post('/login', async (ctx, next) => {
   const [err, res] = await login(username, password)
   if (res) {
     // jwt生成token
-    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ user_id: res._id })
-    ctx.session.user_id = res._id
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: res._id })
+    ctx.session.userId = res._id
     ctx.session.refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
@@ -41,13 +41,13 @@ router.post('/refreshToken', async (ctx, next) => {
   if (refreshToken && ctx.session.refreshToken === refreshToken) {
     // 当前用户已登录，刷新token
     // jwt生成token
-    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ user_id: ctx.session.user_id })
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: ctx.session.userId })
     ctx.session.refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: EXPIRES_TIME,
-      userId: ctx.session.user_id
+      userId: ctx.session.userId
     }
 
     ctx.body = new ResModel(retData, '刷新成功')

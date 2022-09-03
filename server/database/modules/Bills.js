@@ -3,7 +3,7 @@ import mongoose from '../index'
 // 账本
 const BillSchema = mongoose.Schema({
   name: { type: String, required: true }, // 账本名
-  creator: { type: String, required: true }, // 账本创建者（拥有新建、编辑、删除账单权限）
+  creator: { type: String, required: true }, // 账本创建者（拥有新建、编辑、删除账本权限）
   users: { type: Array, required: true }, // 账本持有者-存放用户id
   costTypes: [{ id: String, name: String, isDel: Boolean }], // 账本支出消费类型
   incomesType: [{ id: String, name: String, isDel: Boolean }], // 账本收入消费类型
@@ -33,7 +33,7 @@ const BillSchema = mongoose.Schema({
         costTypeId: { type: String, required: true }, // 支出类型id
         costTypeName: { type: String, required: true }, // 支出类型名称
         budget: { type: Number, required: true, default: 0 }, // 预算金额
-        cost: { type: Number, required: true, default: 0 } // 当前已支出金额(在增删修改账单时顺便对cost进行修改)
+        cost: { type: Number, required: true, default: 0 } // 当前已支出金额(在增删修改账本时顺便对cost进行修改)
       }
     ]
   },

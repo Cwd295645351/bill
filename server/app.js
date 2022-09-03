@@ -101,7 +101,10 @@ app.use((ctx, next) => {
         message: '接口鉴权失败，请重新登录'
       }
     } else {
-      throw err
+      ctx.status = 500
+      ctx.body = {
+        message: '系统异常,请稍后再试'
+      }
     }
   })
 })

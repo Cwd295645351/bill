@@ -103,6 +103,7 @@ app.use((ctx, next) => {
     } else {
       ctx.status = 500
       ctx.body = {
+        data: err.message,
         message: '系统异常,请稍后再试'
       }
     }

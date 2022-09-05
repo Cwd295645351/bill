@@ -19,6 +19,7 @@ import CONF from './config/db'
 // 路由
 import common from './routes/common/index'
 import bill from './routes/bill/index'
+import transaction from './routes/transaction/index'
 
 const app = new Koa()
 
@@ -142,6 +143,7 @@ app.use(
 // routes
 app.use(common.routes(), common.allowedMethods())
 app.use(bill.routes(), bill.allowedMethods())
+app.use(transaction.routes(), transaction.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

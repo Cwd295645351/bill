@@ -1,3 +1,6 @@
+/*
+ * 交易表 
+ */
 import mongoose from '../index'
 import dayjs from 'dayjs'
 

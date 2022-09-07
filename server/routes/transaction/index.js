@@ -1,12 +1,42 @@
 import koaRouter from 'koa-router'
+import * as Transaction from './controller'
+import { ResModel } from '../../model/resModel'
 
 const router = koaRouter({ prefix: '/api/transaction' })
+const dateReg = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/gi
 
 // 交易明细(可根据周/月/年进行查询)
 router.get('/list', async (ctx, next) => {
-  ctx.body = {
-    data: '获取交易明细'
+  const data = ctx.request.body
+  const { beginDate, endDate, pageIndex, pageSize, type } = data
+  if (beginDate != '' && beginDate != undefined) {
+    if (dateReg.test(beginDate) == false) {
+      ctx.body = new ResModel(null, '开始时间不规范', 'error')
+      return
+    }
+    data.beginDate = new Date(beginDate)
   }
+  if (endDate != '' && endDate != undefined) {
+    if (dateReg.test(endDate) == false) {
+      ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
+      return
+    }
+    data.endDate = new Date(endDate)
+  }
+  // 页码小于1的统一按第一页开始，前端页码从1开始
+  data.pageIndex = pageIndex < 1 ? 0 : pageIndex - 1
+  // 每页条数最少10条
+  if (pageSize < 10) {
+    data.pageSize = 10
+  }
+  // 交易类型非收入（2）时，一律处理为支出（1）
+  if (type !== 2) {
+    data.type = 1
+  }
+
+  const [err, res] = await Transaction.getList(data)
+  if (res) ctx.body = new ResModel(null, '查找成功')
+  else ctx.body = new ResModel(null, err, 'error')
 })
 
 // 新增交易

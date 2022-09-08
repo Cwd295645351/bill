@@ -54,6 +54,24 @@ export const delBill = async ({ userId, id }) => {
   else return ['删除失败', null]
 }
 
+// 查询账本详情
+export const getBillDetail = async ({ userId, id }) => {
+  const params = { _id: mongoose.Types.ObjectId(id), users: { $in: [userId] }, isDel: false }
+  const filterData = {
+    planBuy: 1,
+    budget: 1,
+    name: 1,
+    creator: 1,
+    costTypes: 1,
+    incomesType: 1,
+    payMethods: 1
+  }
+  const res = await Bill.findOne(params, filterData)
+  console.log(params, res)
+  if (res) return [null, res]
+  return ['找不到账本', null]
+}
+
 // 用公钥生成将id和有效时间生成密文
 export const invite = async ({ userId, id }) => {
   // 查找该用户是否是账本的持有者

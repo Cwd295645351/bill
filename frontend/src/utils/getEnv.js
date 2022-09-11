@@ -1,5 +1,5 @@
 export default () => {
-  const windowEnv = window.env || {}
-  const baseURL = windowEnv.baseURL || location.host
+  const env = window.env || {}
+  const baseURL = env.baseURL || location.host
   return { baseURL }
 }

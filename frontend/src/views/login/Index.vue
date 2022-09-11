@@ -1,5 +1,10 @@
 <template>
   <div class="login-page">
+    <el-carousel class="img-box" trigger="click" height="600px" indicator-position="none">
+      <el-carousel-item v-for="item in 4" :key="item">
+        <div class="img" :class="['img-' + item]"></div>
+      </el-carousel-item>
+    </el-carousel>
     <div class="login-content">
       <div class="title">{{ title }}</div>
       <el-form :model="formInfo" :rules="rules" ref="form">
@@ -35,6 +40,7 @@
 
 <script>
 import rs from 'jsrsasign'
+import { login, getLoginConfig } from './api'
 export default {
   props: {},
 
@@ -89,6 +95,9 @@ export default {
   },
 
   computed: {},
+  created() {
+    this.getConfig()
+  },
 
   mounted() {},
 
@@ -100,23 +109,45 @@ export default {
     forgetPassword() {
       console.log('忘记密码')
     },
-    // 密码机密
-    encryptPassword() {
+    // 密码加密
+    encryptPassword(password) {
       const pub = rs.KEYUTIL.getKey(this.publicKey)
-      const encryptData = rs.KJUR.crypto.Cipher.encrypt(this.formInfo.password, pub)
+      const encryptData = rs.KJUR.crypto.Cipher.encrypt(password, pub)
       return rs.hextob64(encryptData)
     },
     // 登录
-    login(formName) {
+    async login(formName) {
       this.$refs[formName].validate(async (valid) => {
         if (valid) {
           console.log('校验通过')
+          const password = this.formInfo.password
+          const data = {
+            username: this.formInfo.username,
+            password: this.encryptPassword(password)
+          }
+          const [err, res] = await login({ data })
+          if (err) return
+          if (res.retCode === 0) {
+            console.log(res.data)
+          } else {
+            this.$message.error('登录失败，' + res.message)
+          }
         } else {
           console.log('error submit!!')
           return false
         }
       })
       console.log('password:', this.encryptPassword())
+    },
+    // 获取登录配置
+    async getConfig() {
+      const [err, res] = await getLoginConfig()
+      if (err) return
+      if (res.retCode === 0) {
+        this.publicKey = res.data.publicKey
+      } else {
+        this.$message.error('获取登录配置失败，' + res.data)
+      }
     }
   }
 }
@@ -126,6 +157,32 @@ export default {
   width: 100%;
   height: 100%;
   background-color: #fafafa;
+  .img-box {
+    width: 800px;
+    position: absolute;
+    top: 50%;
+    left: 200px;
+    transform: translateY(-50%);
+    .img {
+      width: 800px;
+      height: 600px;
+      background-size: cover;
+      border-radius: 10%;
+      box-shadow: 0px 0px 10px #efefef;
+      &.img-1 {
+        background-image: radial-gradient(#ffffff0d, #fafafa), url('@/assets/images/img1.jpg');
+      }
+      &.img-2 {
+        background-image: radial-gradient(#ffffff0d, #fafafa), url('@/assets/images/img2.jpg');
+      }
+      &.img-3 {
+        background-image: radial-gradient(#ffffff0d, #fafafa), url('@/assets/images/img3.jpg');
+      }
+      &.img-4 {
+        background-image: radial-gradient(#ffffff0d, #fafafa), url('@/assets/images/img4.jpg');
+      }
+    }
+  }
   .login-content {
     position: absolute;
     right: 200px;

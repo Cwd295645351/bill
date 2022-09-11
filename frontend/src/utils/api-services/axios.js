@@ -1,15 +1,13 @@
 import axios from 'axios'
-import dayjs from 'dayjs'
-import { Message } from '@/utils/resetMessage'
-import * as dasTools from '@/projects/Common/utils/das.tool'
-import { getTokenByRefreshToken } from '@/projects/Common/api/dasFrame.api'
-
+import { Message } from 'element-ui'
+import { refreshToken } from '@/apis'
+import * as tools from '../tools'
 import { ref } from '@vue/reactivity'
-
 import { watch } from '@vue-reactivity/watch'
 
 const instance = axios.create()
 
+const EXCLUDE_URL = ['/getLoginConfig', '/login'] // 无需进行请求拦截的接口
 let REFRESHING_TOKEN = false // 正在刷新token
 const refreshTokenTime = ref('') // 新token更新时间
 
@@ -17,22 +15,23 @@ const refreshTokenTime = ref('') // 新token更新时间
 function reFreshTokenThenRequest() {
   REFRESHING_TOKEN = true
   return new Promise((resolve, reject) => {
-    getTokenByRefreshToken()
+    refreshToken()
       .then((r) => {
-        if (r.data.retCode === 0) {
+        const res = r.data
+        if (res.retCode === 0) {
           // 更新用户信息和过期时间
-          dasTools.refreshUserInfo(r.data.data)
-          console.log(r.data.data)
-          dasTools.refreshExpireStamp(r.data.data.expiresIn)
+          tools.refreshUserInfo(res.data)
+          console.log(res.data)
+          tools.refreshExpireStamp(res.data.expiresIn)
 
           refreshTokenTime.value = new Date().getTime()
 
           // 重新发送当前请求
         } else {
-          Message.error(r.data.message)
+          Message.error(res.message)
           setTimeout(() => {
-            dasTools.logout()
-          }, 3000)
+            tools.logoutUser()
+          }, 1000)
         }
         resolve()
       })
@@ -40,8 +39,8 @@ function reFreshTokenThenRequest() {
         console.error(err)
         Message.warning('自动更新用户登录信息失败，请重新登录')
         setTimeout(() => {
-          dasTools.logout()
-        }, 3000)
+          tools.logoutUser()
+        }, 1000)
         reject()
       })
       .finally(() => {
@@ -53,6 +52,7 @@ function reFreshTokenThenRequest() {
 // 请求拦截
 instance.interceptors.request.use(
   async (config) => {
+    if (EXCLUDE_URL.includes(config.url)) return config
     if (REFRESHING_TOKEN) {
       // 正在刷新token，等待新token返回
       return new Promise((resolve) => {
@@ -85,23 +85,10 @@ instance.interceptors.request.use(
 
 // 设置请求拦截
 const setRequestConfig = (config) => {
-  const language = 'zh-CN'
-
-  config.headers.utcOffset = Number(dayjs().format('Z').replace(':00', ''))
-  config.headers['Accept-Language'] = language
-  if (
-    config.url === 'http://192.168.100.154:8088/form/dataTemplate/v1/listJson' ||
-    config.url === 'http://192.168.100.154:8088/form/dataTemplate/v1/getBpmDataTemplateInfo?alias=efe54bf8_equipmentReport&needDisplayFileds=false'
-  ) {
-    return config
-  } else {
-    const userInfo = dasTools.getUserInfo()
-    const authorization = userInfo ? `${userInfo.tokenType} ${userInfo.accessToken}` : ''
-    config.headers.Authorization = authorization
-    config.headers['isClient'] = Number(dasTools.checkIsClient())
-    if (!config.headers['projectId']) config.headers['projectId'] = dasTools.getClientSelected().id || ''
-    return config
-  }
+  const userInfo = tools.getUserInfo()
+  const authorization = userInfo ? `bearer ${userInfo.accessToken}` : ''
+  config.headers.Authorization = authorization
+  return config
 }
 
 export default instance

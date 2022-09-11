@@ -12,6 +12,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@vue-reactivity/watch": "^0.2.0",
+    "@vue/reactivity": "^3.2.39",
     "axios": "^0.27.2",
     "dayjs": "^1.11.4",
     "element-ui": "^2.15.9",

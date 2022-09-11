@@ -34,6 +34,18 @@ module.exports = (env) => {
     module: {
       rules: [
         {
+          test: /\.(png|jpg|gif)$/i,
+          type: 'asset',
+          parser: {
+            dataUrlCondition: {
+              maxSize: 25 * 1024
+            }
+          },
+          generator: {
+            filename: 'assets/images/[name]-[hash:6].[ext]'
+          }
+        },
+        {
           test: /\.(sc|c)ss$/,
           use: ['style-loader', 'css-loader', 'postcss-loader', 'sass-loader']
         },
@@ -73,7 +85,6 @@ module.exports = (env) => {
         ]
       })
     ],
-    watch: true,
     watchOptions: {
       aggregateTimeout: 300,
       ignored: '**/node_modules',

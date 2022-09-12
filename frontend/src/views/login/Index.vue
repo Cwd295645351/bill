@@ -89,8 +89,7 @@ export default {
       },
       operationDisabled: true, // 操作按钮禁用状态；先禁用，后续再拓展
       status: 'login', // 当前表单状态：login=登录；register=注册；forget=忘记密码
-      publicKey:
-        '-----BEGIN PUBLIC KEY-----\nMFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAL9FpCebYmJT0cThQcCCRJFGcKVhThPJ\nsWP2kRi+pqSCue4+7oCyLrq7bEVRUoPhP0IDpJMHNHVUeetIGaU0Aa8CAwEAAQ==\n-----END PUBLIC KEY-----\n' // rsa公钥
+      publicKey: '' // rsa公钥
     }
   },
 
@@ -129,6 +128,17 @@ export default {
           if (err) return
           if (res.retCode === 0) {
             console.log(res.data)
+            const data = res.data
+            const expiresAt = new Date().getTime() + data.expiresIn * 1000
+            const userInfo = {
+              ...data.userInfo,
+              accessToken: data.accessToken,
+              refreshToken: data.refreshToken,
+              userId: data.userInfo._id
+            }
+            sessionStorage.setItem('expiresAt', expiresAt)
+            sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
+            this.$router.push('./layout')
           } else {
             this.$message.error('登录失败，' + res.message)
           }
@@ -220,5 +230,10 @@ export default {
       width: 100%;
     }
   }
+}
+</style>
+<style lang="scss">
+.login-page .img-box .el-carousel__container {
+  height: 600px !important;
 }
 </style>

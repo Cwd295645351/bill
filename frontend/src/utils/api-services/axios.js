@@ -23,7 +23,6 @@ function reFreshTokenThenRequest() {
           tools.refreshUserInfo(res.data)
           console.log(res.data)
           tools.refreshExpireStamp(res.data.expiresIn)
-
           refreshTokenTime.value = new Date().getTime()
 
           // 重新发送当前请求

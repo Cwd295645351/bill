@@ -34,6 +34,16 @@ router.post('/login', async (ctx, next) => {
   } else ctx.body = new ResModel(null, err, 'error')
 })
 
+// 登出
+router.post('/logout', async (ctx, next) => {
+  if (ctx.session.userId) {
+    ctx.session = null
+    ctx.body = new ResModel(null, '登出成功')
+  } else {
+    ctx.body = new ResModel(null, '账号已登出', 'error')
+  }
+})
+
 // 刷新token
 router.post('/refreshToken', async (ctx, next) => {
   const { refreshToken } = ctx.request.body

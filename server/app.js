@@ -66,11 +66,11 @@ app.keys = ['fasgag@!65fa']
 app.use(
   session({
     // 配置 cookie
-		cookie: {
-			path: "/",
-			httpOnly: true,
-			maxAge:  24 * 60 * 60 * 1000 // 过期时间24小时
-		},
+    cookie: {
+      path: '/',
+      httpOnly: true,
+      maxAge: 24 * 60 * 60 * 1000 // 过期时间24小时
+    },
     store: redisStore({
       all: `${CONF.REDIS_CONF.host}:${CONF.REDIS_CONF.port}` // redis的地址
     })
@@ -117,7 +117,7 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/common\/login/, /\api\/common\/getLoginConfig/]
+    path: [/\/api\/common\/login/, /\/api\/common\/logout/, /\api\/common\/getLoginConfig/]
   })
 )
 

@@ -147,7 +147,6 @@ export default {
           return false
         }
       })
-      console.log('password:', this.encryptPassword())
     },
     // 获取登录配置
     async getConfig() {

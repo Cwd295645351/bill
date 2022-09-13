@@ -7,18 +7,30 @@
           {{ item.label }}
         </div>
       </div>
-      <el-dropdown class="avatar-container" trigger="click" size="small" @command="handleAvatar">
-        <div class="avatar" :style="{ 'background-image': avatarUrl }"></div>
-        <el-dropdown-menu slot="dropdown">
-          <el-dropdown-item command="logout">退出登录</el-dropdown-item>
-        </el-dropdown-menu>
-      </el-dropdown>
+      <el-popover class="avatar-container" placement="bottom-end" width="240" popper-class="bill-information" trigger="click">
+        <div class="name-line">
+          <div class="avatar" :style="{ 'background-image': avatarUrl }"></div>
+          <div class="nick-name">{{ userInfo.nickName }}</div>
+        </div>
+        <div class="num-line">
+          <div class="item">
+            <div class="num">{{ userInfo.expenses.toFixed(2) }}</div>
+            <div class="label">总支出</div>
+          </div>
+          <div class="item">
+            <div class="num">{{ userInfo.incomes.toFixed(2) }}</div>
+            <div class="label">总收入</div>
+          </div>
+        </div>
+        <div class="updateInfo">修改信息</div>
+        <div class="logout" @click="logout">退出登录</div>
+        <div class="avatar" slot="reference" :style="{ 'background-image': avatarUrl }"></div>
+      </el-popover>
     </header>
   </div>
 </template>
 
 <script>
-import { logout } from '@/apis'
 export default {
   data() {
     return {
@@ -27,14 +39,14 @@ export default {
         { label: '概览', value: 'overview', show: true },
         { label: '记账', value: 'record', show: true }
       ],
-      avatarUrl: '' // 头像
+      avatarUrl: '', // 头像
+      userInfo: {}
     }
   },
 
   created() {
-    const userInfo = this.$tools.getUserInfo()
-    console.log(userInfo.avatarUrl)
-    this.avatarUrl = `url(${userInfo.avatarUrl})`
+    this.userInfo = this.$tools.getUserInfo()
+    this.avatarUrl = `url(${this.userInfo.avatarUrl})`
   },
 
   mounted() {},
@@ -44,11 +56,9 @@ export default {
     changeMenu(tabValue) {
       this.currentMenu = tabValue
     },
-    // 点击头像
-    handleAvatar(command) {
-      if (command === 'logout') {
-        this.$tools.logoutUser()
-      }
+    // 退出登录
+    logout() {
+      this.$tools.logoutUser()
     }
   }
 }
@@ -64,7 +74,6 @@ export default {
     align-items: center;
     font-size: 20px;
     background-color: #f7f7f7;
-    color: #333;
     .title {
       margin-left: 20px;
       font-size: 24px;
@@ -98,6 +107,61 @@ export default {
         box-shadow: 0 0 5px #ddd;
       }
     }
+  }
+}
+</style>
+<style lang="scss">
+.bill-information {
+  width: 200px !important;
+  height: 250px;
+  color: #333;
+  .name-line {
+    display: flex;
+    align-items: center;
+    .avatar {
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      background-size: cover;
+    }
+    .nick-name {
+      flex: 1;
+      margin-left: 10px;
+      font-size: 16px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+  .num-line {
+    display: flex;
+    align-items: center;
+    padding: 20px 0;
+    border-bottom: 1px solid #dddddd80;
+    .item {
+      flex: 1;
+      text-align: center;
+      .num {
+        font-size: 16px;
+      }
+      .label {
+        margin-top: 5px;
+        color: #999;
+        font-size: 12px;
+      }
+    }
+  }
+  .updateInfo,
+  .logout {
+    cursor: pointer;
+    padding: 10px 0;
+    text-align: center;
+    &:hover {
+      background: #eee;
+    }
+  }
+  .updateInfo {
+    border-bottom: 1px solid #dddddd80;
   }
 }
 </style>

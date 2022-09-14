@@ -12,7 +12,20 @@ const viewsRoutes = viewsRouteDoc
   .map((module) => viewsRouteDoc(module).default)
   .flat()
 
-routes.push(...viewsRoutes)
+const childRoutes = viewsRoutes.filter((route) => route.meta?.parent) // 子路由
+const rootRoutes = viewsRoutes.filter((route) => !route.meta?.parent) // 根路由
+
+routes.push(...rootRoutes)
+
+childRoutes.forEach((route) => {
+  const rootRoute = routes.find((item) => item.path === route.meta.parent)
+  if (rootRoute) {
+    if (!rootRoute.children) rootRoute.children = []
+    rootRoute.children.push(route)
+  } else {
+    routes.push(route)
+  }
+})
 
 const router = new VueRouter({ routes })
 

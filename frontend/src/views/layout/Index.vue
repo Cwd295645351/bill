@@ -27,6 +27,7 @@
         <div class="avatar" slot="reference" :style="{ 'background-image': avatarUrl }"></div>
       </el-popover>
     </header>
+    <router-view></router-view>
   </div>
 </template>
 
@@ -83,8 +84,14 @@ export default {
       display: flex;
       align-items: center;
       margin-left: 60px;
+      height: 100%;
       .menu {
+        height: 100%;
+        line-height: 60px;
         cursor: pointer;
+        &:hover {
+          border-bottom: 5px solid rgba(111, 197, 255, 0.5);
+        }
         &.active {
           color: rgb(111, 197, 255);
         }

@@ -4,6 +4,7 @@
       <ol
         class="item"
         :class="{ disabled: item.disabled, active: item.value === currModule }"
+        :style="{ 'background-color': item.color }"
         v-for="item in modules"
         :key="item.value"
         @click="changeModule(item)"
@@ -23,9 +24,10 @@ export default {
     return {
       currModule: 'record',
       modules: [
-        { value: 'record', label: '收支', disabled: false },
-        { value: 'plan', label: '计划', disabled: false },
-        { value: 'budget', label: '预算', disabled: true }
+        { value: 'record', label: '收支', color: '#00C5CD', disabled: false },
+        { value: 'setting', label: '配置', color: '#FF8247', disabled: false },
+        { value: 'plan', label: '计划', color: '#5F9EA0', disabled: false },
+        { value: 'budget', label: '预算', color: '#FFB90F', disabled: true }
       ]
     }
   },
@@ -44,6 +46,26 @@ export default {
 }
 </script>
 <style scoped lang="scss">
+@keyframes active {
+  from {
+    width: 30px;
+    line-height: 30px;
+  }
+  to {
+    width: 60px;
+    line-height: 60px;
+  }
+}
+@keyframes default {
+  from {
+    width: 60px;
+    line-height: 60px;
+  }
+  to {
+    width: 30px;
+    line-height: 30px;
+  }
+}
 .record {
   width: 100%;
   height: calc(100% - 60px);
@@ -65,20 +87,16 @@ export default {
       border: 1px solid #ddd;
       border-radius: 4px 0 0 4px;
       writing-mode: tb-rl;
-
-      &:hover {
-        background-color: rgba(111, 197, 255, 0.5);
-        color: #fff;
-      }
+      color: #fff;
+      animation: default 0.5s;
       &.active {
-        background-color: rgb(111, 197, 255);
-        color: #fff;
+        animation: active 0.5s;
         width: 60px;
         line-height: 60px;
       }
       &.disabled {
         cursor: not-allowed;
-        background-color: #eee;
+        background-color: #eee !important;
         color: #999;
       }
     }

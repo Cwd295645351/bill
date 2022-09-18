@@ -3,7 +3,7 @@
     <header class="header">
       <div class="title">记亿由薪</div>
       <div class="top-menus">
-        <div class="menu" :class="{ active: currentMenu === item.value }" v-for="item in menus" :key="item.value" @click="changeMenu(item.value)">
+        <div class="menu" :class="{ active: currentMenu === item.value }" v-for="item in menus" :key="item.value" @click="changeMenu(item)">
           {{ item.label }}
         </div>
       </div>
@@ -32,13 +32,15 @@
 </template>
 
 <script>
+import { mapActions } from 'vuex'
 export default {
   data() {
     return {
-      currentMenu: 'record', // 当前菜单
+      currentMenu: 'bills', // 当前菜单
       menus: [
-        { label: '概览', value: 'overview', show: true },
-        { label: '记账', value: 'record', show: true }
+        { label: '账本', value: 'bills', route: '/layout/bills', show: true },
+        { label: '概览', value: 'overview', route: '', show: true },
+        { label: '记账', value: 'record', route: '/layout/record', show: true }
       ],
       avatarUrl: '', // 头像
       userInfo: {}
@@ -47,15 +49,25 @@ export default {
 
   created() {
     this.userInfo = this.$tools.getUserInfo()
+    const bills = JSON.parse(sessionStorage.getItem('bills'))
+    this.updateState({ key: 'bills', value: bills })
+    const tabValue = sessionStorage.getItem('tabValue')
+    if (bills.length > 0) {
+      this.currentMenu = tabValue || 'record'
+    }
     this.avatarUrl = `url(${this.userInfo.avatarUrl})`
   },
 
   mounted() {},
 
   methods: {
+    ...mapActions(['updateState']),
     // 切换菜单
-    changeMenu(tabValue) {
-      this.currentMenu = tabValue
+    changeMenu(tab) {
+      if (tab.value === this.currentMenu) return
+      this.currentMenu = tab.value
+      sessionStorage.setItem('tabValue', tab.value)
+      this.$router.push(tab.route)
     },
     // 退出登录
     logout() {

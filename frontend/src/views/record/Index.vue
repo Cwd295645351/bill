@@ -14,25 +14,47 @@
         }}
       </ol>
     </aside>
-    <div class="content">214</div>
+    <div class="content"></div>
   </div>
 </template>
 
 <script>
+import { mapState } from 'vuex'
 export default {
   data() {
     return {
-      currModule: 'record',
+      currModule: 'record', // 当前模块
       modules: [
-        { value: 'record', label: '收支', color: '#00C5CD', disabled: false },
-        { value: 'setting', label: '配置', color: '#FF8247', disabled: false },
-        { value: 'plan', label: '计划', color: '#5F9EA0', disabled: false },
-        { value: 'budget', label: '预算', color: '#FFB90F', disabled: true }
-      ]
+        { value: 'record', label: '收支', color: '#00C5CD', disabled: true },
+        { value: 'plan', label: '计划', color: '#5F9EA0', disabled: true },
+        { value: 'budget', label: '预算', color: '#FFB90F', disabled: true },
+        { value: 'setting', label: '设置', color: '#FF8247', disabled: true }
+      ],
+      billId: '' // 账本id
     }
   },
 
-  created() {},
+  created() {
+    const billId = localStorage.getItem('billId')
+    console.log(this.bills)
+    const bills = this.bills
+
+    // 设置当前账本id
+    if (bills.length > 0) {
+      this.billId = bills.find((item) => item.id === billId) ? billId : bills[0].id
+    }
+
+    if (this.billId) {
+      this.modules.forEach((item) => {
+        item.disabled = false
+      })
+    }
+  },
+  computed: {
+    ...mapState({
+      bills: (state) => state.bills // 账本数组
+    })
+  },
 
   mounted() {},
 
@@ -71,6 +93,7 @@ export default {
   height: calc(100% - 60px);
   padding: 60px 0;
   display: flex;
+  background-color: #96d59ef7;
   justify-content: center;
   .operate-group {
     height: 100%;
@@ -104,7 +127,8 @@ export default {
   .content {
     width: 1200px;
     height: 100%;
-    box-shadow: 0 0 10px #ddd;
+    box-shadow: 0 0 2px #ddd;
+    background-color: #fff;
   }
 }
 </style>

@@ -138,6 +138,7 @@ export default {
             }
             sessionStorage.setItem('expiresAt', expiresAt)
             sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
+            sessionStorage.setItem('bills', JSON.stringify(userInfo.bills))
             this.$router.push('/layout/record')
           } else {
             this.$message.error('登录失败，' + res.message)

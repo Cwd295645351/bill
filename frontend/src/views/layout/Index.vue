@@ -1,7 +1,7 @@
 <template>
   <div class="bill-layout-container">
     <header class="header">
-      <div class="title">记亿由薪</div>
+      <div class="title" @click="backToBills">记亿由薪</div>
       <div class="top-menus">
         <div class="menu" :class="{ active: currentMenu === item.value }" v-for="item in menus" :key="item.value" @click="changeMenu(item)">
           {{ item.label }}
@@ -32,33 +32,51 @@
 </template>
 
 <script>
-import { mapActions } from 'vuex'
+import { mapActions, mapState } from 'vuex'
 export default {
   data() {
     return {
       currentMenu: 'bills', // 当前菜单
-      menus: [
-        { label: '账本', value: 'bills', route: '/layout/bills', show: true },
-        { label: '概览', value: 'overview', route: '', show: true },
-        { label: '记账', value: 'record', route: '/layout/record', show: true }
+      billsMenu: [{ label: '账本', value: 'bills', route: '/layout/bills' }],
+      recordMenu: [
+        { label: '记账', value: 'record', route: '/layout/record' },
+        { label: '概览', value: 'overview', route: '' },
+        { label: '计划', value: 'plan', route: '/layout/record' },
+        { label: '预算', value: 'budget', route: '/layout/record' },
+        { label: '设置', value: 'setting', route: '/layout/record' }
       ],
+      menus: [{ label: '账本', value: 'bills', route: '/layout/bills' }],
       avatarUrl: '', // 头像
       userInfo: {}
     }
   },
 
   created() {
-    this.userInfo = this.$tools.getUserInfo()
     const bills = JSON.parse(sessionStorage.getItem('bills'))
+    const bill = JSON.parse(sessionStorage.getItem('bill'))
+    this.currentMenu = sessionStorage.getItem('tabValue') || 'bills'
+    this.userInfo = this.$tools.getUserInfo()
     this.updateState({ key: 'bills', value: bills })
-    const tabValue = sessionStorage.getItem('tabValue')
-    if (bills.length > 0) {
-      this.currentMenu = tabValue || 'record'
+    if (bill) {
+      this.updateState({ key: 'bill', value: bill })
     }
     this.avatarUrl = `url(${this.userInfo.avatarUrl})`
   },
 
   mounted() {},
+  computed: {
+    ...mapState({
+      bill: (state) => state.bill
+    })
+  },
+  watch: {
+    bill: {
+      handler(bill) {
+        this.menus = bill ? this.recordMenu : this.billsMenu
+        this.currentMenu = sessionStorage.getItem('tabValue')
+      }
+    }
+  },
 
   methods: {
     ...mapActions(['updateState']),
@@ -68,6 +86,14 @@ export default {
       this.currentMenu = tab.value
       sessionStorage.setItem('tabValue', tab.value)
       this.$router.push(tab.route)
+    },
+    // 返回账本页
+    backToBills() {
+      if (this.$route.path === '/layout/bills') return
+      this.updateState({ key: 'bill', value: null })
+      sessionStorage.setItem('bill', null)
+      sessionStorage.setItem('tabValue', 'bills')
+      this.$router.push('/layout/bills')
     },
     // 退出登录
     logout() {
@@ -91,6 +117,10 @@ export default {
       margin-left: 20px;
       font-size: 24px;
       font-weight: bold;
+      cursor: pointer;
+      &:hover {
+        color: rgb(111, 197, 255);
+      }
     }
     .top-menus {
       display: flex;
@@ -108,7 +138,7 @@ export default {
           color: rgb(111, 197, 255);
         }
         & + .menu {
-          margin-left: 20px;
+          margin-left: 40px;
         }
       }
     }

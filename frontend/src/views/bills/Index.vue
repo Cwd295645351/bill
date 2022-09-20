@@ -1,11 +1,17 @@
 <template>
   <div class="bills">
-    <div class="bill" v-for="item in bills" :key="item.id">{{ item.name }}</div>
+    <div class="bill" v-for="item in bills" :key="item.id">
+      <div class="modal">
+        <i class="item el-icon-view" @click="showDetail(item)"></i>
+        <i class="item el-icon-delete" @click="showDelete(item)"></i>
+      </div>
+      {{ item.name }}
+    </div>
   </div>
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapState, mapActions } from 'vuex'
 export default {
   data() {
     return {}
@@ -20,7 +26,20 @@ export default {
 
   mounted() {},
 
-  methods: {}
+  methods: {
+    ...mapActions(['updateState']),
+    // 进入账本
+    showDetail(item) {
+      sessionStorage.setItem('tabValue', 'record')
+      sessionStorage.setItem('bill', JSON.stringify(item))
+      this.updateState({ key: 'bill', value: item })
+      this.$router.push('/layout/record')
+    },
+    // 删除账本
+    showDelete(item) {
+      console.log('删除账本', item)
+    }
+  }
 }
 </script>
 <style scoped lang="scss">
@@ -33,8 +52,9 @@ export default {
   align-content: flex-start;
   flex-wrap: wrap;
   .bill {
-    width: 150px;
-    height: 200px;
+    position: relative;
+    width: 200px;
+    height: 150px;
     color: #fff;
     padding: 10px;
     margin-right: 20px;
@@ -45,6 +65,31 @@ export default {
     background-color: #95c7df;
     border-radius: 4px;
     cursor: pointer;
+    .modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      visibility: hidden;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      .item {
+        &:hover {
+          color: rgba(111, 197, 255, 0.5);
+        }
+        & + .item {
+          margin-left: 10px;
+        }
+      }
+    }
+    &:hover {
+      .modal {
+        visibility: visible;
+      }
+    }
   }
 }
 </style>

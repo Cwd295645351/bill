@@ -10,7 +10,8 @@ Vue.use(Vuex)
 const store = new Vuex.Store({
   state: () => {
     return {
-      bills: [] // 账本数组
+      bills: [], // 账本数组
+      bill: null // 当前账本对象
     }
   },
   mutations: {

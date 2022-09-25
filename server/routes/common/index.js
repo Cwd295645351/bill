@@ -36,7 +36,7 @@ router.post('/login', async (ctx, next) => {
 
 // 登出
 router.post('/logout', async (ctx, next) => {
-  if (ctx.session.userId) {
+  if (ctx.header.userid) {
     ctx.session = null
     ctx.body = new ResModel(null, '登出成功')
   } else {
@@ -51,13 +51,13 @@ router.post('/refreshToken', async (ctx, next) => {
   if (refreshToken && ctx.session.refreshToken === refreshToken) {
     // 当前用户已登录，刷新token
     // jwt生成token
-    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: ctx.session.userId })
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: ctx.header.userid })
     ctx.session.refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: EXPIRES_TIME,
-      userId: ctx.session.userId
+      userId: ctx.header.userid
     }
 
     ctx.body = new ResModel(retData, '刷新成功')

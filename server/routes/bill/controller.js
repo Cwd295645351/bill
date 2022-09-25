@@ -4,6 +4,14 @@ import mongoose from '../../database/index'
 import { encode, decode } from '../../utils/cryp'
 import * as InitData from '../../database/initDatas'
 
+// 查询账本列表
+export const getBillList = async ({ userId }) => {
+  const params = { _id: mongoose.Types.ObjectId(userId), isDel: false }
+  const res = await User.findOne(params, { bills: 1 })
+  if (!res) return ['该用户不存在', null]
+  else return [null, res.bills]
+}
+
 // 创建账本
 export const createBill = async ({ userId, name }) => {
   const findData = { name: name, creator: userId }
@@ -45,7 +53,7 @@ export const editBill = async ({ id, name }) => {
 export const delBill = async ({ userId, id }) => {
   const params = { _id: mongoose.Types.ObjectId(id), creator: userId, isDel: false }
   const billRes = await Bill.findOneAndUpdate(params, { isDel: true }, { new: true })
-  if (!billRes) return ['找不到该账本', null]
+  if (!billRes) return ['找不到该账本或您非该账本的创建者', null]
 
   // 删除账本成功，还需要从用户表删除对应账本id
   const userParams = { _id: mongoose.Types.ObjectId(userId), isDel: false }

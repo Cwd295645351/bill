@@ -76,7 +76,6 @@ export const login = async (username, password) => {
         expenses: 1
       }
     )
-    console.log(res);
     if (res) {
       
       return [null, res]

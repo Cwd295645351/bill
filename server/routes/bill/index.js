@@ -6,6 +6,13 @@ import * as BILL from './controller'
 const router = koaRouter({ prefix: '/api/bill' })
 const name_reg = /^[\u4E00-\u9FA5A-Za-z0-9_]{3,10}$/ // 账本名称校验
 
+router.get('/list', async (ctx, next) => {
+  const userId = ctx.header.userid
+  const [err, res] = await BILL.getBillList({ userId })
+  if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
 // 新增账本
 router.post('/create', async (ctx, next) => {
   const data = ctx.request.body
@@ -15,7 +22,7 @@ router.post('/create', async (ctx, next) => {
     ctx.body = new ResModel(null, '账本名称不符合规范', 'error')
     return
   }
-  const userId = ctx.session.userId
+  const userId = ctx.header.userid
   const [err, res] = await BILL.createBill({ name, userId })
   if (res) ctx.body = new ResModel(res, '创建成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -44,7 +51,7 @@ router.post('/delete', async (ctx, next) => {
   const data = ctx.request.body
   xssData(data)
   const id = data.id
-  const userId = ctx.session.userId
+  const userId = ctx.header.userid
   if (id === null || id === undefined || id === '') {
     ctx.body = new ResModel(null, 'id不能为空', 'error')
     return
@@ -63,7 +70,7 @@ router.get('/detail', async (ctx, next) => {
     ctx.body = new ResModel(null, 'id不能为空')
     return
   }
-  const userId = ctx.session.userId
+  const userId = ctx.header.userid
   const [err, res] = await BILL.getBillDetail({ id, userId })
   if (res) ctx.body = new ResModel(res, '查看成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -78,7 +85,7 @@ router.post('/invite', async (ctx, next) => {
     ctx.body = new ResModel(null, 'id不能为空', 'error')
     return
   }
-  const [err, res] = await BILL.invite({ id, userId: ctx.session.userId })
+  const [err, res] = await BILL.invite({ id, userId: ctx.header.userid })
   if (res) ctx.body = new ResModel(res, '生成邀请码成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -92,7 +99,7 @@ router.post('/join', async (ctx, next) => {
     ctx.body = new ResModel(null, '邀请码不能为空', 'error')
     return
   }
-  const userId = ctx.session.userId
+  const userId = ctx.header.userid
   const [err, res] = await BILL.joinBill({ userId, code })
   if (res) ctx.body = new ResModel(res, '加入账本成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -110,7 +117,7 @@ router.post('/quit', async (ctx, next) => {
   } else if (userId === null || userId === undefined || userId === '') {
     ctx.body = new ResModel(null, 'userId不能为空', 'error')
     return
-  } else if (userId === ctx.session.userId) {
+  } else if (userId === ctx.header.userid) {
     // 退出账本
     const [err, res] = await BILL.quitBill({ userId, id })
     console.log(err, res)

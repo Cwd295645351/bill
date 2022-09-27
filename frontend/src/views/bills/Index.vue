@@ -3,6 +3,7 @@
     <div class="bill" v-for="item in bills" :key="item.id">
       <div class="modal">
         <i class="item el-icon-view" @click="showDetail(item)"></i>
+        <i class="item el-icon-share" @click="shareBill(item)"></i>
         <i class="item el-icon-delete" @click="showDeleteDialog(item)"></i>
       </div>
       {{ item.name }}
@@ -26,21 +27,29 @@
         <el-button :disabled="dialogLoading" @click="deleteBillDialog = false">取消</el-button>
       </div>
     </el-dialog>
+    <el-dialog title="分享码已生成，时长为30分钟" custom-class="delete-bill-dialog" :visible.sync="shareBillDialog">
+      <div style="color: #999">分享码：{{ shareCode }}</div>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="shareBillDialog = false">确定</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
-import { createBill, getBillList, deleteBill } from './api'
+import { createBill, getBillList, deleteBill, shareBill } from './api'
 import { mapState, mapActions } from 'vuex'
 export default {
   data() {
     return {
       addBillDialog: false, // 新增账本弹窗
       deleteBillDialog: false, // 删除账本弹窗
+      shareBillDialog: false, // 分享账本弹窗
       dialogLoading: false,
       bills: [], // 账本列表
       form: { name: '' },
       operateBill: null, // 当前操作的账本
+      shareCode: '', // 分享码
       rules: {
         name: [
           {
@@ -68,6 +77,21 @@ export default {
   },
 
   mounted() {},
+  computed: {
+    ...mapState({
+      updateBill: (state) => state.updateBill
+    })
+  },
+  watch: {
+    updateBill: {
+      handler(val) {
+        if (val) {
+          this.getBillList()
+          this.updateState({ key: 'updateBill', value: false })
+        }
+      }
+    }
+  },
 
   methods: {
     ...mapActions(['updateState']),
@@ -133,6 +157,18 @@ export default {
         this.getBillList()
       } else {
         this.$message.error('删除账本失败，' + res.message)
+      }
+    },
+    // 分享账本
+    async shareBill(item) {
+      const data = { id: item.id }
+      const [err, res] = await shareBill({ data })
+      if (err) return
+      if (res.retCode === 0) {
+        this.shareCode = res.data
+        this.shareBillDialog = true
+      } else {
+        this.$message.error('生成分享码失败，' + res.message)
       }
     }
   }

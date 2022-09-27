@@ -11,7 +11,8 @@ const store = new Vuex.Store({
   state: () => {
     return {
       bills: [], // 账本数组
-      bill: null // 当前账本对象
+      bill: null, // 当前账本对象
+      updateBill: false // 账本已更新
     }
   },
   mutations: {

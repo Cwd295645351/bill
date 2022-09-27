@@ -22,21 +22,55 @@
             <div class="label">总收入</div>
           </div>
         </div>
-        <div class="updateInfo">修改信息</div>
+        <div class="updateInfo" @click="showJoinBillDialog">加入账本</div>
         <div class="logout" @click="logout">退出登录</div>
         <div class="avatar" slot="reference" :style="{ 'background-image': avatarUrl }"></div>
       </el-popover>
     </header>
     <router-view></router-view>
+    <el-dialog title="加入账本" custom-class="join-bill-dialog" :visible.sync="joinBillDialog">
+      <el-form ref="joinForm" :model="form" :rules="rules">
+        <el-form-item label="账本名称" label-width="70px" prop="name" style="margin-bottom: 0">
+          <el-input v-model="form.name" autocomplete="off"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button :loading="dialogLoading" type="primary" @click="joinBill">确定</el-button>
+        <el-button :disabled="dialogLoading" @click="joinBillDialog = false">取消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
+import { joinBill } from './api'
 import { mapActions, mapState } from 'vuex'
 export default {
   data() {
     return {
+      joinBillDialog: false, // 加入账本弹窗
+      dialogLoading: false,
+      form: { name: '' },
       currentMenu: 'bills', // 当前菜单
+      rules: {
+        name: [
+          {
+            validator: (rule, value, callback) => {
+              console.log(value)
+              if (!value) {
+                return callback(new Error('请输入分享码'))
+              }
+              const reg = /^[A-Za-z0-9]{96}$/
+              if (reg.test(value)) {
+                callback()
+              } else {
+                callback(new Error('分享码只包括英文、数字，长度为96位'))
+              }
+            },
+            trigger: 'blur'
+          }
+        ]
+      },
       billsMenu: [{ label: '账本', value: 'bills', route: '/layout/bills' }],
       recordMenu: [
         { label: '记账', value: 'record', route: '/layout/record' },
@@ -98,6 +132,29 @@ export default {
     // 退出登录
     logout() {
       this.$tools.logoutUser()
+    },
+    showJoinBillDialog() {
+      this.joinBillDialog = true
+      this.form.name = ''
+    },
+    // 加入账本
+    async joinBill() {
+      this.$refs.joinForm.validate(async (valid) => {
+        if (valid) {
+          const data = { code: this.form.name }
+          this.dialogLoading = true
+          const [err, res] = await joinBill({ data })
+          this.joinBillDialog = false
+          this.dialogLoading = false
+          if (err) return
+          if (res.retCode === 0) {
+            this.$message.success('加入账本成功')
+            this.updateState({ key: 'updateBill', value: true })
+          } else {
+            this.$message.error('加入账本失败，' + res.message)
+          }
+        }
+      })
     }
   }
 }
@@ -212,5 +269,10 @@ export default {
   .updateInfo {
     border-bottom: 1px solid #dddddd80;
   }
+}
+</style>
+<style lang="scss">
+.join-bill-dialog {
+  width: 380px;
 }
 </style>

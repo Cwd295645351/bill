@@ -6,10 +6,9 @@ import * as InitData from '../../database/initDatas'
 
 // 查询账本列表
 export const getBillList = async ({ userId }) => {
-  const params = { _id: mongoose.Types.ObjectId(userId), isDel: false }
-  const res = await User.findOne(params, { bills: 1 })
-  if (!res) return ['该用户不存在', null]
-  else return [null, res.bills]
+  const params = { users: { $in: [userId] }, isDel: false }
+  const res = await Bill.find(params, { creator: 1, name: 1 })
+  return [null, res]
 }
 
 // 创建账本

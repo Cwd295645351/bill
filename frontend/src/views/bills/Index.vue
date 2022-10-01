@@ -3,8 +3,8 @@
     <div class="bill" v-for="item in bills" :key="item.id">
       <div class="modal">
         <i class="item el-icon-view" @click="showDetail(item)"></i>
-        <i class="item el-icon-share" @click="shareBill(item)"></i>
-        <i class="item el-icon-delete" @click="showDeleteDialog(item)"></i>
+        <i v-if="item.creator === userInfo.userId" class="item el-icon-share" @click="shareBill(item)"></i>
+        <i v-if="item.creator === userInfo.userId" class="item el-icon-delete" @click="showDeleteDialog(item)"></i>
       </div>
       {{ item.name }}
     </div>
@@ -68,11 +68,13 @@ export default {
             trigger: 'blur'
           }
         ]
-      }
+      },
+      userInfo: {}, // 用户信息
     }
   },
 
   created() {
+    this.userInfo = this.$tools.getUserInfo()
     this.getBillList()
   },
 
@@ -117,7 +119,10 @@ export default {
       const [err, res] = await getBillList()
       if (err) return
       if (res.retCode === 0) {
-        this.bills = res.data
+        this.bills = res.data.map((item) => {
+          item.id = item._id
+          return item
+        })
       } else {
         this.$message.error('获取账本列表失败，' + res.message)
       }

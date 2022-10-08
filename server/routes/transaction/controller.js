@@ -33,8 +33,9 @@ export const getList = async (data) => {
   else return ['查询失败', res]
 }
 
+// 新增交易信息
 export const addTransaction = async (data) => {
-  const findBill = await Bill.findOne({ billId: data.billId }, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
+  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = {
     billId: data.billId,
@@ -56,10 +57,10 @@ export const addTransaction = async (data) => {
       params.payMethodId = payMethod.id
       params.payMethodName = payMethod.name
     }
-    params.reimbursement = params.reimbursement
+    params.reimbursement = data.reimbursement
   } else {
     if (data.incomesTypeId) {
-      const incomes = findBill.incomesTypes.find((item) => item.id === data.payMethodId)
+      const incomes = findBill.incomesTypes.find((item) => item.id === data.incomesTypeId)
       params.incomesTypeId = incomes.id
       params.incomesTypeName = incomes.name
     }
@@ -68,8 +69,9 @@ export const addTransaction = async (data) => {
   const res = await Transaction.create(params)
   if (!res) return ['新增失败', null]
 
-  // 支出明细创建成功后，需向账本表的预算新增数据，并需要增加用户表的总支出或总收入
+  // 需要增加用户表的总支出或总收入
   if (params.type === 1) {
+    // 支出交易明细创建成功后，需向账本表的预算新增数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
     const budgetDetail = budget.details.find((item) => item.costTypeId === data.costTypeId)
@@ -77,7 +79,7 @@ export const addTransaction = async (data) => {
       budget.currCost += data.money
       budgetDetail.cost += data.money
     }
-    const updateBillRes = await Bill.findOneAndUpdate({ billId: data.billId }, { budget: budget }, { new: true })
+    const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
     const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { expenses: data.money } })
     if (updateUserRes && updateBillRes) {
       return [null, true]
@@ -86,6 +88,66 @@ export const addTransaction = async (data) => {
     }
   } else {
     const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { incomes: data.money } })
+    if (updateUserRes) return [null, true]
+    else return ['新增失败', null]
+  }
+}
+
+// 编辑交易信息
+export const editTransaction = async (data) => {
+  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
+  if (!findBill) return ['未找到账本', null]
+  const params = { id: mongoose.Types.ObjectId(data.id), isDel: false }
+  const changeData = {
+    date: data.date,
+    remark: data.remark,
+    money: data.money,
+    type: data.type
+  }
+  if (data.type === 1) {
+    if (data.costTypeId) {
+      const costType = findBill.costTypes.find((item) => item.id === data.costTypeId)
+      changeData.costTypeId = costType.id
+      changeData.costTypeName = costType.name
+    }
+    if (data.payMethodId) {
+      const payMethod = findBill.payMethods.find((item) => item.id === data.payMethodId)
+      changeData.payMethodId = payMethod.id
+      changeData.payMethodName = payMethod.name
+    }
+    changeData.reimbursement = data.reimbursement
+  } else {
+    if (data.incomesTypeId) {
+      const incomes = findBill.incomesTypes.find((item) => item.id === data.incomesTypeId)
+      changeData.incomesTypeId = incomes.id
+      changeData.incomesTypeName = incomes.name
+    }
+  }
+
+  const res = await Transaction.findOneAndUpdate(params, changeData)
+  if (!res) return ['编辑失败', null]
+
+  const differenceMoney = data.money - res.money // 编辑后的金额差
+
+  // 支出交易明细创编辑成功后，需向账本表的预算新增数据，并需要增加用户表的总支出或总收入
+  if (data.type === 1) {
+    // 支出交易明细编辑成功后，需向账本表的预算更改数据
+    const budget = findBill.budget
+    // 若有对应预算，对增加对应预算分项的支出金额
+    const budgetDetail = budget.details.find((item) => item.costTypeId === data.costTypeId)
+    if (budgetDetail) {
+      budget.currCost += differenceMoney
+      budgetDetail.cost += differenceMoney
+    }
+    const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
+    const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { expenses: differenceMoney } })
+    if (updateUserRes && updateBillRes) {
+      return [null, true]
+    } else {
+      return ['编辑失败', null]
+    }
+  } else {
+    const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { incomes: differenceMoney } })
     if (updateUserRes) return [null, true]
     else return ['新增失败', null]
   }

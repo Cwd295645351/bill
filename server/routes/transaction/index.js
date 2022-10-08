@@ -43,19 +43,17 @@ router.get('/list', async (ctx, next) => {
 router.post('/add', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
+  const { date, money, type, billId } = data
   data.userId = userId
   xssData(data)
-  if (!data.billId) {
-    ctx.body = new ResModel(null, '账本id不能为空', 'error')
-  }
-  if (!userId) {
-    ctx.body = new ResModel(null, 'userId不能为空', 'error')
-  }
-  if (!date) {
-    ctx.body = new ResModel(null, '记账时间不能为空', 'error')
-  }
+  if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
+  if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
+  if (!date) ctx.body = new ResModel(null, '记账时间不能为空', 'error')
+  if (!money) ctx.body = new ResModel(null, '金额不能为空', 'error')
+  if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
+
   const [err, res] = await Transaction.addTransaction(data)
-  if (res) ctx.body = new ResModel(null, '创建成功')
+  if (res) ctx.body = new ResModel(null, '新增成功')
   else ctx.body = new ResModel(null, err, 'error')
   ctx.body = {
     data: '新增成功'

@@ -28,7 +28,7 @@ const transactionSchema = mongoose.Schema({
   incomesTypeName: { type: String, required: false }, // 收入类型名称
   remark: { type: String, required: false }, // 备注
   money: { type: Number, required: true, default: 0 }, // 金额
-  isDel: { type: String, required: true } // 是否删除
+  isDel: { type: Boolean, required: true, default: false } // 是否删除
 })
 
 // 使格式化时间能输出

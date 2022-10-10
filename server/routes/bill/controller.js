@@ -1,5 +1,4 @@
 import Bill from '../../database/modules/Bills'
-import User from '../../database/modules/User'
 import mongoose from '../../database/index'
 import { encode, decode } from '../../utils/cryp'
 import * as InitData from '../../database/initDatas'

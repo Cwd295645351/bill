@@ -1,13 +1,14 @@
 import Transaction from '../../database/modules/Transaction'
 import Bill from '../../database/modules/Bills'
 import User from '../../database/modules/User'
+import mongoose from '../../database/index'
 
 // 查询列表
 export const getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
-    idDel: false
+    isDel: false
   }
   if (params.beginDate && params.endDate) {
     params.date = {
@@ -28,7 +29,7 @@ export const getList = async (data) => {
   if (params.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
   if (params.userId) params.userId = { $in: data.userId } // 记账人
 
-  const res = Transaction.find(params)
+  const res = await Transaction.find(params)
   if (res) return [null, res]
   else return ['查询失败', res]
 }
@@ -97,7 +98,7 @@ export const addTransaction = async (data) => {
 export const editTransaction = async (data) => {
   const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
-  const params = { id: mongoose.Types.ObjectId(data.id), isDel: false }
+  const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
   const changeData = {
     date: data.date,
     remark: data.remark,
@@ -149,6 +150,40 @@ export const editTransaction = async (data) => {
   } else {
     const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { incomes: differenceMoney } })
     if (updateUserRes) return [null, true]
-    else return ['新增失败', null]
+    else return ['编辑失败', null]
+  }
+}
+
+// 删除交易信息
+export const deleteTransaction = async (data) => {
+  const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
+  const res = await Transaction.findOneAndUpdate(params, { isDel: true }, { new: true })
+  console.log(params, res, '================')
+  if (!res) return ['该明细不存在', null]
+
+  const findBill = await Bill.findById(res.billId, { budget: 1 })
+  if (!findBill) return ['未找到账本', null]
+
+  // 支出交易明细创删除成功后，需向账本表的预算删除数据，并需要减少用户表的总支出或总收入
+  if (res.type === 1) {
+    // 支出交易明细删除成功后，需向账本表的预算更改数据
+    const budget = findBill.budget
+    // 若有对应预算，对增加对应预算分项的支出金额
+    const budgetDetail = budget.details.find((item) => item.costTypeId === res.costTypeId)
+    if (budgetDetail) {
+      budget.currCost -= res.money
+      budgetDetail.cost -= res.money
+    }
+    const updateBillRes = await Bill.findByIdAndUpdate(res.billId, { budget: budget }, { new: true })
+    const updateUserRes = await User.findByIdAndUpdate(res.userId, { $inc: { expenses: 0 - res.money } })
+    if (updateUserRes && updateBillRes) {
+      return [null, true]
+    } else {
+      return ['删除失败', null]
+    }
+  } else {
+    const updateUserRes = await User.findByIdAndUpdate(res.userId, { $inc: { incomes: 0 - res.money } })
+    if (updateUserRes) return [null, true]
+    else return ['删除失败', null]
   }
 }

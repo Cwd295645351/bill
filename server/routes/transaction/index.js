@@ -1,22 +1,23 @@
 import koaRouter from 'koa-router'
 import * as Transaction from './controller'
 import { ResModel } from '../../model/resModel'
+import { xssData } from '../../utils/xss'
 
 const router = koaRouter({ prefix: '/api/transaction' })
 const dateReg = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/gi
 
 // 交易明细(可根据周/月/年进行查询)
 router.get('/list', async (ctx, next) => {
-  const data = ctx.request.body
+  const data = ctx.query
   const { beginDate, endDate, pageIndex, pageSize, type } = data
-  if (beginDate != '' && beginDate != undefined) {
+  if (beginDate) {
     if (dateReg.test(beginDate) == false) {
       ctx.body = new ResModel(null, '开始时间不规范', 'error')
       return
     }
     data.beginDate = new Date(beginDate)
   }
-  if (endDate != '' && endDate != undefined) {
+  if (endDate) {
     if (dateReg.test(endDate) == false) {
       ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
       return
@@ -35,7 +36,7 @@ router.get('/list', async (ctx, next) => {
   }
 
   const [err, res] = await Transaction.getList(data)
-  if (res) ctx.body = new ResModel(null, '查找成功')
+  if (res) ctx.body = new ResModel(res, '查找成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
 
@@ -43,34 +44,50 @@ router.get('/list', async (ctx, next) => {
 router.post('/add', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
-  const { date, money, type, billId } = data
   data.userId = userId
   xssData(data)
+  const { date, money, type, billId } = data
   if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
-  if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
-  if (!date) ctx.body = new ResModel(null, '记账时间不能为空', 'error')
-  if (!money) ctx.body = new ResModel(null, '金额不能为空', 'error')
-  if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
-
-  const [err, res] = await Transaction.addTransaction(data)
-  if (res) ctx.body = new ResModel(null, '新增成功')
-  else ctx.body = new ResModel(null, err, 'error')
-  ctx.body = {
-    data: '新增成功'
+  else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
+  else if (!date) ctx.body = new ResModel(null, '记账时间不能为空', 'error')
+  else if (!money) ctx.body = new ResModel(null, '金额不能为空', 'error')
+  else if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
+  else {
+    const [err, res] = await Transaction.addTransaction(data)
+    if (res) ctx.body = new ResModel(null, '新增成功')
+    else ctx.body = new ResModel(null, err, 'error')
   }
 })
 
 // 编辑交易
 router.post('/edit', async (ctx, next) => {
-  ctx.body = {
-    data: '编辑成功'
+  const data = ctx.request.body
+  const userId = ctx.header.userid
+  data.userId = userId
+  xssData(data)
+  const { date, money, type, id, billId } = data
+  if (!id) ctx.body = new ResModel(null, 'id不能为空', 'error')
+  else if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
+  else if (!date) ctx.body = new ResModel(null, '记账时间不能为空', 'error')
+  else if (!money) ctx.body = new ResModel(null, '金额不能为空', 'error')
+  else if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
+  else {
+    const [err, res] = await Transaction.editTransaction(data)
+    if (res) ctx.body = new ResModel(null, '编辑成功')
+    else ctx.body = new ResModel(null, err, 'error')
   }
 })
 
 // 删除交易
 router.post('/delete', async (ctx, next) => {
-  ctx.body = {
-    data: '删除成功'
+  const data = ctx.request.body
+  xssData(data)
+  const { id } = data
+  if (!id) ctx.body = new ResModel(null, 'id不能为空', 'error')
+  else {
+    const [err, res] = await Transaction.deleteTransaction(data)
+    if (res) ctx.body = new ResModel(null, '删除成功')
+    else ctx.body = new ResModel(null, err, 'error')
   }
 })
 

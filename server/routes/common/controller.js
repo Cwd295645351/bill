@@ -71,7 +71,6 @@ export const login = async (username, password) => {
       {
         nickName: 1,
         avatarUrl: 1,
-        bills: 1,
         incomes: 1,
         expenses: 1
       }

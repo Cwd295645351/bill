@@ -181,7 +181,7 @@ export default {
 </script>
 <style scoped lang="scss">
 .bills {
-  height: 100%;
+  height: calc(100% - 60px);
   width: 100%;
   padding: 20px 0 0 20px;
   display: flex;

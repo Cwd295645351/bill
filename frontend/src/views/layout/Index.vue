@@ -43,7 +43,7 @@
 </template>
 
 <script>
-import { joinBill } from './api'
+import { joinBill, getBillInfo } from './api'
 import { mapActions, mapState } from 'vuex'
 export default {
   data() {
@@ -81,18 +81,16 @@ export default {
       ],
       menus: [{ label: '账本', value: 'bills', route: '/layout/bills' }],
       avatarUrl: '', // 头像
-      userInfo: {}
+      userInfo: { nickName: '', expenses: 0, incomes: 0 }
     }
   },
 
   created() {
-    const bills = JSON.parse(sessionStorage.getItem('bills'))
-    const bill = JSON.parse(sessionStorage.getItem('bill'))
+    const billId = sessionStorage.getItem('billId')
     this.currentMenu = sessionStorage.getItem('tabValue') || 'bills'
     this.userInfo = this.$tools.getUserInfo()
-    this.updateState({ key: 'bills', value: bills })
-    if (bill) {
-      this.updateState({ key: 'bill', value: bill })
+    if (billId) {
+      this.updateState({ key: 'billId', value: billId })
     }
     this.avatarUrl = `url(${this.userInfo.avatarUrl})`
   },
@@ -100,14 +98,20 @@ export default {
   mounted() {},
   computed: {
     ...mapState({
+      billId: (state) => state.billId,
       bill: (state) => state.bill
     })
   },
   watch: {
-    bill: {
-      handler(bill) {
-        this.menus = bill ? this.recordMenu : this.billsMenu
+    billId: {
+      handler(billId) {
+        this.menus = billId ? this.recordMenu : this.billsMenu
         this.currentMenu = sessionStorage.getItem('tabValue')
+
+        if (billId) {
+          console.log(billId, typeof billId)
+          this.getBillInfo(billId)
+        }
       }
     }
   },
@@ -124,8 +128,8 @@ export default {
     // 返回账本页
     backToBills() {
       if (this.$route.path === '/layout/bills') return
-      this.updateState({ key: 'bill', value: null })
-      sessionStorage.setItem('bill', null)
+      this.updateState({ key: 'billId', value: '' })
+      sessionStorage.setItem('billId', '')
       sessionStorage.setItem('tabValue', 'bills')
       this.$router.push('/layout/bills')
     },
@@ -155,6 +159,13 @@ export default {
           }
         }
       })
+    },
+
+    async getBillInfo(billId) {
+      const params = { id: billId }
+      const [err, res] = await getBillInfo({ params })
+      if (err) return
+      this.updateState({ key: 'bill', value: res.data })
     }
   }
 }

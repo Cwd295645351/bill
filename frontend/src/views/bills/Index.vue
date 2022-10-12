@@ -69,7 +69,7 @@ export default {
           }
         ]
       },
-      userInfo: {}, // 用户信息
+      userInfo: {} // 用户信息
     }
   },
 
@@ -98,10 +98,12 @@ export default {
   methods: {
     ...mapActions(['updateState']),
     // 进入账本
-    showDetail(item) {
+    async showDetail(item) {
+      sessionStorage.setItem('billId', item._id)
       sessionStorage.setItem('tabValue', 'record')
-      sessionStorage.setItem('bill', JSON.stringify(item))
-      this.updateState({ key: 'bill', value: item })
+      sessionStorage.setItem('billId', item._id)
+      this.updateState({ key: 'billId', value: item._id })
+
       this.$router.push('/layout/record')
     },
     // 显示新增账本弹窗
@@ -132,9 +134,7 @@ export default {
       this.$refs.addForm.validate(async (valid) => {
         console.log(valid)
         if (valid) {
-          const data = {
-            name: this.form.name
-          }
+          const data = { name: this.form.name }
           this.dialogLoading = true
           const [err, res] = await createBill({ data })
           this.dialogLoading = false

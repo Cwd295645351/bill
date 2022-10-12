@@ -88,6 +88,7 @@ const setRequestConfig = (config) => {
   const authorization = userInfo ? `bearer ${userInfo.accessToken}` : ''
   config.headers.Authorization = authorization
   config.headers.userId = userInfo.userId
+  config.headers.nickName = userInfo.nickName
   return config
 }
 

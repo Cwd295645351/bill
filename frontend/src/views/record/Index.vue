@@ -1,20 +1,47 @@
 <template>
   <div class="record">
-    <aside class="operate-group">
-      <ol
-        class="item"
-        :class="{ disabled: item.disabled, active: item.value === currModule }"
-        :style="{ 'background-color': item.color }"
-        v-for="item in modules"
-        :key="item.value"
-        @click="changeModule(item)"
-      >
-        {{
-          item.label
-        }}
-      </ol>
-    </aside>
-    <div class="content"></div>
+    <div class="search-form">
+      <el-form :inline="true" :model="searchOptions">
+        <el-form-item size="small" label="日期">
+          <el-date-picker
+            v-model="searchOptions.beginDate"
+            type="date"
+            placeholder="选择开始日期"
+            :picker-options="beginDateOptions"
+            clearable
+          ></el-date-picker
+          >~
+          <el-date-picker
+            v-model="searchOptions.endDate"
+            type="date"
+            placeholder="选择结束日期"
+            :picker-options="endDateOptions"
+            clearable
+          ></el-date-picker>
+        </el-form-item>
+        <el-form-item size="small" label="记账人">
+          <el-select v-model="searchOptions.userId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in bill.users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item size="small" label="支出类型">
+          <el-select v-model="searchOptions.costTypeId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in bill.costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item size="small" label="收入类型">
+          <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in bill.incomesType" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item size="small" label="支付方式">
+          <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in bill.payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+      </el-form>
+    </div>
+    <div class="context"></div>
   </div>
 </template>
 
@@ -23,112 +50,52 @@ import { mapState } from 'vuex'
 export default {
   data() {
     return {
-      currModule: 'record', // 当前模块
-      modules: [
-        { value: 'record', label: '收支', color: '#00C5CD', disabled: true },
-        { value: 'plan', label: '计划', color: '#5F9EA0', disabled: true },
-        { value: 'budget', label: '预算', color: '#FFB90F', disabled: true },
-        { value: 'setting', label: '设置', color: '#FF8247', disabled: true }
-      ],
-      billId: '' // 账本id
+      searchOptions: {
+        beginDate: '',
+        endDate: '',
+        userId: '',
+        costTypeId: '',
+        incomesTypeId: '',
+        payMethodId: ''
+      }
     }
   },
 
-  created() {
-    const billId = localStorage.getItem('billId')
-    console.log(this.bills)
-    const bills = this.bills
-
-    // 设置当前账本id
-    if (bills.length > 0) {
-      this.billId = bills.find((item) => item.id === billId) ? billId : bills[0].id
-    }
-
-    if (this.billId) {
-      this.modules.forEach((item) => {
-        item.disabled = false
-      })
-    }
-  },
+  created() {},
   computed: {
     ...mapState({
-      bills: (state) => state.bills // 账本数组
+      billId: (state) => state.billId,
+      bill: (state) => state.bill
     })
   },
 
   mounted() {},
 
-  methods: {
-    // 切换模块
-    changeModule(module) {
-      if (module.disabled) return
-      this.currModule = module.value
-    }
-  }
+  methods: {}
 }
 </script>
 <style scoped lang="scss">
-@keyframes active {
-  from {
-    width: 30px;
-    line-height: 30px;
-  }
-  to {
-    width: 60px;
-    line-height: 60px;
-  }
-}
-@keyframes default {
-  from {
-    width: 60px;
-    line-height: 60px;
-  }
-  to {
-    width: 30px;
-    line-height: 30px;
-  }
-}
 .record {
-  width: 100%;
   height: calc(100% - 60px);
-  padding: 60px 0;
+  background-color: #8cb3bf;
+  width: 100%;
+  padding: 20px;
   display: flex;
-  background-color: #96d59ef7;
-  justify-content: center;
-  .operate-group {
-    height: 100%;
-    width: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    .item {
-      width: 30px;
-      height: 70px;
-      line-height: 30px;
-      text-align: center;
-      cursor: pointer;
-      border: 1px solid #ddd;
-      border-radius: 4px 0 0 4px;
-      writing-mode: tb-rl;
-      color: #fff;
-      animation: default 0.5s;
-      &.active {
-        animation: active 0.5s;
-        width: 60px;
-        line-height: 60px;
-      }
-      &.disabled {
-        cursor: not-allowed;
-        background-color: #eee !important;
-        color: #999;
-      }
-    }
-  }
-  .content {
-    width: 1200px;
-    height: 100%;
-    box-shadow: 0 0 2px #ddd;
+  flex-direction: column;
+  align-items: center;
+  .search-form {
+    min-height: 80px;
+    width: 80%;
+    padding: 10px;
     background-color: #fff;
+    box-shadow: 0px 0px 2px #ddd;
+    margin-bottom: 20px;
+  }
+  .context {
+    flex: 1;
+    width: 80%;
+    background-color: #fff;
+    box-shadow: 0px 0px 4px #ddd;
   }
 }
 </style>

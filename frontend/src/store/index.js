@@ -10,8 +10,8 @@ Vue.use(Vuex)
 const store = new Vuex.Store({
   state: () => {
     return {
-      bills: [], // 账本数组
-      bill: null, // 当前账本对象
+      billId: null, // 当前账本id
+      bill: null, // 当前账本
       updateBill: false // 账本已更新
     }
   },

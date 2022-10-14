@@ -4,14 +4,14 @@ import { encode, decode } from '../../utils/cryp'
 import * as InitData from '../../database/initDatas'
 
 // 查询账本列表
-export const getBillList = async ({ userId }) => {
-  const params = { users: { $in: [userId] }, isDel: false }
+export const getBillList = async ({ userId, nickName }) => {
+  const params = { users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
   const res = await Bill.find(params, { creator: 1, name: 1 })
   return [null, res]
 }
 
 // 创建账本
-export const createBill = async ({ userId, name }) => {
+export const createBill = async ({ userId, name, nickName }) => {
   const findData = { name: name, creator: userId }
   const findBill = await Bill.findOne(findData, {})
   if (findBill) {
@@ -20,7 +20,7 @@ export const createBill = async ({ userId, name }) => {
   const createData = {
     name: name,
     creator: userId,
-    users: [userId],
+    users: [{ id: userId, name: nickName }],
     costTypes: InitData.costTypes,
     incomesType: InitData.incomesTypes,
     payMethods: InitData.payMethods,
@@ -50,12 +50,13 @@ export const delBill = async ({ userId, id }) => {
 }
 
 // 查询账本详情
-export const getBillDetail = async ({ userId, id }) => {
-  const params = { _id: mongoose.Types.ObjectId(id), users: { $in: [userId] }, isDel: false }
+export const getBillDetail = async ({ userId, id, nickName }) => {
+  const params = { _id: mongoose.Types.ObjectId(id), users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
   const filterData = {
     planBuy: 1,
     budget: 1,
     name: 1,
+    users: 1,
     creator: 1,
     costTypes: 1,
     incomesType: 1,
@@ -86,7 +87,7 @@ export const invite = async ({ userId, id }) => {
 }
 
 // 加入某个账本
-export const joinBill = async ({ userId, code }) => {
+export const joinBill = async ({ userId, code, nickName }) => {
   let billId = ''
   try {
     const sign = decode(code)
@@ -104,8 +105,9 @@ export const joinBill = async ({ userId, code }) => {
     const params = { _id: mongoose.Types.ObjectId(billId), isDel: false }
     const findBill = await Bill.findOne(params, {})
     if (!findBill) return ['该账本不存在', null]
-    if (findBill.users.includes(userId)) return ['已加入该账本', null]
-    const billRes = await Bill.findOneAndUpdate(params, { users: [...findBill.users, userId] })
+    if (findBill.users.find((item) => item.id === userId)) return ['已加入该账本', null]
+    findBill.users.push({ id: userId, name: nickName })
+    const billRes = await Bill.findOneAndUpdate(params, { users: findBill.users })
     if (!billRes) return [('加入账本失败', null)]
     return [null, true]
   } catch (e) {
@@ -115,28 +117,28 @@ export const joinBill = async ({ userId, code }) => {
 }
 
 // 退出账本
-export const quitBill = async ({ userId, id }) => {
+export const quitBill = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则退出账本
   const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
 
   const billRes = await Bill.findOne(billParams, { users: 1, creator: 1 })
   if (!billRes) return ['找不到该账本', null]
-  if (!billRes.users.includes(userId)) return ['您并未加入该账本', null]
+  if (!billRes.users.find((item) => item.id === userId)) return ['您并未加入该账本', null]
   if (billRes.creator === userId) return ['创建者不能退出账本', null]
-  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: userId } }, { new: true })
+  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: { id: userId, name: nickName } } }, { new: true })
   if (!billQuitRes) return ['退出账本失败', null]
   return [null, true]
 }
 
 // 将某个移出账本
-export const removePerson = async ({ userId, id }) => {
+export const removePerson = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则移除
   const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
 
   const billRes = await Bill.findOne(billParams, { users: 1 })
   if (!billRes) return ['找不到该账本', null]
-  if (!billRes.users.includes(userId)) return ['该用户并未加入此账本', null]
-  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: userId } }, { new: true })
+  if (!billRes.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
+  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: { id: userId, name: nickName } } }, { new: true })
   if (!billQuitRes) return ['移除失败', null]
   return [null, true]
 }

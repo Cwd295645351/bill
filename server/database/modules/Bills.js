@@ -6,7 +6,7 @@ const BillSchema = mongoose.Schema({
   creator: { type: String, required: true }, // 账本创建者（拥有新建、编辑、删除账本权限）
   users: { type: Array, required: true }, // 账本持有者-存放用户id
   costTypes: [{ id: String, name: String, isDel: Boolean }], // 账本支出消费类型
-  incomesType: [{ id: String, name: String, isDel: Boolean }], // 账本收入消费类型
+  incomesTypes: [{ id: String, name: String, isDel: Boolean }], // 账本收入消费类型
   payMethods: [{ id: String, name: String, isDel: Boolean }], // 支付类型
   // 计划购入
   planBuy: {

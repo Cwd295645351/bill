@@ -22,7 +22,7 @@ export const createBill = async ({ userId, name, nickName }) => {
     creator: userId,
     users: [{ id: userId, name: nickName }],
     costTypes: InitData.costTypes,
-    incomesType: InitData.incomesTypes,
+    incomesTypes: InitData.incomesTypes,
     payMethods: InitData.payMethods,
     planBuy: { count: 0, totalCost: 0, details: [] },
     budget: { totalBudget: 0, currCost: 0, details: [] },
@@ -59,7 +59,7 @@ export const getBillDetail = async ({ userId, id, nickName }) => {
     users: 1,
     creator: 1,
     costTypes: 1,
-    incomesType: 1,
+    incomesTypes: 1,
     payMethods: 1
   }
   const res = await Bill.findOne(params, filterData)

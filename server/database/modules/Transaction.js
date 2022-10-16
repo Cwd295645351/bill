@@ -12,7 +12,7 @@ const transactionSchema = mongoose.Schema({
     type: Date,
     required: true,
     get: (v) => {
-      return v ? dayjs(v).format('YYYY-MM-DD HH:mm:ss') : ''
+      return v ? dayjs(v).format('YYYY-MM-DD') : ''
     },
     default: Date.now
   },

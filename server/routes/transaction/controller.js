@@ -5,6 +5,8 @@ import mongoose from '../../database/index'
 
 // 查询列表
 export const getList = async (data) => {
+  const pageIndex = data.pageIndex
+  const pageSize = data.pageSize
   const params = {
     billId: data.billId,
     type: data.type,
@@ -29,14 +31,17 @@ export const getList = async (data) => {
   if (params.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
   if (params.userId) params.userId = { $in: data.userId } // 记账人
 
-  const res = await Transaction.find(params)
+  const res = await Transaction.find(params, {})
+    .sort({ date: -1 })
+    .skip(pageIndex * pageSize)
+    .limit(pageSize)
   if (res) return [null, res]
   else return ['查询失败', res]
 }
 
 // 新增交易信息
 export const addTransaction = async (data) => {
-  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
+  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = {
     billId: data.billId,
@@ -96,7 +101,7 @@ export const addTransaction = async (data) => {
 
 // 编辑交易信息
 export const editTransaction = async (data) => {
-  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesType: 1, payMethods: 1, budget: 1 })
+  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
   const changeData = {

@@ -32,14 +32,14 @@
           </el-form-item>
           <el-form-item class="form-item width-150" v-show="type === 2" size="mini" label="收入类型">
             <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" clearable>
-              <el-option v-for="(item, index) in incomesType" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-150" size="mini" label="备注">
             <el-input v-model="searchOptions.remark" placeholder="请输入"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="mini">
-            <el-button>查询</el-button>
+            <el-button @click="search">查询</el-button>
             <el-button v-show="!showAdd" @click="changeAddContainer">新增</el-button>
           </el-form-item>
         </el-form>
@@ -71,7 +71,7 @@
             </el-form-item>
             <el-form-item class="form-item width-150" v-show="type === 2" size="mini" label="收入类型">
               <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" clearable>
-                <el-option v-for="(item, index) in incomesType" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+                <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
 
@@ -79,7 +79,7 @@
               <el-input v-model="addInformation.remark" placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item" size="mini">
-              <el-button @click="addTransaction">保存</el-button>
+              <el-button :disabled="saveLoading" @click="addTransaction">保存</el-button>
               <el-button @click="changeAddContainer">取消</el-button>
             </el-form-item>
           </el-form>
@@ -93,7 +93,40 @@
         <div class="line">本月收入：{{ monthOverview.incomes }}</div>
         <div class="line">本月预算：{{ monthOverview.budget }}</div>
       </div>
-      <div class="timeline-container"></div>
+      <div class="timeline-container">
+        <div class="list-item" v-for="item in listData" :key="item.date">
+          <div class="decorate">
+            <div class="line"></div>
+            <div class="circle"></div>
+          </div>
+          <div class="date">{{ item.date }}</div>
+          <div class="date-overview">
+            <div class="types">
+              <div class="type-item" v-for="typeData in item.types" :key="typeData.name">
+                {{ typeData.name }}: <span>{{ typeData.money }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="detail">
+            <div class="detail-item" v-for="detail in item.datas" :key="detail._id">
+              <div class="top">
+                <div>
+                  <span>{{ detail[typeName] }}</span
+                  ><span v-if="type === 1" class="payMethod">{{ detail.payMethodName }}</span>
+                </div>
+                <div>{{ detail.money }}</div>
+              </div>
+              <div class="remark-container">
+                <div class="remark">{{ detail.remark }}</div>
+                <div class="operate">
+                  <el-link type="info">编辑</el-link>
+                  <el-link type="info" @click="showDeleteDialog">删除</el-link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </template>
@@ -105,6 +138,8 @@ export default {
   data() {
     let _this = this
     return {
+      saveLoading: false,
+      deleteDialog: false, // 删除按钮弹窗
       // 本月概览数据
       monthOverview: {
         cost: 0, // 支出
@@ -144,10 +179,11 @@ export default {
       pageContent: { pageIndex: 1, pageSize: 20 },
       users: [], // 记账人配置项
       costTypes: [], // 支出类型配置项
-      incomesType: [], // 收入类型配置项
+      incomesTypes: [], // 收入类型配置项
       payMethods: [], // 支付方式配置项
       showAdd: false, // 新增数据显示栏
       type: 1, // 类型：1=支出；2=收入
+      typeName: 'costTypeName',
       // 新增信息
       addInformation: {
         date: '', // 日期
@@ -157,7 +193,8 @@ export default {
         incomesTypeId: '', // 收入类型（收入数据）
         money: 0, // 金额
         remark: '' // 备注
-      }
+      },
+      listData: [] // 交易明细数据
     }
   },
 
@@ -173,9 +210,14 @@ export default {
       handler(bill) {
         this.users = bill.users
         this.costTypes = bill.costTypes
-        this.incomesType = bill.incomesType
+        this.incomesTypes = bill.incomesTypes
         this.payMethods = bill.payMethods
         this.getList()
+      }
+    },
+    type: {
+      handler(val) {
+        this.typeName = val === 1 ? 'costTypeName' : 'incomesTypeName'
       }
     }
   },
@@ -183,6 +225,9 @@ export default {
   mounted() {},
 
   methods: {
+    showDeleteDialog() {
+      this.deleteDialog = true
+    },
     // 切换新增数据栏显隐
     changeAddContainer() {
       this.showAdd = !this.showAdd
@@ -190,6 +235,14 @@ export default {
     // 切换收入/支出类型
     changeAddType(type) {
       this.type = type
+      this.search()
+    },
+    // 按钮查询
+    search() {
+      this.listData = []
+      this.pageContent.pageIndex = 1
+      this.pageContent.pageSize = 20
+      this.getList()
     },
     async getList() {
       const params = {
@@ -203,11 +256,64 @@ export default {
       const [err, res] = await getList({ params })
       if (err) return
       if (res.retCode === 0) {
-        console.log(res)
+        // 构造收支金额时间线
+        const listData = this.setData(res.data)
+        // 获取收支金额数组最后一个日期内容
+        const lastData = this.listData[this.listData.length - 1]
+        if (lastData?.date === listData[0].date) {
+          this.mergeData(lastData, listData[0])
+          listData.shift()
+        }
+        this.listData = this.listData.concat(listData)
       } else {
         this.$message.error('查询交易明细失败，' + res.message)
       }
     },
+    // 统计每日各类型金额及总金额
+    setData(data) {
+      const arr = []
+      let currDate = '' // 当前正在记录的日期，若存在，则代表已有相关对象
+      data.forEach((item) => {
+        if (item.date === currDate) {
+          // 已存在日期
+          const obj = arr[arr.length - 1]
+          obj.money += item.money
+          // 判断是否已存在该类型
+          const type = obj.types.find((type) => type.name === item[this.typeName])
+          if (type) {
+            type.money += item.money
+          } else {
+            obj.types.push({ name: item[this.typeName], money: item.money })
+          }
+          obj.datas.push(item)
+        } else {
+          // 新日期
+          currDate = item.date
+          const obj = {
+            date: currDate,
+            money: item.money,
+            types: [{ name: item[this.typeName], money: item.money }],
+            datas: [item]
+          }
+          arr.push(obj)
+        }
+      })
+      return arr
+    },
+    // 合并同一日期的收支金额
+    mergeData(firstData, secondData) {
+      firstData.money += secondData.money
+
+      secondData.types.forEach((item) => {
+        const type = firstData.types.find((type) => type.name === item.name)
+        if (type) {
+          type.money += item.money
+        } else {
+          firstData.types.push({ name: item[this.typeName], money: item.money })
+        }
+      })
+    },
+    // 新增交易明细
     async addTransaction() {
       const addInformation = this.addInformation
       const data = {
@@ -224,12 +330,13 @@ export default {
       } else {
         data.incomesTypeId = addInformation.incomesTypeId
       }
-
+      this.saveLoading = true
       const [err, res] = await addTransaction({ data })
+      this.saveLoading = false
       if (err) return
       if (res.retCode === 0) {
         this.$message.success('新增交易明细成功')
-        this.getList()
+        this.search()
       } else {
         this.$message.error('新增交易明细失败')
       }
@@ -296,8 +403,7 @@ export default {
   .context {
     flex: 1;
     width: 95%;
-    // background-color: #fff;
-    // box-shadow: 0px 0px 4px #ddd;
+    min-height: 0;
     display: flex;
     .overview {
       width: 240px;
@@ -322,14 +428,128 @@ export default {
       background-color: #fff;
       box-shadow: 1px 1px 5px #999;
       border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding: 40px 0;
+      overflow: auto;
+      .list-item {
+        width: 50%;
+        padding: 30px 20px;
+        height: fit-content;
+        position: relative;
+        .decorate {
+          position: absolute;
+          left: -5px;
+          top: 0;
+          height: 100%;
+          width: fit-content;
+          .circle {
+            width: 30px;
+            height: 30px;
+            position: absolute;
+            top: -15px;
+            left: -10px;
+            border-radius: 50%;
+            background-color: rgb(152, 182, 247);
+          }
+          .line {
+            height: 100%;
+            width: 10px;
+            background-color: #9cdef7;
+            position: relative;
+            border-radius: 5px;
+          }
+        }
+        .date {
+          position: absolute;
+          left: -130px;
+          top: -12px;
+          width: fit-content;
+          font-size: 18px;
+          font-weight: bold;
+        }
+        .types {
+          display: flex;
+          align-items: center;
+          position: absolute;
+          top: -15px;
+          .type-item {
+            width: fit-content;
+            padding: 5px;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background: #9cdef7;
+            color: #fff;
+            &.type-item {
+              margin-left: 10px;
+            }
+          }
+        }
+        .detail {
+          height: 70%;
+          font-size: 14px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          .detail-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 0 2px #ddd;
+            width: 500px;
+            padding: 10px;
+            .top {
+              display: flex;
+              justify-content: space-between;
+              .payMethod {
+                margin-left: 20px;
+              }
+            }
+            .remark-container {
+              font-size: 12px;
+              color: #999;
+              margin-top: 10px;
+              display: flex;
+              justify-content: space-between;
+              .remark {
+                flex: 1;
+                min-width: 0;
+                word-break: break-all;
+              }
+              .operate {
+                margin-left: 10px;
+              }
+            }
+            & + .detail-item {
+              margin-top: 10px;
+            }
+          }
+        }
+        &:nth-child(2n) {
+          align-self: flex-start;
+          .decorate {
+            left: unset;
+            right: -5px;
+          }
+          .date {
+            left: unset;
+            right: -130px;
+          }
+          .types {
+            right: 20px;
+          }
+          .detail {
+            align-items: flex-end;
+          }
+        }
+      }
     }
   }
 }
 </style>
 <style lang="scss">
 .record {
-  .width-200 {
-  }
   .width-150 {
     .el-input__inner {
       width: 150px;

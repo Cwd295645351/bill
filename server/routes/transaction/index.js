@@ -31,7 +31,7 @@ router.get('/list', async (ctx, next) => {
     data.pageSize = 10
   }
   // 交易类型非收入（2）时，一律处理为支出（1）
-  if (type !== 2) {
+  if (type != 2) {
     data.type = 1
   }
 

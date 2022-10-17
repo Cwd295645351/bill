@@ -41,7 +41,7 @@ export const getList = async (data) => {
 
 // 新增交易信息
 export const addTransaction = async (data) => {
-  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
+  const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = {
     billId: data.billId,
@@ -50,6 +50,8 @@ export const addTransaction = async (data) => {
     type: data.type,
     remark: data.remark,
     money: data.money,
+    belongUserId: '',
+    belongUserName: '',
     isDel: false
   }
   if (params.type === 1) {
@@ -70,6 +72,11 @@ export const addTransaction = async (data) => {
       params.incomesTypeId = incomes.id
       params.incomesTypeName = incomes.name
     }
+  }
+  if (data.belongUserId) {
+    const users = findBill.users.find((item) => item.id === data.belongUserId)
+    params.belongUserId = users.id
+    params.belongUserName = users.name
   }
 
   const res = await Transaction.create(params)
@@ -101,14 +108,16 @@ export const addTransaction = async (data) => {
 
 // 编辑交易信息
 export const editTransaction = async (data) => {
-  const findBill = await Bill.findById(data.billId, { costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
+  const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
   const changeData = {
     date: data.date,
     remark: data.remark,
     money: data.money,
-    type: data.type
+    type: data.type,
+    belongUserId: '',
+    belongUserName: '',
   }
   if (data.type === 1) {
     if (data.costTypeId) {
@@ -128,6 +137,11 @@ export const editTransaction = async (data) => {
       changeData.incomesTypeId = incomes.id
       changeData.incomesTypeName = incomes.name
     }
+  }
+  if (data.belongUserId) {
+    const users = findBill.users.find((item) => item.id === data.belongUserId)
+    params.belongUserId = users.id
+    params.belongUserName = users.name
   }
 
   const res = await Transaction.findOneAndUpdate(params, changeData)

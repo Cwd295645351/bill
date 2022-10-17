@@ -26,6 +26,8 @@ const transactionSchema = mongoose.Schema({
   // 收入数据
   incomesTypeId: { type: String, required: false }, // 收入类型id
   incomesTypeName: { type: String, required: false }, // 收入类型名称
+  belongUserId: { type: String, required: false }, // 归属人id
+  belongUserName: { type: String, required: false }, // 归属人名称
   remark: { type: String, required: false }, // 备注
   money: { type: Number, required: true, default: 0 }, // 金额
   isDel: { type: Boolean, required: true, default: false } // 是否删除

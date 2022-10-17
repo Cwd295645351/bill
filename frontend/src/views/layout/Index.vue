@@ -35,8 +35,8 @@
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button :loading="dialogLoading" type="primary" @click="joinBill">确定</el-button>
-        <el-button :disabled="dialogLoading" @click="joinBillDialog = false">取消</el-button>
+        <el-button size="small" :loading="dialogLoading" type="primary" @click="joinBill">确定</el-button>
+        <el-button size="small" :disabled="dialogLoading" @click="joinBillDialog = false">取消</el-button>
       </div>
     </el-dialog>
   </div>

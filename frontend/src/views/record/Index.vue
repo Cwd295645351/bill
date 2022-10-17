@@ -45,20 +45,26 @@
         </el-form>
         <div class="add-data" v-show="showAdd">
           <el-form class="form-container" :inline="true">
-            <el-form-item class="form-item" size="mini" label="日期">
+            <el-form-item class="form-item width-125" size="mini" label="日期">
               <el-date-picker v-model="addInformation.date" type="date" placeholder="请选择" clearable></el-date-picker>
             </el-form-item>
-            <el-form-item class="form-item width-150" v-show="type === 1" size="mini" label="支出类型">
+            <el-form-item class="form-item width-125" v-show="type === 1" size="mini" label="支出类型">
               <el-select v-model="addInformation.costTypeId" filterable placeholder="请选择" clearable>
                 <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item class="form-item width-150" v-show="type === 1" size="mini" label="支付方式">
+            <el-form-item class="form-item width-125" v-show="type === 1" size="mini" label="支付方式">
               <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" clearable>
                 <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item class="form-item width-150" size="mini" label="金额">
+            <el-form-item class="form-item width-125" size="mini" label="归属人">
+              <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" clearable>
+                <el-option label="全部" value=""></el-option>
+                <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              </el-select>
+            </el-form-item>
+            <el-form-item class="form-item width-125" size="mini" label="金额">
               <el-input v-model="addInformation.money" placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item" v-show="type === 1" size="mini" label="报销进度">
@@ -69,13 +75,13 @@
                 <el-radio :label="3">已报销</el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item class="form-item width-150" v-show="type === 2" size="mini" label="收入类型">
+            <el-form-item class="form-item width-125" v-show="type === 2" size="mini" label="收入类型">
               <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" clearable>
                 <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
 
-            <el-form-item class="form-item width-150" size="mini" label="备注">
+            <el-form-item class="form-item width-125" size="mini" label="备注">
               <el-input v-model="addInformation.remark" placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item" size="mini">
@@ -110,17 +116,21 @@
           <div class="detail">
             <div class="detail-item" v-for="detail in item.datas" :key="detail._id">
               <div class="top">
+                <span class="belong-user">{{ detail.belongUserName }}</span>
+                <div class="money">{{ detail.money }}</div>
+              </div>
+              <div class="middle">
                 <div>
                   <span>{{ detail[typeName] }}</span
                   ><span v-if="type === 1" class="payMethod">{{ detail.payMethodName }}</span>
                 </div>
-                <div>{{ detail.money }}</div>
+                <span class="reimbursement">{{ reimbursementData[detail.reimbursement] }}</span>
               </div>
               <div class="remark-container">
                 <div class="remark">{{ detail.remark }}</div>
                 <div class="operate">
-                  <el-link type="info">编辑</el-link>
-                  <el-link type="info" @click="showDeleteDialog">删除</el-link>
+                  <el-link type="info" @click="showEditDialog(detail)">编辑</el-link>
+                  <el-link type="info" @click="showDeleteDialog(detail)">删除</el-link>
                 </div>
               </div>
             </div>
@@ -128,18 +138,74 @@
         </div>
       </div>
     </div>
+    <el-dialog title="您确定要删除吗？" custom-class="delete-transaction-dialog" :visible.sync="deleteDialog">
+      <div style="color: #999">删除后数据将无法恢复</div>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="small" :loading="btnLoading" type="primary" @click="submitDeleteTransaction">确定</el-button>
+        <el-button size="small" :disabled="btnLoading" @click="deleteDialog = false">取消</el-button>
+      </div>
+    </el-dialog>
+    <el-dialog title="编辑明细" custom-class="edit-transaction-dialog" :visible.sync="editDialog">
+      <el-form v-if="editDialog" class="form-container" label-width="70px">
+        <el-form-item class="form-item" size="mini" label="日期">
+          <el-date-picker v-model="operateData.date" type="date" placeholder="请选择" clearable></el-date-picker>
+        </el-form-item>
+        <el-form-item class="form-item" v-show="type === 1" size="mini" label="支出类型">
+          <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="form-item" v-show="type === 1" size="mini" label="支付方式">
+          <el-select v-model="operateData.payMethodId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="form-item" size="mini" label="归属人">
+          <el-select v-model="operateData.belongUserId" filterable placeholder="请选择" clearable>
+            <el-option label="全部" value=""></el-option>
+            <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+        <el-form-item class="form-item" size="mini" label="金额">
+          <el-input v-model="operateData.money" placeholder="请输入"></el-input>
+        </el-form-item>
+        <el-form-item class="form-item" v-show="type === 1" size="mini" label="报销进度">
+          <el-radio-group v-model="operateData.reimbursement">
+            <el-radio :label="0">无需报销</el-radio>
+            <el-radio :label="1">待报销</el-radio>
+            <el-radio :label="2">已提交</el-radio>
+            <el-radio :label="3">已报销</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item class="form-item" v-show="type === 2" size="mini" label="收入类型">
+          <el-select v-model="operateData.incomesTypeId" filterable placeholder="请选择" clearable>
+            <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+        </el-form-item>
+
+        <el-form-item class="form-item" size="mini" label="备注">
+          <el-input v-model="operateData.remark" placeholder="请输入"></el-input>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button size="small" :loading="btnLoading" type="primary" @click="submitEditTransaction">确定</el-button>
+        <el-button size="small" :disabled="btnLoading" @click="editDialog = false">取消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script>
 import { mapState } from 'vuex'
-import { addTransaction, getList } from './api'
+import { addTransaction, getList, deleteTransaction, editTransaction } from './api'
 export default {
   data() {
     let _this = this
     return {
       saveLoading: false,
       deleteDialog: false, // 删除按钮弹窗
+      editDialog: false, // 编辑明细弹窗
+      btnLoading: false, // 按钮loading
       // 本月概览数据
       monthOverview: {
         cost: 0, // 支出
@@ -190,11 +256,14 @@ export default {
         costTypeId: '', // 支出类型（支出数据）
         payMethodId: '', // 支付方式（支出数据）
         reimbursement: 0, // 报销进度（支出数据）
+        belongUserId: '', // 归属人（支出数据）
         incomesTypeId: '', // 收入类型（收入数据）
         money: 0, // 金额
         remark: '' // 备注
       },
-      listData: [] // 交易明细数据
+      listData: [], // 交易明细数据
+      operateData: null, // 正在操作的数据
+      reimbursementData: ['无需报销', '待报销', '已提交', '已报销']
     }
   },
 
@@ -225,8 +294,57 @@ export default {
   mounted() {},
 
   methods: {
-    showDeleteDialog() {
+    // 显示删除弹窗
+    showDeleteDialog(detail) {
+      this.operateData = detail
       this.deleteDialog = true
+    },
+    showEditDialog(detail) {
+      this.operateData = detail
+      this.editDialog = true
+    },
+    // 删除交易明细
+    async submitDeleteTransaction() {
+      const data = { id: this.operateData._id }
+      this.btnLoading = true
+      const [err, res] = await deleteTransaction({ data })
+      this.btnLoading = false
+      this.deleteDialog = false
+      if (err) return
+      if (res.retCode === 0) {
+        this.$message.success('删除交易明细成功')
+        this.search()
+      } else {
+        this.$message.error('删除交易明细失败，' + res.message)
+      }
+    },
+    // 编辑交易明细
+    async submitEditTransaction() {
+      const operateData = this.operateData
+      const data = {
+        id: operateData.id,
+        billId: operateData.billId,
+        date: operateData.date,
+        money: operateData.money,
+        type: operateData.type,
+        remark: operateData.remark,
+        costTypeId: operateData.costTypeId,
+        payMethodId: operateData.payMethodId,
+        reimbursement: operateData.reimbursement,
+        belongUserId: operateData.belongUserId
+      }
+      this.btnLoading = true
+      const [err, res] = await editTransaction({ data })
+      this.btnLoading = false
+      this.deleteDialog = false
+      this.editDialog = false
+      if (err) return
+      if (res.retCode === 0) {
+        this.$message.success('编辑交易明细成功')
+        this.search()
+      } else {
+        this.$message.error('编辑交易明细失败，' + res.message)
+      }
     },
     // 切换新增数据栏显隐
     changeAddContainer() {
@@ -321,6 +439,7 @@ export default {
         date: addInformation.date,
         money: addInformation.money,
         type: this.type,
+        belongUserId: addInformation.belongUserId,
         remark: addInformation.remark
       }
       if (this.type === 1) {
@@ -501,9 +620,26 @@ export default {
             padding: 10px;
             .top {
               display: flex;
+              font-size: 16px;
+              font-weight: bold;
+              justify-content: space-between;
+              .belong-user {
+                margin-right: 20px;
+                color: #f9a100;
+              }
+              .money {
+                color: #dd3914;
+              }
+            }
+            .middle {
+              margin-top: 10px;
+              display: flex;
               justify-content: space-between;
               .payMethod {
                 margin-left: 20px;
+              }
+              .reimbursement {
+                color: #999;
               }
             }
             .remark-container {
@@ -518,7 +654,7 @@ export default {
                 word-break: break-all;
               }
               .operate {
-                margin-left: 10px;
+                margin-left: 40px;
               }
             }
             & + .detail-item {
@@ -550,13 +686,35 @@ export default {
 </style>
 <style lang="scss">
 .record {
+  .width-125 {
+    .el-date-editor,
+    .el-input,
+    .el-input__inner {
+      width: 125px;
+    }
+  }
   .width-150 {
+    .el-date-editor,
+    .el-input,
     .el-input__inner {
       width: 150px;
     }
   }
   .el-radio {
     margin-right: 10px;
+  }
+}
+.delete-transaction-dialog {
+  width: 380px;
+}
+.edit-transaction-dialog {
+  width: 430px;
+  .form-item {
+    .el-date-editor,
+    .el-input,
+    .el-input__inner {
+      width: 320px;
+    }
   }
 }
 </style>

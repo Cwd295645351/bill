@@ -16,21 +16,21 @@
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button :loading="dialogLoading" type="primary" @click="addBill">确定</el-button>
-        <el-button :disabled="dialogLoading" @click="addBillDialog = false">取消</el-button>
+        <el-button size="small" :loading="dialogLoading" type="primary" @click="addBill">确定</el-button>
+        <el-button size="small" :disabled="dialogLoading" @click="addBillDialog = false">取消</el-button>
       </div>
     </el-dialog>
     <el-dialog title="您确定要删除吗？" custom-class="delete-bill-dialog" :visible.sync="deleteBillDialog">
       <div style="color: #999">删除后账本相关数据将无法恢复</div>
       <div slot="footer" class="dialog-footer">
-        <el-button :loading="dialogLoading" type="primary" @click="deleteBill">确定</el-button>
-        <el-button :disabled="dialogLoading" @click="deleteBillDialog = false">取消</el-button>
+        <el-button size="small" :loading="dialogLoading" type="primary" @click="deleteBill">确定</el-button>
+        <el-button size="small" :disabled="dialogLoading" @click="deleteBillDialog = false">取消</el-button>
       </div>
     </el-dialog>
     <el-dialog title="分享码已生成，时长为30分钟" custom-class="delete-bill-dialog" :visible.sync="shareBillDialog">
       <div style="color: #999">分享码：{{ shareCode }}</div>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="shareBillDialog = false">确定</el-button>
+        <el-button size="small" type="primary" @click="shareBillDialog = false">确定</el-button>
       </div>
     </el-dialog>
   </div>

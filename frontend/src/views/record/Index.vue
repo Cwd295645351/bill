@@ -11,7 +11,7 @@
       </div>
       <div class="content">
         <el-form :inline="true">
-          <el-form-item class="form-item" size="mini" label="日期">
+          <el-form-item class="form-item width-150" size="mini" label="日期">
             <el-date-picker v-model="searchOptions.beginDate" type="date" placeholder="请选择" clearable></el-date-picker>~
             <el-date-picker v-model="searchOptions.endDate" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
@@ -28,6 +28,12 @@
           <el-form-item class="form-item width-150" v-show="type === 1" size="mini" label="支付方式">
             <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" clearable>
               <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+            </el-select>
+          </el-form-item>
+          <el-form-item class="form-item width-150" size="mini" label="归属人">
+            <el-select v-model="searchOptions.belongUserId" filterable placeholder="请选择" clearable>
+              <el-option label="全部" value=""></el-option>
+              <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-150" v-show="type === 2" size="mini" label="收入类型">
@@ -99,7 +105,7 @@
         <div class="line">本月收入：{{ monthOverview.incomes }}</div>
         <div class="line">本月预算：{{ monthOverview.budget }}</div>
       </div>
-      <div class="timeline-container">
+      <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
         <div class="list-item" v-for="item in listData" :key="item.date">
           <div class="decorate">
             <div class="line"></div>
@@ -128,14 +134,16 @@
               </div>
               <div class="remark-container">
                 <div class="remark">{{ detail.remark }}</div>
-                <div class="operate">
+                <div class="operate" v-if="detail.userId === userInfo.userId">
                   <el-link type="info" @click="showEditDialog(detail)">编辑</el-link>
-                  <el-link type="info" @click="showDeleteDialog(detail)">删除</el-link>
+                  <el-link type="danger" @click="showDeleteDialog(detail)">删除</el-link>
                 </div>
               </div>
             </div>
           </div>
         </div>
+        <div v-show="loadingMore" class="tips-label">正在加载数据...</div>
+        <div v-show="noMore" class="tips-label">没有更多了</div>
       </div>
     </div>
     <el-dialog title="您确定要删除吗？" custom-class="delete-transaction-dialog" :visible.sync="deleteDialog">
@@ -202,6 +210,8 @@ export default {
   data() {
     let _this = this
     return {
+      loadingMore: false, // 加载更多数据
+      noMore: false, // 暂无数据
       saveLoading: false,
       deleteDialog: false, // 删除按钮弹窗
       editDialog: false, // 编辑明细弹窗
@@ -237,6 +247,7 @@ export default {
         beginDate: '', // 开始时间
         endDate: '', // 结束时间
         userId: '', // 记账人id
+        belongUserId: '', // 归属人id
         costTypeId: '', // 支出类型
         incomesTypeId: '', // 收入类型
         payMethodId: '', // 支付方式
@@ -262,12 +273,17 @@ export default {
         remark: '' // 备注
       },
       listData: [], // 交易明细数据
+      totalCount: 0, // 总数
+      currentCount: 0, // 当前加载总数
       operateData: null, // 正在操作的数据
-      reimbursementData: ['无需报销', '待报销', '已提交', '已报销']
+      reimbursementData: ['无需报销', '待报销', '已提交', '已报销'],
+      userInfo: {} // 用户信息
     }
   },
 
-  created() {},
+  created() {
+    this.userInfo = this.$tools.getUserInfo()
+  },
   computed: {
     ...mapState({
       billId: (state) => state.billId,
@@ -294,6 +310,15 @@ export default {
   mounted() {},
 
   methods: {
+    load() {
+      if (this.totalCount === this.currentCount) {
+        this.noMore = true
+        return
+      }
+      this.loadingMore = true
+      this.pageContent.pageIndex++
+      this.getList()
+    },
     // 显示删除弹窗
     showDeleteDialog(detail) {
       this.operateData = detail
@@ -366,16 +391,20 @@ export default {
       const params = {
         beginDate: this.searchOptions.beginDate,
         endDate: this.searchOptions.endDate,
+        belongUserId: this.searchOptions.belongUserId,
         pageIndex: this.pageContent.pageIndex,
         pageSize: this.pageContent.pageSize,
         type: this.type,
         billId: this.bill._id
       }
       const [err, res] = await getList({ params })
+      this.loadingMore = false
       if (err) return
       if (res.retCode === 0) {
         // 构造收支金额时间线
-        const listData = this.setData(res.data)
+        this.totalCount = res.data.total
+        this.currentCount += res.data.datas.length
+        const listData = this.setData(res.data.datas)
         // 获取收支金额数组最后一个日期内容
         const lastData = this.listData[this.listData.length - 1]
         if (lastData?.date === listData[0].date) {
@@ -550,7 +579,7 @@ export default {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      padding: 40px 0;
+      padding-top: 40px;
       overflow: auto;
       .list-item {
         width: 50%;
@@ -679,6 +708,15 @@ export default {
             align-items: flex-end;
           }
         }
+      }
+      .tips-label {
+        align-self: center;
+        margin-top: 20px;
+        width: 100%;
+        text-align: center;
+        background: #eee;
+        height: 60px;
+        line-height: 60px;
       }
     }
   }

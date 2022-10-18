@@ -10,6 +10,7 @@ export const getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
+    belongUserId: data.belongUserId,
     isDel: false
   }
   if (params.beginDate && params.endDate) {
@@ -35,7 +36,12 @@ export const getList = async (data) => {
     .sort({ date: -1 })
     .skip(pageIndex * pageSize)
     .limit(pageSize)
-  if (res) return [null, res]
+  const length = await Transaction.find(params, {}).count()
+  const retData = {
+    total: length, 
+    datas: res
+  }
+  if (res) return [null, retData]
   else return ['查询失败', res]
 }
 
@@ -51,7 +57,7 @@ export const addTransaction = async (data) => {
     remark: data.remark,
     money: data.money,
     belongUserId: '',
-    belongUserName: '',
+    belongUserName: '全部',
     isDel: false
   }
   if (params.type === 1) {
@@ -117,7 +123,7 @@ export const editTransaction = async (data) => {
     money: data.money,
     type: data.type,
     belongUserId: '',
-    belongUserName: '',
+    belongUserName: ''
   }
   if (data.type === 1) {
     if (data.costTypeId) {

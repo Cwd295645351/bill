@@ -2,4 +2,17 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  &::-webkit-scrollbar {
+		width: 8px;
+		/* 横向滚动条 */
+		height: 8px;
+		/* 纵向滚动条 必写 */
+	}
+	&::-webkit-scrollbar-track-piece {
+		background: #fff; // 滚动条背景颜色
+	}
+	&::-webkit-scrollbar-thumb {
+		background: #eee;
+		border-radius: 3.5px;
+	}
 }

@@ -407,7 +407,7 @@ export default {
         const listData = this.setData(res.data.datas)
         // 获取收支金额数组最后一个日期内容
         const lastData = this.listData[this.listData.length - 1]
-        if (lastData?.date === listData[0].date) {
+        if (listData.length > 0  && lastData?.date === listData[0]?.date) {
           this.mergeData(lastData, listData[0])
           listData.shift()
         }
@@ -710,6 +710,7 @@ export default {
         }
       }
       .tips-label {
+        flex: 1;
         align-self: center;
         margin-top: 20px;
         width: 100%;

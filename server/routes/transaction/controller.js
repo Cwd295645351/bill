@@ -10,7 +10,6 @@ export const getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
-    belongUserId: data.belongUserId,
     isDel: false
   }
   if (params.beginDate && params.endDate) {
@@ -31,6 +30,7 @@ export const getList = async (data) => {
   if (params.payMethodId) params.payMethodId = data.payMethodId // 支付方式
   if (params.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
   if (params.userId) params.userId = { $in: data.userId } // 记账人
+  if (params.belongUserId) params.belongUserId = { $in: data.belongUserId } // 归属人
 
   const res = await Transaction.find(params, {})
     .sort({ date: -1 })
@@ -38,7 +38,7 @@ export const getList = async (data) => {
     .limit(pageSize)
   const length = await Transaction.find(params, {}).count()
   const retData = {
-    total: length, 
+    total: length,
     datas: res
   }
   if (res) return [null, retData]

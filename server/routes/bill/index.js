@@ -8,7 +8,7 @@ const name_reg = /^[\u4E00-\u9FA5A-Za-z0-9_]{3,10}$/ // 账本名称校验
 
 router.get('/list', async (ctx, next) => {
   const userId = ctx.header.userid
-  const nickName = ctx.header.nickname
+  const nickName = decodeURIComponent(ctx.header.nickname)
 
   const [err, res] = await BILL.getBillList({ userId, nickName })
   if (res) ctx.body = new ResModel(res, '获取成功')
@@ -20,7 +20,7 @@ router.post('/create', async (ctx, next) => {
   const data = ctx.request.body
   xssData(data)
   const name = data.name
-  const nickName = ctx.header.nickname
+  const nickName = decodeURIComponent(ctx.header.nickname)
   if (!name || !name_reg.test(name)) {
     ctx.body = new ResModel(null, '账本名称不符合规范', 'error')
     return
@@ -72,7 +72,7 @@ router.get('/detail', async (ctx, next) => {
   const params = ctx.query
   xssData(params)
   const id = params.id
-  const nickName = ctx.header.nickname
+  const nickName = decodeURIComponent(ctx.header.nickname)
   if (!id) {
     ctx.body = new ResModel(null, 'id不能为空')
     return
@@ -101,7 +101,7 @@ router.post('/invite', async (ctx, next) => {
 router.post('/join', async (ctx, next) => {
   const data = ctx.request.body
   xssData(data)
-  const nickName = ctx.header.nickname
+  const nickName = decodeURIComponent(ctx.header.nickname)
   const code = data.code
   if (!code) {
     ctx.body = new ResModel(null, '邀请码不能为空', 'error')
@@ -122,7 +122,7 @@ router.post('/quit', async (ctx, next) => {
   xssData(data)
   const id = data.id
   const userId = data.userId
-  const nickName = ctx.header.nickname
+  const nickName = decodeURIComponent(ctx.header.nickname)
   if (!id) {
     ctx.body = new ResModel(null, 'id不能为空', 'error')
     return

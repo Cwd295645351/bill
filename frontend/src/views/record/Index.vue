@@ -12,8 +12,8 @@
       <div class="content">
         <el-form :inline="true">
           <el-form-item class="form-item width-150" size="mini" label="日期">
-            <el-date-picker v-model="searchOptions.beginDate" type="date" placeholder="请选择" clearable></el-date-picker>~
-            <el-date-picker v-model="searchOptions.endDate" type="date" placeholder="请选择" clearable></el-date-picker>
+            <el-date-picker v-model="searchOptions.beginDate" value-format="yyyy-MM-dd" type="date" placeholder="请选择" clearable></el-date-picker>~
+            <el-date-picker v-model="searchOptions.endDate" value-format="yyyy-MM-dd" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
           <el-form-item class="form-item width-150" size="mini" label="记账人">
             <el-select v-model="searchOptions.userId" filterable placeholder="请选择" clearable>
@@ -205,7 +205,8 @@
 
 <script>
 import { mapState } from 'vuex'
-import { addTransaction, getList, deleteTransaction, editTransaction } from './api'
+import dayjs from 'dayjs'
+import { addTransaction, getList, deleteTransaction, editTransaction, getCurrentMonthCost } from './api'
 export default {
   data() {
     let _this = this
@@ -293,11 +294,16 @@ export default {
   watch: {
     bill: {
       handler(bill) {
+        const budget = bill.budget
         this.users = bill.users
         this.costTypes = bill.costTypes
         this.incomesTypes = bill.incomesTypes
         this.payMethods = bill.payMethods
+
+        this.monthOverview.budget = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))?.totalBudget || 0
+
         this.getList()
+        this.getCurrentMonthCost()
       }
     },
     type: {
@@ -324,9 +330,22 @@ export default {
       this.operateData = detail
       this.deleteDialog = true
     },
+    // 显示编辑弹窗
     showEditDialog(detail) {
       this.operateData = detail
       this.editDialog = true
+    },
+    // 查询本月收支概况
+    async getCurrentMonthCost() {
+      const params = { billId: this.bill._id }
+      const [err, res] = await getCurrentMonthCost({ params })
+      if (err) return
+      if (res.retCode === 0) {
+        this.monthOverview.cost = res.data.cost
+        this.monthOverview.incomes = res.data.incomes
+      } else {
+        this.$message.error('查询本月收支概况失败，', res.message)
+      }
     },
     // 删除交易明细
     async submitDeleteTransaction() {
@@ -386,6 +405,7 @@ export default {
       this.pageContent.pageIndex = 1
       this.pageContent.pageSize = 20
       this.getList()
+      this.getCurrentMonthCost()
     },
     async getList() {
       const params = {
@@ -407,7 +427,7 @@ export default {
         const listData = this.setData(res.data.datas)
         // 获取收支金额数组最后一个日期内容
         const lastData = this.listData[this.listData.length - 1]
-        if (listData.length > 0  && lastData?.date === listData[0]?.date) {
+        if (listData.length > 0 && lastData?.date === listData[0]?.date) {
           this.mergeData(lastData, listData[0])
           listData.shift()
         }

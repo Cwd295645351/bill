@@ -2,23 +2,24 @@ import koaRouter from 'koa-router'
 import * as Transaction from './controller'
 import { ResModel } from '../../model/resModel'
 import { xssData } from '../../utils/xss'
+import dayjs from 'dayjs'
 
 const router = koaRouter({ prefix: '/api/transaction' })
-const dateReg = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/gi
 
 // 交易明细(可根据周/月/年进行查询)
 router.get('/list', async (ctx, next) => {
   const data = ctx.query
   const { beginDate, endDate, pageIndex, pageSize, type } = data
+  const dateReg = /^\d{4}-\d{2}-\d{2}$/gi
   if (beginDate) {
-    if (dateReg.test(beginDate) == false) {
+    if (!dateReg.test(beginDate)) {
       ctx.body = new ResModel(null, '开始时间不规范', 'error')
       return
     }
     data.beginDate = new Date(beginDate)
   }
   if (endDate) {
-    if (dateReg.test(endDate) == false) {
+    if (!dateReg.test(endDate)) {
       ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
       return
     }
@@ -87,6 +88,28 @@ router.post('/delete', async (ctx, next) => {
   else {
     const [err, res] = await Transaction.deleteTransaction(data)
     if (res) ctx.body = new ResModel(null, '删除成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
+
+// 查询本月收支概况
+router.get('/currentMonthCost', async (ctx, next) => {
+  const userId = ctx.header.userid
+  const billId = ctx.query.billId
+  const currentDate = new Date()
+  const beginDate = dayjs(currentDate).startOf('month').toDate()
+  if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
+  else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
+  else {
+    const params = {
+      beginDate: beginDate,
+      endDate: currentDate,
+      billId: billId,
+      userId: userId
+    }
+    console.log(params)
+    const [err, res] = await Transaction.getCurrentMonthCost(params)
+    if (res) ctx.body = new ResModel(res, '查找成功')
     else ctx.body = new ResModel(null, err, 'error')
   }
 })

@@ -2,6 +2,7 @@ import Transaction from '../../database/modules/Transaction'
 import Bill from '../../database/modules/Bills'
 import User from '../../database/modules/User'
 import mongoose from '../../database/index'
+import dayjs from 'dayjs'
 
 // 查询列表
 export const getList = async (data) => {
@@ -41,6 +42,7 @@ export const getList = async (data) => {
     total: length,
     datas: res
   }
+  console.log(params)
   if (res) return [null, retData]
   else return ['查询失败', res]
 }
@@ -93,10 +95,15 @@ export const addTransaction = async (data) => {
     // 支出交易明细创建成功后，需向账本表的预算新增数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const budgetDetail = budget.details.find((item) => item.costTypeId === data.costTypeId)
-    if (budgetDetail) {
-      budget.currCost += data.money
-      budgetDetail.cost += data.money
+    const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))
+    if (budgetItem) {
+      const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
+      if (budgetDetail) {
+        if (budgetDetail) {
+          budget.currCost += data.money
+          budgetDetail.cost += data.money
+        }
+      }
     }
     const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
     const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { expenses: data.money } })
@@ -160,10 +167,13 @@ export const editTransaction = async (data) => {
     // 支出交易明细编辑成功后，需向账本表的预算更改数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const budgetDetail = budget.details.find((item) => item.costTypeId === data.costTypeId)
-    if (budgetDetail) {
-      budget.currCost += differenceMoney
-      budgetDetail.cost += differenceMoney
+    const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))
+    if (budgetItem) {
+      const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
+      if (budgetDetail) {
+        budget.currCost += differenceMoney
+        budgetDetail.cost += differenceMoney
+      }
     }
     const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
     const updateUserRes = await User.findByIdAndUpdate(data.userId, { $inc: { expenses: differenceMoney } })
@@ -194,10 +204,15 @@ export const deleteTransaction = async (data) => {
     // 支出交易明细删除成功后，需向账本表的预算更改数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const budgetDetail = budget.details.find((item) => item.costTypeId === res.costTypeId)
-    if (budgetDetail) {
-      budget.currCost -= res.money
-      budgetDetail.cost -= res.money
+    const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))
+    if (budgetItem) {
+      const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
+      if (budgetDetail) {
+        if (budgetDetail) {
+          budget.currCost -= res.money
+          budgetDetail.cost -= res.money
+        }
+      }
     }
     const updateBillRes = await Bill.findByIdAndUpdate(res.billId, { budget: budget }, { new: true })
     const updateUserRes = await User.findByIdAndUpdate(res.userId, { $inc: { expenses: 0 - res.money } })
@@ -211,4 +226,22 @@ export const deleteTransaction = async (data) => {
     if (updateUserRes) return [null, true]
     else return ['删除失败', null]
   }
+}
+
+// 查询当月收支概况
+export const getCurrentMonthCost = async (data) => {
+  const res = await Transaction.find(data, { type: 1, money: 1 })
+  const cost = res
+    .filter((item) => item.type === 1)
+    .reduce((prev, curr) => {
+      return prev + curr.money
+    }, 0)
+  const incomes = res
+    .filter((item) => item.type === 2)
+    .reduce((prev, curr) => {
+      return prev + curr.money
+    }, 0)
+
+  if (res) return [null, { incomes, cost }]
+  else return ['查询失败', null]
 }

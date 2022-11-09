@@ -25,7 +25,7 @@ export const createBill = async ({ userId, name, nickName }) => {
     incomesTypes: InitData.incomesTypes,
     payMethods: InitData.payMethods,
     planBuy: { count: 0, totalCost: 0, details: [] },
-    budget: { totalBudget: 0, currCost: 0, details: [] },
+    budget: [],
     isDel: false
   }
   const billRes = await Bill.create(createData)
@@ -63,7 +63,6 @@ export const getBillDetail = async ({ userId, id, nickName }) => {
     payMethods: 1
   }
   const res = await Bill.findOne(params, filterData)
-  console.log(params, res)
   if (res) return [null, res]
   return ['找不到账本', null]
 }

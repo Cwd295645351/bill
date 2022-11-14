@@ -10,6 +10,7 @@
         </ol>
       </div>
       <div class="content">
+        <!-- 查询交易 -->
         <el-form :inline="true">
           <el-form-item class="form-item width-150" size="mini" label="日期">
             <el-date-picker v-model="searchOptions.beginDate" value-format="yyyy-MM-dd" type="date" placeholder="请选择" clearable></el-date-picker>~
@@ -41,7 +42,7 @@
               <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" size="mini" label="备注">
+          <el-form-item class="form-item width-150" size="mini" label="内容">
             <el-input v-model="searchOptions.remark" placeholder="请输入"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="mini">
@@ -49,6 +50,7 @@
             <el-button v-show="!showAdd" @click="changeAddContainer">新增</el-button>
           </el-form-item>
         </el-form>
+        <!-- 新增交易 -->
         <div class="add-data" v-show="showAdd">
           <el-form class="form-container" :inline="true">
             <el-form-item class="form-item width-125" size="mini" label="日期">
@@ -59,10 +61,11 @@
                 <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item class="form-item width-125" v-show="type === 1" size="mini" label="支付方式">
-              <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" clearable>
-                <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
-              </el-select>
+            <el-form-item class="form-item width-125" size="mini" label="内容">
+              <el-input v-model="addInformation.remark" clearble placeholder="请输入"></el-input>
+            </el-form-item>
+            <el-form-item class="form-item width-125" size="mini" label="金额">
+              <el-input v-model="addInformation.money" clearble placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item width-125" size="mini" label="归属人">
               <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" clearable>
@@ -70,8 +73,10 @@
                 <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item class="form-item width-125" size="mini" label="金额">
-              <el-input v-model="addInformation.money" placeholder="请输入"></el-input>
+            <el-form-item class="form-item width-125" v-show="type === 1" size="mini" label="支付方式">
+              <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" clearable>
+                <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              </el-select>
             </el-form-item>
             <el-form-item class="form-item" v-show="type === 1" size="mini" label="报销进度">
               <el-radio-group v-model="addInformation.reimbursement">
@@ -85,10 +90,6 @@
               <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" clearable>
                 <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
-            </el-form-item>
-
-            <el-form-item class="form-item width-125" size="mini" label="备注">
-              <el-input v-model="addInformation.remark" placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item" size="mini">
               <el-button :disabled="saveLoading" @click="addTransaction">保存</el-button>
@@ -115,22 +116,19 @@
           <div class="date-overview">
             <div class="types">
               <div class="type-item" v-for="typeData in item.types" :key="typeData.name">
-                {{ typeData.name }}: <span>{{ typeData.money }}</span>
+                {{ typeData.name }}: <span>{{ typeData.money.toFixed(2) }}</span>
               </div>
             </div>
           </div>
           <div class="detail">
-            <div class="detail-item" v-for="detail in item.datas" :key="detail._id">
+            <div class="detail-item" v-for="detail in item.datas" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
               <div class="top">
-                <span class="belong-user">{{ detail.belongUserName }}</span>
+                <span>
+                  <span class="belong-user">{{ detail.belongUserName }}</span>
+                  <span class="tips">{{ detail[typeName] }}</span>
+                  <span v-if="type === 1" class="tips">{{ detail.payMethodName }}</span>
+                </span>
                 <div class="money">{{ detail.money }}</div>
-              </div>
-              <div class="middle">
-                <div>
-                  <span>{{ detail[typeName] }}</span
-                  ><span v-if="type === 1" class="payMethod">{{ detail.payMethodName }}</span>
-                </div>
-                <span class="reimbursement">{{ reimbursementData[detail.reimbursement] }}</span>
               </div>
               <div class="remark-container">
                 <div class="remark">{{ detail.remark }}</div>
@@ -191,7 +189,7 @@
           </el-select>
         </el-form-item>
 
-        <el-form-item class="form-item" size="mini" label="备注">
+        <el-form-item class="form-item" size="mini" label="内容">
           <el-input v-model="operateData.remark" placeholder="请输入"></el-input>
         </el-form-item>
       </el-form>
@@ -252,7 +250,7 @@ export default {
         costTypeId: '', // 支出类型
         incomesTypeId: '', // 收入类型
         payMethodId: '', // 支付方式
-        remark: '' // 备注
+        remark: '' // 内容
       },
       pageContent: { pageIndex: 1, pageSize: 20 },
       users: [], // 记账人配置项
@@ -271,7 +269,7 @@ export default {
         belongUserId: '', // 归属人（支出数据）
         incomesTypeId: '', // 收入类型（收入数据）
         money: 0, // 金额
-        remark: '' // 备注
+        remark: '' // 内容
       },
       listData: [], // 交易明细数据
       totalCount: 0, // 总数
@@ -444,13 +442,15 @@ export default {
         if (item.date === currDate) {
           // 已存在日期
           const obj = arr[arr.length - 1]
-          obj.money += item.money
-          // 判断是否已存在该类型
-          const type = obj.types.find((type) => type.name === item[this.typeName])
-          if (type) {
-            type.money += item.money
-          } else {
-            obj.types.push({ name: item[this.typeName], money: item.money })
+          // 判断是否无需报销且已存在该类型
+          if (item.reimbursement === 0) {
+            obj.money += item.money
+            const type = obj.types.find((type) => type.name === item[this.typeName])
+            if (type) {
+              type.money += item.money
+            } else {
+              obj.types.push({ name: item[this.typeName], money: item.money })
+            }
           }
           obj.datas.push(item)
         } else {
@@ -458,9 +458,14 @@ export default {
           currDate = item.date
           const obj = {
             date: currDate,
-            money: item.money,
-            types: [{ name: item[this.typeName], money: item.money }],
+            money: 0,
+            types: [],
             datas: [item]
+          }
+          if (item.reimbursement === 0) {
+            // 无需报销时才记录类型
+            obj.money = item.money
+            obj.types = [{ name: item[this.typeName], money: item.money }]
           }
           arr.push(obj)
         }
@@ -667,30 +672,27 @@ export default {
             box-shadow: 0 0 2px #ddd;
             width: 500px;
             padding: 10px;
+            &.gray-background {
+              background-color: #eee;
+            }
             .top {
               display: flex;
               font-size: 16px;
               font-weight: bold;
               justify-content: space-between;
               .belong-user {
-                margin-right: 20px;
                 color: #f9a100;
+              }
+              .tips {
+                color: #999;
+                margin-left: 20px;
+                font-size: 12px;
               }
               .money {
                 color: #dd3914;
               }
             }
-            .middle {
-              margin-top: 10px;
-              display: flex;
-              justify-content: space-between;
-              .payMethod {
-                margin-left: 20px;
-              }
-              .reimbursement {
-                color: #999;
-              }
-            }
+
             .remark-container {
               font-size: 12px;
               color: #999;

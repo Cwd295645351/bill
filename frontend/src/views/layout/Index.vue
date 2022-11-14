@@ -30,7 +30,7 @@
     <router-view></router-view>
     <el-dialog title="加入账本" custom-class="join-bill-dialog" :visible.sync="joinBillDialog">
       <el-form ref="joinForm" :model="form" :rules="rules">
-        <el-form-item label="账本名称" label-width="70px" prop="name" style="margin-bottom: 0">
+        <el-form-item label="分享码" label-width="70px" prop="name" style="margin-bottom: 0">
           <el-input v-model="form.name" autocomplete="off"></el-input>
         </el-form-item>
       </el-form>
@@ -76,7 +76,7 @@ export default {
         { label: '记账', value: 'record', route: '/layout/record' },
         { label: '概览', value: 'overview', route: '' },
         { label: '计划', value: 'plan', route: '/layout/record' },
-        { label: '预算', value: 'budget', route: '/layout/record' },
+        { label: '预算', value: 'budget', route: '/layout/budget' },
         { label: '设置', value: 'setting', route: '/layout/record' }
       ],
       menus: [{ label: '账本', value: 'bills', route: '/layout/bills' }],

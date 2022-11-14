@@ -11,7 +11,7 @@
     <div class="bill add-bill" @click="showBillDialog">+</div>
     <el-dialog title="新增账本" custom-class="add-bill-dialog" :visible.sync="addBillDialog">
       <el-form ref="addForm" :model="form" :rules="rules">
-        <el-form-item label="账本名称" label-width="70px" prop="name" style="margin-bottom: 0">
+        <el-form-item label="账本名称" label-width="100px" prop="name" style="margin-bottom: 0">
           <el-input v-model="form.name" autocomplete="off"></el-input>
         </el-form-item>
       </el-form>

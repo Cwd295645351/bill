@@ -105,7 +105,7 @@ router.get('/currentMonthCost', async (ctx, next) => {
       beginDate: beginDate,
       endDate: currentDate,
       billId: billId,
-      userId: userId
+      reimbursement: 0
     }
     console.log(params)
     const [err, res] = await Transaction.getCurrentMonthCost(params)

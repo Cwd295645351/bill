@@ -153,10 +153,9 @@ export const editTransaction = async (data) => {
   }
   if (data.belongUserId) {
     const users = findBill.users.find((item) => item.id === data.belongUserId)
-    params.belongUserId = users.id
-    params.belongUserName = users.name
+    changeData.belongUserId = users.id
+    changeData.belongUserName = users.name
   }
-
   const res = await Transaction.findOneAndUpdate(params, changeData)
   if (!res) return ['编辑失败', null]
 
@@ -235,12 +234,12 @@ export const getCurrentMonthCost = async (data) => {
     .filter((item) => item.type === 1)
     .reduce((prev, curr) => {
       return prev + curr.money
-    }, 0)
+    }, 0).toFixed(2)
   const incomes = res
     .filter((item) => item.type === 2)
     .reduce((prev, curr) => {
       return prev + curr.money
-    }, 0)
+    }, 0).toFixed(2)
 
   if (res) return [null, { incomes, cost }]
   else return ['查询失败', null]

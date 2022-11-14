@@ -11,7 +11,7 @@ export const costTypes = [
   { id: '1005', name: '通讯网费' },
   { id: '1006', name: '休闲娱乐' },
   { id: '1007', name: '医疗' },
-  { id: '1008', name: '家具' },
+  { id: '1008', name: '家居' },
   { id: '1009', name: '零食饮料' },
   { id: '1010', name: '学习' },
   { id: '1011', name: '护肤彩妆' },

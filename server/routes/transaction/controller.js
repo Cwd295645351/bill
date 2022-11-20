@@ -11,6 +11,7 @@ export const getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
+    remark: { $regex: data.remark, $options: 'im' },
     isDel: false
   }
   if (params.beginDate && params.endDate) {
@@ -227,20 +228,37 @@ export const deleteTransaction = async (data) => {
   }
 }
 
-// 查询当月收支概况
-export const getCurrentMonthCost = async (data) => {
-  const res = await Transaction.find(data, { type: 1, money: 1 })
-  const cost = res
-    .filter((item) => item.type === 1)
-    .reduce((prev, curr) => {
-      return prev + curr.money
-    }, 0).toFixed(2)
-  const incomes = res
-    .filter((item) => item.type === 2)
-    .reduce((prev, curr) => {
-      return prev + curr.money
-    }, 0).toFixed(2)
+// 查询当月收支和各归属人概况
+export const getCurrentMonthCost = async (data, userId) => {
+  const res = await Transaction.find(data, { type: 1, money: 1, belongUserId: 1, belongUserName: 1 })
+  const costDetail = res.filter((item) => item.type === 1)
+  let totalCost = 0,
+    belongUserCosts = []
+  costDetail.forEach((item) => {
+    totalCost += item.money
+    const user = belongUserCosts.find((ite) => ite.belongUserId === item.belongUserId)
+    if (user) {
+      user.money += item.money
+    } else {
+      belongUserCosts.push({
+        belongUserId: item.belongUserId,
+        belongUserName: item.belongUserName,
+        money: item.money
+      })
+    }
+  })
+  // const cost = costDetail
+  //   .reduce((prev, curr) => {
+  //     return prev + curr.money
+  //   }, 0)
+  //   .toFixed(2)
+  // const incomes = res
+  //   .filter((item) => item.type === 2)
+  //   .reduce((prev, curr) => {
+  //     return prev + curr.money
+  //   }, 0)
+  //   .toFixed(2)
 
-  if (res) return [null, { incomes, cost }]
+  if (res) return [null, { totalCost: totalCost.toFixed(2), belongUserCosts }]
   else return ['查询失败', null]
 }

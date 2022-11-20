@@ -108,7 +108,7 @@ router.get('/currentMonthCost', async (ctx, next) => {
       reimbursement: 0
     }
     console.log(params)
-    const [err, res] = await Transaction.getCurrentMonthCost(params)
+    const [err, res] = await Transaction.getCurrentMonthCost(params, userId)
     if (res) ctx.body = new ResModel(res, '查找成功')
     else ctx.body = new ResModel(null, err, 'error')
   }

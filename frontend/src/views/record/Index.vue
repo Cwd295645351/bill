@@ -62,10 +62,10 @@
               </el-select>
             </el-form-item>
             <el-form-item class="form-item width-125" size="mini" label="内容">
-              <el-input v-model="addInformation.remark" clearble placeholder="请输入"></el-input>
+              <el-input v-model="addInformation.remark" clearable placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item width-125" size="mini" label="金额">
-              <el-input v-model="addInformation.money" clearble placeholder="请输入"></el-input>
+              <el-input v-model="addInformation.money" clearable placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item width-125" size="mini" label="归属人">
               <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" clearable>
@@ -102,12 +102,14 @@
     <div class="context">
       <div class="overview">
         <div class="title">本月收支概览</div>
-        <div class="line">本月支出：{{ monthOverview.cost }}</div>
-        <div class="line">本月收入：{{ monthOverview.incomes }}</div>
+        <div class="line">本月支出：{{ monthOverview.totalCost }}</div>
+        <div class="line" v-for="item in monthOverview.belongUserCosts" :key="item.belongUserId">
+          {{ item.belongUserName }}支出：{{ item.money.toFixed(2) }}
+        </div>
         <div class="line">本月预算：{{ monthOverview.budget }}</div>
       </div>
       <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
-        <div class="list-item" v-for="item in listData" :key="item.date">
+        <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
           <div class="decorate">
             <div class="line"></div>
             <div class="circle"></div>
@@ -217,8 +219,8 @@ export default {
       btnLoading: false, // 按钮loading
       // 本月概览数据
       monthOverview: {
-        cost: 0, // 支出
-        incomes: 0, // 收入
+        totalCost: 0, // 总支出
+        belongUserCosts: [], // 团队归属人支出明细
         budget: 0 // 预算
       },
       // 记账开始日期限制条件
@@ -311,7 +313,12 @@ export default {
     }
   },
 
-  mounted() {},
+  mounted() {
+    setTimeout(() => {
+      this.getList()
+      this.getCurrentMonthCost()
+    }, 200)
+  },
 
   methods: {
     load() {
@@ -339,8 +346,8 @@ export default {
       const [err, res] = await getCurrentMonthCost({ params })
       if (err) return
       if (res.retCode === 0) {
-        this.monthOverview.cost = res.data.cost
-        this.monthOverview.incomes = res.data.incomes
+        this.monthOverview.totalCost = res.data.totalCost
+        this.monthOverview.belongUserCosts = res.data.belongUserCosts
       } else {
         this.$message.error('查询本月收支概况失败，', res.message)
       }
@@ -413,6 +420,7 @@ export default {
         pageIndex: this.pageContent.pageIndex,
         pageSize: this.pageContent.pageSize,
         type: this.type,
+        remark: this.searchOptions.remark,
         billId: this.bill._id
       }
       const [err, res] = await getList({ params })
@@ -430,6 +438,9 @@ export default {
           listData.shift()
         }
         this.listData = this.listData.concat(listData)
+        this.listData.forEach((item) => {
+          item.datas = item.datas.sort((a, b) => a.costTypeId - b.costTypeId)
+        })
       } else {
         this.$message.error('查询交易明细失败，' + res.message)
       }

@@ -16,6 +16,7 @@
     "@vue/reactivity": "^3.2.39",
     "axios": "^0.27.2",
     "dayjs": "^1.11.4",
+    "echarts": "^5.4.0",
     "element-ui": "^2.15.10",
     "jsrsasign": "^10.5.26",
     "vue": "^2.6.14",

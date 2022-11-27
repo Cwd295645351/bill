@@ -101,12 +101,20 @@
     </div>
     <div class="context">
       <div class="overview">
-        <div class="title">本月收支概览</div>
-        <div class="line">本月支出：{{ monthOverview.totalCost }}</div>
-        <div class="line" v-for="item in monthOverview.belongUserCosts" :key="item.belongUserId">
-          {{ item.belongUserName }}支出：{{ item.money.toFixed(2) }}
+        <div class="top-container">
+          <div class="title">本月收支概览</div>
+          <div class="line">本月支出：{{ monthOverview.totalCost }}</div>
+          <div class="line" v-for="item in monthOverview.belongUserCosts" :key="item.belongUserId + item.userId">
+            ({{ item.userName }}) {{ item.belongUserName }}支出：{{ item.money.toFixed(2) }}
+          </div>
+          <div class="line">本月预算：{{ monthOverview.budget }}</div>
         </div>
-        <div class="line">本月预算：{{ monthOverview.budget }}</div>
+        <div class="calculate-container">
+          <div class="title">收支合计：{{ proportion.money }}</div>
+          <el-input class="margin-top-10" v-model="proportion.first" size="small"></el-input>
+          <el-input class="margin-top-10" v-model="proportion.second" size="small"></el-input>
+          <el-button class="margin-top-10" size="small" @click="calculateMoney">计算</el-button>
+        </div>
       </div>
       <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
         <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
@@ -223,6 +231,7 @@ export default {
         belongUserCosts: [], // 团队归属人支出明细
         budget: 0 // 预算
       },
+      proportion: { first: '954.44', second: '1055', money: 0 }, // 支出比例
       // 记账开始日期限制条件
       beginDateOptions: {
         disabledDate(time) {
@@ -347,10 +356,36 @@ export default {
       if (err) return
       if (res.retCode === 0) {
         this.monthOverview.totalCost = res.data.totalCost
-        this.monthOverview.belongUserCosts = res.data.belongUserCosts
+        this.monthOverview.belongUserCosts = res.data.belongUserCosts.map((item) => {
+          item.userName = this.users.find((ite) => ite.id === item.userId).name
+          return item
+        })
+        this.calculateMoney()
       } else {
         this.$message.error('查询本月收支概况失败，', res.message)
       }
+    },
+    // 合计退款
+    calculateMoney() {
+      const costs = this.monthOverview.belongUserCosts
+      const proportion = this.proportion
+      let money = 0
+      costs.forEach((item) => {
+        if (item.userName === '宜') {
+          if (item.belongUserId === '') {
+            money += item.money * (proportion.second / (Number(proportion.first) + Number(proportion.second)))
+          } else if (item.belongUserName === '栋') {
+            money += item.money
+          }
+        } else if (item.userName === '栋') {
+          if (item.belongUserId === '') {
+            money -= item.money * (proportion.first / (Number(proportion.first) + Number(proportion.second)))
+          } else if (item.belongUserName === '宜') {
+            money -= item.money
+          }
+        }
+      })
+      proportion.money = money.toFixed(2)
     },
     // 删除交易明细
     async submitDeleteTransaction() {
@@ -591,20 +626,35 @@ export default {
     display: flex;
     .overview {
       width: 240px;
-      height: fit-content;
-      padding: 20px;
-      background-color: #fff;
-      border: 1px solid #ddd;
-      box-shadow: 1px 1px 5px #999;
       margin-right: 20px;
-      border-radius: 8px;
+      .top-container {
+        height: fit-content;
+        padding: 20px;
+        background-color: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 1px 1px 5px #999;
+        border-radius: 8px;
+        .line {
+          margin-top: 10px;
+          font-size: 14px;
+        }
+      }
+      .calculate-container {
+        background-color: #fff;
+        border: 1px solid #ddd;
+        box-shadow: 1px 1px 5px #999;
+        border-radius: 8px;
+        margin-top: 20px;
+        padding: 20px;
+        text-align: center;
+        .margin-top-10 {
+          margin-top: 10px;
+        }
+      }
+
       .title {
         text-align: center;
         font-weight: bold;
-      }
-      .line {
-        margin-top: 10px;
-        font-size: 14px;
       }
     }
     .timeline-container {

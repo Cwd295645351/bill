@@ -57,7 +57,7 @@
               <el-date-picker v-model="addInformation.date" type="date" placeholder="请选择" clearable></el-date-picker>
             </el-form-item>
             <el-form-item class="form-item width-125" v-show="type === 1" size="mini" label="支出类型">
-              <el-select v-model="addInformation.costTypeId" filterable placeholder="请选择" clearable>
+              <el-select filterable v-model="addInformation.costTypeId" filterable placeholder="请选择" clearable>
                 <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
@@ -492,7 +492,7 @@ export default {
         if (type) {
           type.money += item.money
         } else {
-          firstData.types.push({ name: item[this.typeName], money: item.money })
+          firstData.types.push({ name: item.name, money: item.money })
         }
       })
     },

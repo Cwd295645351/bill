@@ -230,19 +230,20 @@ export const deleteTransaction = async (data) => {
 
 // 查询当月收支和各归属人概况
 export const getCurrentMonthCost = async (data, userId) => {
-  const res = await Transaction.find(data, { type: 1, money: 1, belongUserId: 1, belongUserName: 1 })
+  const res = await Transaction.find(data, { type: 1, money: 1, belongUserId: 1, belongUserName: 1, userId: 1 })
   const costDetail = res.filter((item) => item.type === 1)
   let totalCost = 0,
     belongUserCosts = []
   costDetail.forEach((item) => {
     totalCost += item.money
-    const user = belongUserCosts.find((ite) => ite.belongUserId === item.belongUserId)
+    const user = belongUserCosts.find((ite) => ite.belongUserId === item.belongUserId && ite.userId === item.userId)
     if (user) {
       user.money += item.money
     } else {
       belongUserCosts.push({
         belongUserId: item.belongUserId,
         belongUserName: item.belongUserName,
+        userId: item.userId,
         money: item.money
       })
     }

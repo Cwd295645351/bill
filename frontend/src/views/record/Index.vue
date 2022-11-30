@@ -263,7 +263,7 @@ export default {
         payMethodId: '', // 支付方式
         remark: '' // 内容
       },
-      pageContent: { pageIndex: 1, pageSize: 20 },
+      pageContent: { pageIndex: 1, pageSize: 60 },
       users: [], // 记账人配置项
       costTypes: [], // 支出类型配置项
       incomesTypes: [], // 收入类型配置项
@@ -303,16 +303,7 @@ export default {
   watch: {
     bill: {
       handler(bill) {
-        const budget = bill.budget
-        this.users = bill.users
-        this.costTypes = bill.costTypes
-        this.incomesTypes = bill.incomesTypes
-        this.payMethods = bill.payMethods
-
-        this.monthOverview.budget = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))?.totalBudget || 0
-
-        this.getList()
-        this.getCurrentMonthCost()
+        this.initData(bill)
       }
     },
     type: {
@@ -324,12 +315,23 @@ export default {
 
   mounted() {
     setTimeout(() => {
-      this.getList()
-      this.getCurrentMonthCost()
-    }, 200)
+      this.initData(this.bill)
+    }, 300)
   },
 
   methods: {
+    initData(bill) {
+      const budget = bill.budget
+      this.users = bill.users
+      this.costTypes = bill.costTypes
+      this.incomesTypes = bill.incomesTypes
+      this.payMethods = bill.payMethods
+
+      this.monthOverview.budget = budget.find((item) => item.date === dayjs(new Date()).format('YYYY-MM'))?.totalBudget || 0
+
+      this.getList()
+      this.getCurrentMonthCost()
+    },
     load() {
       if (this.totalCount === this.currentCount) {
         this.noMore = true
@@ -443,7 +445,7 @@ export default {
     search() {
       this.listData = []
       this.pageContent.pageIndex = 1
-      this.pageContent.pageSize = 20
+      this.pageContent.pageSize = 60
       this.getList()
       this.getCurrentMonthCost()
     },

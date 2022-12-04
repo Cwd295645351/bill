@@ -101,7 +101,7 @@
     </div>
     <div class="context">
       <div class="overview">
-        <div class="top-container">
+        <div class="top-container item">
           <div class="title">本月收支概览</div>
           <div class="line">本月支出：{{ monthOverview.totalCost }}</div>
           <div class="line" v-for="item in monthOverview.belongUserCosts" :key="item.belongUserId + item.userId">
@@ -109,11 +109,15 @@
           </div>
           <div class="line">本月预算：{{ monthOverview.budget }}</div>
         </div>
-        <div class="calculate-container">
+        <div class="calculate-container item">
           <div class="title">收支合计：{{ proportion.money }}</div>
           <el-input class="margin-top-10" v-model="proportion.first" size="small"></el-input>
           <el-input class="margin-top-10" v-model="proportion.second" size="small"></el-input>
           <el-button class="margin-top-10" size="small" @click="calculateMoney">计算</el-button>
+        </div>
+        <div class="monthly-cost item">
+          <div class="title">本月各类型支出比例</div>
+          <div class="record-cost-statistics" id="costStatistics"></div>
         </div>
       </div>
       <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
@@ -287,7 +291,37 @@ export default {
       currentCount: 0, // 当前加载总数
       operateData: null, // 正在操作的数据
       reimbursementData: ['无需报销', '待报销', '已提交', '已报销'],
-      userInfo: {} // 用户信息
+      userInfo: {}, // 用户信息
+      chart: null,
+      options: {
+        tooltip: {
+          trigger: 'item',
+          formatter: '{b}: {c}({d}%)'
+        },
+        legend: {
+          orient: 'horizontal',
+          type: 'scroll',
+          bottom: 0
+        },
+        series: [
+          {
+            name: '各支出类型占比',
+            type: 'pie',
+            radius: '80%',
+            data: [],
+            label: {
+              show: false
+            },
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }
+        ]
+      }
     }
   },
 
@@ -314,6 +348,7 @@ export default {
   },
 
   mounted() {
+    this.chart = this.$echarts.init(document.getElementById('costStatistics'))
     setTimeout(() => {
       this.initData(this.bill)
     }, 300)
@@ -362,6 +397,10 @@ export default {
           item.userName = this.users.find((ite) => ite.id === item.userId).name
           return item
         })
+        this.options.series[0].data = res.data.costTypeCost.map((item) => {
+          return { value: item.money, name: item.name }
+        })
+        this.chart.setOption(this.options, true)
         this.calculateMoney()
       } else {
         this.$message.error('查询本月收支概况失败，', res.message)
@@ -631,32 +670,40 @@ export default {
       margin-right: 20px;
       .top-container {
         height: fit-content;
-        padding: 20px;
-        background-color: #fff;
-        border: 1px solid #ddd;
-        box-shadow: 1px 1px 5px #999;
-        border-radius: 8px;
+
         .line {
           margin-top: 10px;
           font-size: 14px;
         }
       }
-      .calculate-container {
+      .item {
+        padding: 20px;
         background-color: #fff;
         border: 1px solid #ddd;
         box-shadow: 1px 1px 5px #999;
         border-radius: 8px;
+      }
+      .calculate-container {
         margin-top: 20px;
-        padding: 20px;
         text-align: center;
         .margin-top-10 {
           margin-top: 10px;
+        }
+      }
+      .monthly-cost {
+        margin-top: 20px;
+        height: 250px;
+        .record-cost-statistics {
+          height: calc(100% - 21px);
+          width: 100%;
         }
       }
 
       .title {
         text-align: center;
         font-weight: bold;
+        font-size: 16px;
+        height: 21px;
       }
     }
     .timeline-container {

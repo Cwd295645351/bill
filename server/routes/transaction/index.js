@@ -9,17 +9,21 @@ const router = koaRouter({ prefix: '/api/transaction' })
 // 交易明细(可根据周/月/年进行查询)
 router.get('/list', async (ctx, next) => {
   const data = ctx.query
-  const { beginDate, endDate, pageIndex, pageSize, type } = data
+  const { beginDate, endDate, pageIndex, pageSize, type, billId } = data
   const dateReg = /^\d{4}-\d{2}-\d{2}$/gi
+  if (!billId) {
+    ctx.body = new ResModel(null, '账本id不能为空', 'error')
+    return
+  }
   if (beginDate) {
-    if (!dateReg.test(beginDate)) {
+    if (!beginDate.match(dateReg)) {
       ctx.body = new ResModel(null, '开始时间不规范', 'error')
       return
     }
     data.beginDate = new Date(beginDate)
   }
   if (endDate) {
-    if (!dateReg.test(endDate)) {
+    if (!endDate.match(dateReg)) {
       ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
       return
     }

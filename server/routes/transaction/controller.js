@@ -238,12 +238,13 @@ export const getCurrentMonthCost = async (data, userId) => {
       $lte: new Date(data.endDate)
     }
   }
-  const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, belongUserName: 1, userId: 1 })
-  const costDetail = res.filter((item) => item.type === 1)
+  const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, costTypeId: 1, costTypeName: 1, belongUserName: 1, userId: 1 })
   let totalCost = 0,
-    belongUserCosts = []
-  costDetail.forEach((item) => {
+    belongUserCosts = [],
+    costTypeCost = []
+  res.forEach((item) => {
     totalCost += item.money
+    // 统计各个归属人支出的金额
     const user = belongUserCosts.find((ite) => ite.belongUserId === item.belongUserId && ite.userId === item.userId)
     if (user) {
       user.money += item.money
@@ -255,19 +256,23 @@ export const getCurrentMonthCost = async (data, userId) => {
         money: item.money
       })
     }
+    // 统计当月各个支出类型的金额
+    const costType = costTypeCost.find((ite) => ite.type === item.costTypeId)
+    if (costType) {
+      costType.money += item.money
+    } else {
+      costTypeCost.push({ type: item.costTypeId, name: item.costTypeName, money: item.money })
+    }
   })
-  // const cost = costDetail
-  //   .reduce((prev, curr) => {
-  //     return prev + curr.money
-  //   }, 0)
-  //   .toFixed(2)
-  // const incomes = res
-  //   .filter((item) => item.type === 2)
-  //   .reduce((prev, curr) => {
-  //     return prev + curr.money
-  //   }, 0)
-  //   .toFixed(2)
 
-  if (res) return [null, { totalCost: totalCost.toFixed(2), belongUserCosts }]
+  // 按照从大到小排序
+  costTypeCost = costTypeCost
+    .sort((a, b) => b.money - a.money)
+    .map((item) => {
+      item.money = Number(item.money.toFixed(2))
+      return item
+    })
+
+  if (res) return [null, { totalCost: totalCost.toFixed(2), belongUserCosts, costTypeCost }]
   else return ['查询失败', null]
 }

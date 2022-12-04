@@ -230,7 +230,15 @@ export const deleteTransaction = async (data) => {
 
 // 查询当月收支和各归属人概况
 export const getCurrentMonthCost = async (data, userId) => {
-  const res = await Transaction.find(data, { type: 1, money: 1, belongUserId: 1, belongUserName: 1, userId: 1 })
+  const params = {
+    billId: data.billId,
+    reimbursement: 0,
+    date: {
+      $gte: new Date(data.beginDate),
+      $lte: new Date(data.endDate)
+    }
+  }
+  const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, belongUserName: 1, userId: 1 })
   const costDetail = res.filter((item) => item.type === 1)
   let totalCost = 0,
     belongUserCosts = []

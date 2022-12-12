@@ -24,10 +24,10 @@ const BillSchema = mongoose.Schema({
       }
     ]
   },
-  // 预算（每个对象都是月度预算）
+  // 预算（每个对象都是年度预算）
   budget: [
     {
-      date: { type: String, required: true }, // 月份
+      date: { type: String, required: true }, // 年份
       totalBudget: { type: Number, required: true, default: 0 }, // 总预算
       currCost: { type: Number, required: true, default: 0 }, // 当前已支出金额
       details: [

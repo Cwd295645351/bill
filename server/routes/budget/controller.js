@@ -17,19 +17,20 @@ export const getList = async (data) => {
 
 // 新增预算
 export const addBudget = async (data) => {
+  data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { costTypes: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
 
   let budget = findBill.budget.find((item) => item.date === data.date)
-  console.log(data)
+  console.log(data, budget,"============")
   if (budget) {
     // 已存在年度预算
     let budgetDetailItem = budget.details.find((item) => item.costTypeId === data.costTypeId)
-    if (!budgetDetailItem) return ['已存在相关预算', null]
+    if (budgetDetailItem) return ['已存在相关预算', null]
     budget.totalBudget += data.money
     budgetDetailItem = {
       costTypeId: data.costTypeId,
-      costTypeName: findBill.costTypes.find((item) => item.id === data.costTypeId),
+      costTypeName: findBill.costTypes.find((item) => item.id === data.costTypeId).name,
       budget: data.money,
       cost: 0
     }
@@ -37,6 +38,7 @@ export const addBudget = async (data) => {
     const params = {
       billId: data.billId,
       type: 1,
+      costTypeId: data.costTypeId,
       date: {
         $gte: dayjs(new Date()).startOf('year').toDate(),
         $lte: dayjs(new Date()).endOf('year').toDate()

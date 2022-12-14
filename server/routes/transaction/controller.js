@@ -50,6 +50,7 @@ export const getList = async (data) => {
 
 // 新增交易信息
 export const addTransaction = async (data) => {
+  data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = {
@@ -99,9 +100,9 @@ export const addTransaction = async (data) => {
     const year = dayjs(new Date()).format('YYYY')
     const budgetItem = budget.find((item) => item.date === year)
     if (budgetItem) {
+      budgetItem.currCost += data.money
       const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
       if (budgetDetail) {
-        budget.currCost += data.money
         budgetDetail.cost += data.money
       }
     } else {
@@ -128,6 +129,7 @@ export const addTransaction = async (data) => {
 
 // 编辑交易信息
 export const editTransaction = async (data) => {
+  data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
@@ -175,9 +177,9 @@ export const editTransaction = async (data) => {
     // 若有对应预算，对增加对应预算分项的支出金额
     const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY'))
     if (budgetItem) {
+      budgetItem.currCost += differenceMoney
       const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
       if (budgetDetail) {
-        budget.currCost += differenceMoney
         budgetDetail.cost += differenceMoney
       }
     }
@@ -212,12 +214,10 @@ export const deleteTransaction = async (data) => {
     // 若有对应预算，对增加对应预算分项的支出金额
     const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY'))
     if (budgetItem) {
+      budgetItem.currCost -= res.money
       const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
       if (budgetDetail) {
-        if (budgetDetail) {
-          budget.currCost -= res.money
-          budgetDetail.cost -= res.money
-        }
+        budgetDetail.cost -= res.money
       }
     }
     const updateBillRes = await Bill.findByIdAndUpdate(res.billId, { budget: budget }, { new: true })

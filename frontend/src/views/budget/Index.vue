@@ -2,7 +2,10 @@
   <div class="budget-container">
     <div class="budget-overview-container">
       <div class="total">
-        年度预算：<span class="num">{{ total }}</span>
+        年度预算：<span class="num">{{ totalBudget }}</span>
+      </div>
+      <div class="total">
+        年度支出：<span class="num">{{ totalCost }}</span>
       </div>
       <div id="budgetStatistics" class="budget-overview"></div>
       <div class="add-data-container">
@@ -22,16 +25,27 @@
         </el-form>
       </div>
     </div>
-    <div class="budget-list-cards"></div>
+    <div class="budget-list-cards">
+      <div class="budget-list-card-item" v-for="(item, index) in budgetDetails" :key="item.costTypeId + index">
+        <div class="type">{{ item.costTypeName }}</div>
+        <div class="tips">预算：{{ item.budget }}</div>
+        <div class="line budget"></div>
+        <div class="tips">花费：{{ item.cost }}</div>
+        <div class="line cost" :style="{ width: `${item.costPercent * 100}%`, background: item.costPercent !== 1 ? '#33e392' : 'red' }"></div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import { mapState } from 'vuex'
+import { getBudgetList, addBudget, deleteBudget } from './api'
 export default {
   data() {
     return {
-      total: '120000.00', // 总预算
+      totalBudget: '0', // 总预算
+      totalCost: '0', // 总支出
+      year: '', // 当前年度
       saveLoading: false,
       costTypes: [], // 支出类型配置项
       addInformation: {
@@ -60,13 +74,7 @@ export default {
             name: '各支出类型占比',
             type: 'pie',
             radius: '50%',
-            data: [
-              { value: 1048, name: '餐饮买菜' },
-              { value: 735, name: '日用品' },
-              { value: 580, name: '衣服鞋帽' },
-              { value: 484, name: '休闲娱乐' },
-              { value: 300, name: '零食饮料' }
-            ],
+            data: [],
             emphasis: {
               itemStyle: {
                 shadowBlur: 10,
@@ -77,6 +85,7 @@ export default {
           }
         ]
       },
+      budgetDetails: [], // 预算明细列表
       rules: {
         money: [
           { required: true, message: '请输入金额', trigger: 'change' },
@@ -99,7 +108,10 @@ export default {
     }
   },
 
-  created() {},
+  created() {
+    this.year = new Date().getFullYear()
+    this.getDetail()
+  },
   computed: {
     ...mapState({
       billId: (state) => state.billId,
@@ -122,10 +134,40 @@ export default {
   },
 
   methods: {
+    // 获取当前年度预算详情
+    async getDetail() {
+      const params = { date: this.year, billId: this.billId }
+      const [err, res] = await getBudgetList({ params })
+      const seriesData = (this.options.series[0].data = [])
+      if (err) return
+      if (res.retCode === 0) {
+        console.log(res)
+        const data = res.data
+        this.totalBudget = data.totalBudget
+        this.totalCost = data.currCost
+        this.budgetDetails = data.details.map((item) => {
+          seriesData.push({ value: item.cost, name: item.costTypeName })
+          const costPercent = item.cost / item.budget
+          item.costPercent = costPercent > 1 ? 1 : costPercent
+          return item
+        })
+      } else {
+        this.$message.error('获取当前年度预算失败，' + res.message)
+      }
+    },
     addBudget() {
-      this.$refs.addForm.validate((valid) => {
+      this.$refs.addForm.validate(async (valid) => {
         if (valid) {
           alert('submit!')
+          const data = { date: this.year, billId: this.billId, costTypeId: this.addInformation.costTypeId, money: this.addInformation.money }
+          const [err, res] = await addBudget({ data })
+          if (err) return
+          if (res.retCode === 0) {
+            this.$message.success('新增预算成功')
+            this.getDetail()
+          } else {
+            this.$message.error('新增预算失败，' + res.message)
+          }
         } else {
           return false
         }
@@ -187,8 +229,36 @@ export default {
     flex: 1;
     height: 100%;
     min-width: 0;
-    border-radius: 8px;
-    box-shadow: 1px 1px 5px #ddd;
+    display: flex;
+    flex-wrap: wrap;
+    // background-color: #fafafa;
+    .budget-list-card-item {
+      width: 200px;
+      height: 150px;
+      border-radius: 4px;
+      box-shadow: 1px 1px 5px #ddd;
+      padding: 10px;
+      margin-right: 20px;
+      margin-bottom: 20px;
+      .type {
+        height: 30px;
+        line-height: 30px;
+        font-size: 16px;
+        font-weight: 600;
+        text-align: center;
+      }
+      .tips {
+        margin-top: 10px;
+      }
+      .line {
+        height: 10px;
+        width: 100%;
+        margin-top: 5px;
+        margin-bottom: 10px;
+        border-radius: 10px;
+        background: red;
+      }
+    }
   }
 }
 </style>

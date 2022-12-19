@@ -4,6 +4,7 @@ import dayjs from 'dayjs'
 
 // 查询预算列表
 export const getList = async (data) => {
+  data.date = Number(data.date)
   const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   console.log(data.userId)

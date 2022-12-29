@@ -14,18 +14,18 @@ export const getList = async (data) => {
     remark: { $regex: data.remark, $options: 'im' },
     isDel: false
   }
-  if (params.beginDate && params.endDate) {
+  if (data.beginDate && data.endDate) {
     params.date = {
-      $gte: new Date(params.beginDate),
-      $lte: new Date(params.endDate)
+      $gte: new Date(data.beginDate),
+      $lte: new Date(data.endDate)
     }
-  } else if (params.beginDate && !params.endDate) {
+  } else if (data.beginDate && !data.endDate) {
     params.date = {
-      $gte: new Date(params.beginDate)
+      $gte: new Date(data.beginDate)
     }
-  } else if (!params.beginDate && params.endDate) {
+  } else if (!data.beginDate && data.endDate) {
     params.date = {
-      $lte: new Date(params.endDate)
+      $lte: new Date(data.endDate)
     }
   }
   if (params.costTypeId) params.costTypeId = data.costTypeId // 支出类型

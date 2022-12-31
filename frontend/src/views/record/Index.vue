@@ -337,6 +337,7 @@ export default {
   watch: {
     bill: {
       handler(bill) {
+        this.listData = []
         this.initData(bill)
       }
     },
@@ -350,6 +351,7 @@ export default {
   mounted() {
     this.chart = this.$echarts.init(document.getElementById('costStatistics'))
     setTimeout(() => {
+      this.listData = []
       this.initData(this.bill)
     }, 300)
   },
@@ -492,10 +494,14 @@ export default {
       const params = {
         beginDate: this.searchOptions.beginDate,
         endDate: this.searchOptions.endDate,
+        userId: this.searchOptions.userId,
         belongUserId: this.searchOptions.belongUserId,
         pageIndex: this.pageContent.pageIndex,
         pageSize: this.pageContent.pageSize,
         type: this.type,
+        costTypeId: this.searchOptions.costTypeId,
+        payMethodId: this.searchOptions.payMethodId,
+        incomesTypeId: this.searchOptions.incomesTypeId,
         remark: this.searchOptions.remark,
         billId: this.bill._id
       }

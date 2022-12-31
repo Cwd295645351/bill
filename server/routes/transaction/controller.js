@@ -139,7 +139,7 @@ export const editTransaction = async (data) => {
     money: data.money,
     type: data.type,
     belongUserId: '',
-    belongUserName: ''
+    belongUserName: '全部'
   }
   if (data.type === 1) {
     if (data.costTypeId) {

@@ -28,11 +28,11 @@ export const getList = async (data) => {
       $lte: new Date(data.endDate)
     }
   }
-  if (params.costTypeId) params.costTypeId = data.costTypeId // 支出类型
-  if (params.payMethodId) params.payMethodId = data.payMethodId // 支付方式
-  if (params.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
-  if (params.userId) params.userId = { $in: data.userId } // 记账人
-  if (params.belongUserId) params.belongUserId = { $in: data.belongUserId } // 归属人
+  if (data.costTypeId) params.costTypeId = data.costTypeId // 支出类型
+  if (data.payMethodId) params.payMethodId = data.payMethodId // 支付方式
+  if (data.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
+  if (data.userId) params.userId = { $in: data.userId } // 记账人
+  if (data.belongUserId) params.belongUserId = { $in: data.belongUserId } // 归属人
 
   const res = await Transaction.find(params, {})
     .sort({ date: -1 })
@@ -43,7 +43,6 @@ export const getList = async (data) => {
     total: length,
     datas: res
   }
-  console.log(params)
   if (res) return [null, retData]
   else return ['查询失败', res]
 }

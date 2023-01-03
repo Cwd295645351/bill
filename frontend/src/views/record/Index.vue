@@ -47,6 +47,7 @@
           </el-form-item>
           <el-form-item class="form-item" size="mini">
             <el-button @click="search">查询</el-button>
+            <el-button @click="exportExcel">导出</el-button>
             <el-button v-show="!showAdd" @click="changeAddContainer">新增</el-button>
           </el-form-item>
         </el-form>
@@ -218,7 +219,7 @@
 <script>
 import { mapState } from 'vuex'
 import dayjs from 'dayjs'
-import { addTransaction, getList, deleteTransaction, editTransaction, getCurrentMonthCost } from './api'
+import { addTransaction, getList, deleteTransaction, editTransaction, getCurrentMonthCost, exportData } from './api'
 export default {
   data() {
     let _this = this
@@ -357,6 +358,26 @@ export default {
   },
 
   methods: {
+    // 导出交易明细
+    async exportExcel() {
+      const data = {
+        type: this.type,
+        billId: this.bill._id
+      }
+      const [err, res] = await exportData({ data })
+      if (err) return
+      // 使用Blob处理文件流
+      const blob = new Blob([res])
+      // 通过a标签进行下载
+      let downloadElement = document.createElement('a')
+      let href = window.URL.createObjectURL(blob)
+      downloadElement.href = href
+      downloadElement.download = `记账信息${Date.now()}.xlsx`
+      document.body.appendChild(downloadElement)
+      downloadElement.click()
+      document.body.removeChild(downloadElement)
+      window.URL.revokeObjectURL(href)
+    },
     initData(bill) {
       const budget = bill.budget
       this.users = bill.users

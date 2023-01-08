@@ -3,6 +3,7 @@ import Bill from '../../database/modules/Bills'
 import User from '../../database/modules/User'
 import mongoose from '../../database/index'
 import dayjs from 'dayjs'
+import xlsx from '../../utils/xlsx'
 
 // 查询列表
 export const getList = async (data) => {
@@ -280,4 +281,34 @@ export const getCurrentMonthCost = async (data, userId) => {
 
   if (res) return [null, { totalCost: totalCost.toFixed(2), belongUserCosts, costTypeCost }]
   else return ['查询失败', null]
+}
+
+// 导出交易明细
+export const exportData = async (data) => {
+  const params = {
+    billId: data.billId,
+    type: data.type,
+    isDel: false
+  }
+  const findBill = await Bill.findById(data.billId, { users: 1 })
+  const users = {}
+  findBill.users.forEach((item) => {
+    users[item.id] = item.name
+  })
+  if (!findBill) return ['未找到账本', null]
+  const res = await Transaction.find(params, { date: 1, costTypeName: 1, userId: 1, belongUserName: 1, money: 1, remark: 1 }).sort({ date: -1 })
+  const excelSrcData = res.map((item) => {
+    item.userName = users[item.userId]
+    return item
+  })
+  const headerMaps = [
+    { key: 'date', name: '日期' },
+    { key: 'costTypeName', name: '类型' },
+    { key: 'belongUserName', name: '归属人' },
+    { key: 'money', name: '金额' },
+    { key: 'remark', name: '备注' },
+    { key: 'userName', name: '记账人' }
+  ]
+  const buffer = xlsx(excelSrcData, headerMaps)
+  return buffer
 }

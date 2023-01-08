@@ -118,4 +118,20 @@ router.get('/currentMonthCost', async (ctx, next) => {
   }
 })
 
+// 导出交易明细
+router.post('/export', async (ctx, next) => {
+  const data = ctx.request.body
+  xssData(data)
+  const { type, billId } = data
+  if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
+  else if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
+  else {
+    const buffer = await Transaction.exportData(data)
+    // 设置content-type请求头
+    ctx.set('Content-Type', 'application/vnd.openxmlformats')
+    // 将buffer返回给前端
+    ctx.body = buffer
+  }
+})
+
 export default router

@@ -26,6 +26,7 @@
     "koa-static": "^5.0.0",
     "koa2-cors": "^2.0.6",
     "mongoose": "^6.5.2",
+    "node-xlsx": "^0.21.0",
     "xss": "^1.0.14"
   },
   "devDependencies": {

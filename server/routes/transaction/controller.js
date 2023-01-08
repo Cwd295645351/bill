@@ -97,7 +97,7 @@ export const addTransaction = async (data) => {
     // 支出交易明细创建成功后，需向账本表的预算新增数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const year = dayjs(new Date()).format('YYYY')
+    const year = Number(dayjs(new Date(data.date)).format('YYYY'))
     const budgetItem = budget.find((item) => item.date === year)
     if (budgetItem) {
       budgetItem.currCost += data.money
@@ -175,7 +175,8 @@ export const editTransaction = async (data) => {
     // 支出交易明细编辑成功后，需向账本表的预算更改数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY'))
+    const year = Number(dayjs(new Date(data.date)).format('YYYY'))
+    const budgetItem = budget.find((item) => item.date === year)
     if (budgetItem) {
       budgetItem.currCost += differenceMoney
       const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)
@@ -212,7 +213,8 @@ export const deleteTransaction = async (data) => {
     // 支出交易明细删除成功后，需向账本表的预算更改数据
     const budget = findBill.budget
     // 若有对应预算，对增加对应预算分项的支出金额
-    const budgetItem = budget.find((item) => item.date === dayjs(new Date()).format('YYYY'))
+    const year = Number(dayjs(new Date(res.date)).format('YYYY'))
+    const budgetItem = budget.find((item) => item.date === year)
     if (budgetItem) {
       budgetItem.currCost -= res.money
       const budgetDetail = budgetItem.details.find((item) => item.costTypeId === data.costTypeId)

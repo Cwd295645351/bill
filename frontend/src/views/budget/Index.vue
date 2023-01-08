@@ -105,10 +105,12 @@ export default {
           }
         },
         tooltip: {
-          trigger: 'item'
+          trigger: 'item',
+          formatter: '{b}: {c}({d}%)'
         },
         legend: {
           orient: 'horizontal',
+          type: 'scroll',
           bottom: 100
         },
         series: [
@@ -186,9 +188,6 @@ export default {
 
   mounted() {
     this.chart = this.$echarts.init(document.getElementById('budgetStatistics'))
-    setTimeout(() => {
-      this.initEcharts()
-    }, 200)
   },
 
   methods: {
@@ -196,7 +195,8 @@ export default {
     async getDetail() {
       const params = { date: this.year, billId: this.billId }
       const [err, res] = await getBudgetList({ params })
-      const seriesData = (this.options.series[0].data = [])
+      this.options.series[0].data = []
+      const seriesData = this.options.series[0].data
       if (err) return
       if (res.retCode === 0) {
         console.log(res)
@@ -204,11 +204,12 @@ export default {
         this.totalBudget = data.totalBudget
         this.totalCost = data.currCost
         this.budgetDetails = data.details.map((item) => {
-          seriesData.push({ value: item.cost, name: item.costTypeName })
+          seriesData.push({ value: item.budget, name: item.costTypeName })
           const costPercent = item.cost / item.budget
           item.costPercent = costPercent > 1 ? 1 : costPercent
           return item
         })
+        this.chart.setOption(this.options, true)
       } else {
         this.$message.error('获取当前年度预算失败，' + res.message)
       }
@@ -229,9 +230,6 @@ export default {
           return false
         }
       })
-    },
-    initEcharts() {
-      this.chart.setOption(this.options, true)
     },
     // 显示编辑弹窗
     showEdit(item) {
@@ -290,7 +288,7 @@ export default {
   display: flex;
   align-items: center;
   .budget-overview-container {
-    width: 300px;
+    width: 320px;
     height: 100%;
     margin-right: 20px;
     border-radius: 8px;
@@ -334,9 +332,10 @@ export default {
     min-width: 0;
     display: flex;
     flex-wrap: wrap;
-    // background-color: #fafafa;
+    justify-content: flex-start;
+    align-content: flex-start;
     .budget-list-card-item {
-      width: 250px;
+      width: 200px;
       height: 200px;
       border-radius: 4px;
       box-shadow: 1px 1px 5px #ddd;

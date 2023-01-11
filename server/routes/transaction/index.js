@@ -134,4 +134,13 @@ router.post('/export', async (ctx, next) => {
   }
 })
 
+// 导入交易明细
+router.post('/import', async (ctx, next) => {
+  const file = ctx.request.files.file // 获取上传文件
+  const filePath = file.filepath
+  const getRes = Transaction.getExcelObjs(filePath)
+  console.log(getRes)
+  ctx.body = getRes
+})
+
 export default router

@@ -3,7 +3,9 @@ import Bill from '../../database/modules/Bills'
 import User from '../../database/modules/User'
 import mongoose from '../../database/index'
 import dayjs from 'dayjs'
-import xlsx from '../../utils/xlsx'
+import { createXlsx } from '../../utils/xlsx'
+import xlsx from 'node-xlsx'
+import fs from 'fs'
 
 // 查询列表
 export const getList = async (data) => {
@@ -311,6 +313,15 @@ export const exportData = async (data) => {
     { key: 'remark', name: '备注' },
     { key: 'userName', name: '记账人' }
   ]
-  const buffer = xlsx(excelSrcData, headerMaps)
+  const buffer = createXlsx(excelSrcData, headerMaps)
   return buffer
+}
+
+// 解析 excel 文件
+export const getExcelObjs = (filePath) => {
+  console.log(filePath)
+  const workbook = xlsx.parse(filePath)
+  const xlsxData = workbook[0].data
+  fs.unlinkSync(filePath) // 删除文件
+  return xlsxData
 }

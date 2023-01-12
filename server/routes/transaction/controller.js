@@ -14,7 +14,6 @@ export const getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
-    remark: { $regex: data.remark, $options: 'im' },
     isDel: false
   }
   if (data.beginDate && data.endDate) {
@@ -31,6 +30,7 @@ export const getList = async (data) => {
       $lte: new Date(data.endDate)
     }
   }
+  if (data.remark) params.remark = { $regex: data.remark, $options: 'im' }
   if (data.costTypeId) params.costTypeId = data.costTypeId // 支出类型
   if (data.payMethodId) params.payMethodId = data.payMethodId // 支付方式
   if (data.incomesTypeId) params.incomesTypeId = data.incomesTypeId // 收入类型
@@ -204,7 +204,6 @@ export const editTransaction = async (data) => {
 export const deleteTransaction = async (data) => {
   const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
   const res = await Transaction.findOneAndUpdate(params, { isDel: true }, { new: true })
-  console.log(params, res, '================')
   if (!res) return ['该明细不存在', null]
 
   const findBill = await Bill.findById(res.billId, { budget: 1 })
@@ -246,7 +245,8 @@ export const getCurrentMonthCost = async (data, userId) => {
     date: {
       $gte: new Date(data.beginDate),
       $lte: new Date(data.endDate)
-    }
+    },
+    isDel: false
   }
   const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, costTypeId: 1, costTypeName: 1, belongUserName: 1, userId: 1 })
   let totalCost = 0,
@@ -318,10 +318,38 @@ export const exportData = async (data) => {
 }
 
 // 解析 excel 文件
-export const getExcelObjs = (filePath) => {
-  console.log(filePath)
+export const getExcelObjs = async (filePath, billId, userId) => {
+  const findBill = await Bill.findById(billId, { users: 1, costTypes: 1 })
+  if (!findBill) return ['未找到账本', null]
   const workbook = xlsx.parse(filePath)
   const xlsxData = workbook[0].data
+  xlsxData.shift()
+
+  const insertData = xlsxData.map((item) => {
+    const obj = {
+      billId: billId,
+      userId: userId,
+      date: item[0],
+      type: 1,
+      costTypeId: '',
+      costTypeName: item[1],
+      reimbursement: 0,
+      belongUserId: '',
+      belongUserName: item[2],
+      money: item[3],
+      remark: item[4],
+      isDel: false
+    }
+    const costType = findBill.costTypes.find((ite) => ite.name === obj.costTypeName)
+    obj.costTypeId = costType.id
+    const belongUser = findBill.users.find((ite) => ite.name === obj.belongUserName)
+    if (belongUser) obj.belongUserId = belongUser.id
+    const user = findBill.users.find((ite) => ite.name === item[5])
+    if (user) obj.userId = user.id
+    return obj
+  })
+  const res = await Transaction.insertMany(insertData)
   fs.unlinkSync(filePath) // 删除文件
-  return xlsxData
+  if (res) return [null, '导入成功']
+  return ['导出失败', null]
 }

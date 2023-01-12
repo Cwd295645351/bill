@@ -111,7 +111,6 @@ router.get('/currentMonthCost', async (ctx, next) => {
       billId: billId,
       reimbursement: 0
     }
-    console.log(params)
     const [err, res] = await Transaction.getCurrentMonthCost(params, userId)
     if (res) ctx.body = new ResModel(res, '查找成功')
     else ctx.body = new ResModel(null, err, 'error')
@@ -137,10 +136,13 @@ router.post('/export', async (ctx, next) => {
 // 导入交易明细
 router.post('/import', async (ctx, next) => {
   const file = ctx.request.files.file // 获取上传文件
+  const billId = ctx.request.body.billId
+  const userId = ctx.header.userid
+
   const filePath = file.filepath
-  const getRes = Transaction.getExcelObjs(filePath)
-  console.log(getRes)
-  ctx.body = getRes
+  const [err, res] = await Transaction.getExcelObjs(filePath, billId, userId)
+  if (res) ctx.body = new ResModel(res, '查找成功')
+  else ctx.body = new ResModel(null, err, 'error')
 })
 
 export default router

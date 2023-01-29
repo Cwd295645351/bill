@@ -201,12 +201,14 @@ export default {
       if (res.retCode === 0) {
         console.log(res)
         const data = res.data
-        this.totalBudget = data.totalBudget
-        this.totalCost = data.currCost
+        this.totalBudget = data.totalBudget.toFixed(2)
+        this.totalCost = data.currCost.toFixed(2)
         this.budgetDetails = data.details.map((item) => {
           seriesData.push({ value: item.budget, name: item.costTypeName })
           const costPercent = item.cost / item.budget
           item.costPercent = costPercent > 1 ? 1 : costPercent
+          item.cost = item.cost.toFixed(2)
+          item.budget = item.budget.toFixed(2)
           return item
         })
         this.chart.setOption(this.options, true)

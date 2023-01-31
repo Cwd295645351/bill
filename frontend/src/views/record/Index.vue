@@ -589,7 +589,7 @@ export default {
     // 合并同一日期的收支金额
     mergeData(firstData, secondData) {
       firstData.money += secondData.money
-
+      firstData.datas.push(...secondData.datas)
       secondData.types.forEach((item) => {
         const type = firstData.types.find((type) => type.name === item.name)
         if (type) {

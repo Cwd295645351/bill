@@ -74,7 +74,7 @@ export default {
       billsMenu: [{ label: '账本', value: 'bills', route: '/layout/bills' }],
       recordMenu: [
         { label: '记账', value: 'record', route: '/layout/record' },
-        { label: '概览', value: 'overview', route: '' },
+        { label: '概览', value: 'overview', route: '/layout/overview' },
         { label: '计划', value: 'plan', route: '/layout/record' },
         { label: '预算', value: 'budget', route: '/layout/budget' },
         { label: '设置', value: 'setting', route: '/layout/record' }

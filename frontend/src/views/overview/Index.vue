@@ -34,6 +34,23 @@
         </el-form>
       </div>
     </div>
+    <div class="chart-container">
+      <div class="per-year-container">
+        <div class="per-year-chart" id="perYearChart"></div>
+        <div class="table-container">
+          <div class="line bold">
+            <div class="line-item">年份</div>
+            <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
+          </div>
+          <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
+            <div class="line-item bold">{{ item.name }}</div>
+            <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
+              {{ ite }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -93,13 +110,62 @@ export default {
         startDate: '',
         endDate: '',
         proportion: '954.44:1055'
-      }
+      },
+      // 年度支出趋势数据
+      perYearCostDatas: {
+        type: ['住房', '餐饮买菜', '交通', '日用品', '家居', '餐饮买菜1', '交通1', '日用品1', '家居1', '餐饮买菜2', '交通2', '日用品2', '家居2'],
+        datas: [
+          { name: '2020', datas: [42154, 12055, 414, 816, 6151, 12055, 414, 816, 6151, 12055, 414, 816, 6151] },
+          { name: '2021', datas: [48154, 13055, 504, 836, 5151, 13055, 504, 836, 5151, 13055, 504, 836, 5151] },
+          { name: '2022', datas: [52154, 16055, 614, 786, 4151, 16055, 614, 786, 4151, 16055, 614, 786, 4151] }
+        ]
+      },
+      colorOptions: ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
+      // 年度支出趋势折线图配置
+      perYearOptions: {
+        title: { text: '年度支出趋势' },
+        tooltip: { trigger: 'axis' },
+        legend: { data: [] },
+        color: [],
+        grid: {
+          left: '1%',
+          right: '1%',
+          bottom: '0%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          boundaryGap: true,
+          axisLabel: { fontSize: 16 },
+          data: []
+        },
+        yAxis: { type: 'value', axisLabel: { fontSize: 16 } },
+        series: []
+      },
+      // 年度支出趋势折线图
+      perYearChart: null
     }
+  },
+  mounted() {
+    this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
+    this.setYearLineChartData()
   },
   methods: {
     search() {
       console.log(this.belongCondition)
-    }
+    },
+    setYearLineChartData() {
+      this.perYearOptions.xAxis.data = this.perYearCostDatas.type
+      this.perYearOptions.legend.data = []
+      this.perYearOptions.color = this.colorOptions
+      this.perYearOptions.series = []
+      this.perYearCostDatas.datas.forEach((item) => {
+        this.perYearOptions.legend.data.push(item.name)
+        this.perYearOptions.series.push({ name: item.name, type: 'bar', data: item.datas })
+      })
+      this.perYearChart.setOption(this.perYearOptions, true)
+    },
+    setYearTableData() {}
   }
 }
 </script>
@@ -118,6 +184,7 @@ export default {
   .belong-user-module {
     width: 300px;
     height: 100%;
+    margin-right: 20px;
     border-radius: 8px;
     box-shadow: 1px 1px 5px #999;
     background-color: #fff;
@@ -157,6 +224,51 @@ export default {
       border-top: 1px solid #ddd;
       .form-item {
         text-align: center;
+      }
+    }
+  }
+  .chart-container {
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    border-radius: 8px;
+    .per-year-container {
+      box-shadow: 1px 1px 5px #999;
+      width: 100%;
+      height: 50%;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      .per-year-chart {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+        margin: 20px 0;
+      }
+      .table-container {
+        width: 100%;
+        border: 1px solid #aaa;
+        .bold {
+          font-weight: bold;
+        }
+        .line {
+          height: 30px;
+          line-height: 30px;
+          display: flex;
+          align-items: center;
+          & + .line {
+            border-top: 1px solid #aaa;
+          }
+          .line-item {
+            flex: 1;
+            min-width: 0;
+            height: 100%;
+            text-align: center;
+            & + .line-item {
+              border-left: 1px solid #aaa;
+            }
+          }
+        }
       }
     }
   }

@@ -50,6 +50,11 @@
           </div>
         </div>
       </div>
+      <div class="belong-type-container">
+        <div class="belong-type-chart" id="belongTypeChart1"></div>
+        <div class="belong-type-chart" id="belongTypeChart2"></div>
+        <div class="belong-type-chart" id="belongTypeChart3"></div>
+      </div>
     </div>
   </div>
 </template>
@@ -123,7 +128,7 @@ export default {
       colorOptions: ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
       // 年度支出趋势折线图配置
       perYearOptions: {
-        title: { text: '年度支出趋势' },
+        title: { text: '近三年支出趋势' },
         tooltip: { trigger: 'axis' },
         legend: { data: [] },
         color: [],
@@ -143,21 +148,64 @@ export default {
         series: []
       },
       // 年度支出趋势折线图
-      perYearChart: null
+      perYearChart: null,
+      // 各归属人不同类型支出数据
+      belongTypeDatas: {
+        type: ['住房', '餐饮买菜', '交通', '日用品', '家居', '餐饮买菜1', '交通1', '日用品1', '家居1', '餐饮买菜2', '交通2', '日用品2', '家居2'],
+        datas: [
+          { name: '全部', datas: [42154, 12055, 414, 816, 6151, 12055, 414, 86, 6151, 12055, 414, 816, 6151] },
+          { name: '栋', datas: [48154, 1355, 504, 836, 5151, 1305, 504, 836, 5151, 1355, 504, 836, 5151] },
+          { name: '宜', datas: [5154, 16055, 614, 786, 4151, 16055, 614, 786, 4151, 16055, 614, 786, 4151] }
+        ]
+      },
+      belongOptions: {
+        title: {
+          text: '',
+          top: 50,
+          left: 'center'
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: '{a} <br/>{b}: {c} ({d}%)'
+        },
+        legend: { type: 'scroll', data: [] },
+        series: [
+          {
+            name: '',
+            type: 'pie',
+            selectedMode: 'single',
+            radius: ['30', '50%'],
+            label: {
+              formatter: '{b}({d}%)',
+              fontSize: 14
+            },
+            data: []
+          }
+        ]
+      },
+      belongTypeChart1: null,
+      belongTypeChart2: null,
+      belongTypeChart3: null
     }
   },
   mounted() {
     this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
+    this.belongTypeChart1 = this.$echarts.init(document.getElementById('belongTypeChart1'))
+    this.belongTypeChart2 = this.$echarts.init(document.getElementById('belongTypeChart2'))
+    this.belongTypeChart3 = this.$echarts.init(document.getElementById('belongTypeChart3'))
+    this.perYearOptions.color = this.colorOptions
+    this.belongOptions.color = this.colorOptions
     this.setYearLineChartData()
+    this.setPieData()
   },
   methods: {
     search() {
       console.log(this.belongCondition)
     },
+    // 设置折线图
     setYearLineChartData() {
       this.perYearOptions.xAxis.data = this.perYearCostDatas.type
       this.perYearOptions.legend.data = []
-      this.perYearOptions.color = this.colorOptions
       this.perYearOptions.series = []
       this.perYearCostDatas.datas.forEach((item) => {
         this.perYearOptions.legend.data.push(item.name)
@@ -165,7 +213,21 @@ export default {
       })
       this.perYearChart.setOption(this.perYearOptions, true)
     },
-    setYearTableData() {}
+    // 设置饼图
+    setPieData() {
+      const setSeriesData = (target, source, chart) => {
+        this.belongOptions.title.text = source.name + '-各支出比例'
+        target.name = source.name
+        target.data = source.datas.map((item, index) => {
+          return { value: item, name: this.belongTypeDatas.type[index] }
+        })
+        chart.setOption(this.belongOptions, true)
+      }
+      this.belongOptions.legend.data = this.belongTypeDatas.type
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[0], this.belongTypeChart1)
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[1], this.belongTypeChart2)
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[2], this.belongTypeChart3)
+    }
   }
 }
 </script>
@@ -231,9 +293,9 @@ export default {
     flex: 1;
     min-width: 0;
     height: 100%;
-    border-radius: 8px;
     .per-year-container {
       box-shadow: 1px 1px 5px #999;
+      border-radius: 8px;
       width: 100%;
       height: 50%;
       padding: 10px;
@@ -269,6 +331,20 @@ export default {
             }
           }
         }
+      }
+    }
+    .belong-type-container {
+      margin-top: 20px;
+      width: 100%;
+      height: calc(50% - 20px);
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      .belong-type-chart {
+        width: 32%;
+        height: 100%;
+        box-shadow: 1px 1px 5px #999;
+        border-radius: 8px;
       }
     }
   }

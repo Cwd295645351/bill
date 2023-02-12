@@ -21,6 +21,7 @@ import common from './routes/common/index'
 import bill from './routes/bill/index'
 import transaction from './routes/transaction/index'
 import budget from './routes/budget/index'
+import overview from './routes/overview/index'
 
 const app = new Koa()
 
@@ -146,6 +147,7 @@ app.use(common.routes(), common.allowedMethods())
 app.use(bill.routes(), bill.allowedMethods())
 app.use(transaction.routes(), transaction.allowedMethods())
 app.use(budget.routes(), budget.allowedMethods())
+app.use(overview.routes(), budget.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

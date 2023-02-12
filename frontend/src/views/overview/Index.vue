@@ -7,12 +7,13 @@
           总支出：<span class="color-red">{{ belongUsers.totalCost }}</span>
         </div>
         <div class="line">
-          总收入：<span class="color-red">{{ belongUsers.totalIncomes }}</span>
+          总收入：<span class="color-green">{{ belongUsers.totalIncomes }}</span>
         </div>
       </div>
       <div class="detail">
-        <div class="detail-item" v-for="item in belongUsers.details" :key="item.belongUserId + '_' + item.userId">
-          ({{ item.userName }}) {{ item.belongUserName }}支出：<span class="color-red">{{ item.money.toFixed(2) }}</span>
+        <div class="detail-item" v-for="item in belongUsers.details" :key="item.belongUserId + '_' + item.userId + '_' + item.type">
+          ({{ item.userName }}) {{ item.belongUserName }}{{ item.type === 1 ? '支出：' : '收入：'
+          }}<span :class="[item.type === 1 ? 'color-red' : 'color-green']">{{ item.money.toFixed(2) }}</span>
         </div>
       </div>
       <div class="add-data-container">
@@ -29,7 +30,7 @@
             <el-input v-model="belongCondition.proportion" placeholder="比例（宜：栋）"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="small">
-            <el-button type="primary" @click="search">查询</el-button>
+            <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
         </el-form>
       </div>
@@ -60,9 +61,13 @@
 </template>
 
 <script>
+import { getBalance } from './api'
+import { mapState } from 'vuex'
+import dayjs from 'dayjs'
 export default {
   data() {
     return {
+      users: [], // 记账人配置项
       belongUsers: {
         totalCost: 0, // 总支出
         totalIncomes: 0, // 总收入
@@ -189,16 +194,38 @@ export default {
     }
   },
   mounted() {
-    this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
-    this.belongTypeChart1 = this.$echarts.init(document.getElementById('belongTypeChart1'))
-    this.belongTypeChart2 = this.$echarts.init(document.getElementById('belongTypeChart2'))
-    this.belongTypeChart3 = this.$echarts.init(document.getElementById('belongTypeChart3'))
-    this.perYearOptions.color = this.colorOptions
-    this.belongOptions.color = this.colorOptions
-    this.setYearLineChartData()
-    this.setPieData()
+    this.initChart()
+    setTimeout(() => {
+      this.belongCondition.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+      this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
+      this.getBalanceAndPieData()
+    }, 300)
+  },
+  watch: {
+    bill: {
+      handler(bill) {
+        this.belongCondition.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+        this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
+        this.users = bill.users
+        this.getBalanceAndPieData()
+      }
+    }
+  },
+  computed: {
+    ...mapState({
+      billId: (state) => state.billId,
+      bill: (state) => state.bill
+    })
   },
   methods: {
+    initChart() {
+      this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
+      this.belongTypeChart1 = this.$echarts.init(document.getElementById('belongTypeChart1'))
+      this.belongTypeChart2 = this.$echarts.init(document.getElementById('belongTypeChart2'))
+      this.belongTypeChart3 = this.$echarts.init(document.getElementById('belongTypeChart3'))
+      this.perYearOptions.color = this.colorOptions
+      this.belongOptions.color = this.colorOptions
+    },
     search() {
       console.log(this.belongCondition)
     },
@@ -227,6 +254,23 @@ export default {
       setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[0], this.belongTypeChart1)
       setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[1], this.belongTypeChart2)
       setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[2], this.belongTypeChart3)
+    },
+    async getBalanceAndPieData() {
+      const params = { billId: this.billId, beginDate: this.belongCondition.startDate, endDate: this.belongCondition.endDate }
+      const [err, res] = await getBalance({ params })
+      if (err) return
+      console.log(res)
+      if (res.retCode === 0) {
+        this.belongUsers.totalCost = res.data.totalCost
+        this.belongUsers.totalIncomes = res.data.totalIncomes
+        this.belongUsers.details = res.data.belongUserCosts.map((item) => {
+          console.log(this.users)
+          item.userName = this.users.find((ite) => ite.id === item.userId).name
+          return item
+        })
+      } else {
+        this.$message.error('查询概览失败' + res.message)
+      }
     }
   }
 }
@@ -242,6 +286,9 @@ export default {
   padding: 20px;
   .color-red {
     color: rgb(247, 79, 79);
+  }
+  .color-green {
+    color: #18a356;
   }
   .belong-user-module {
     width: 300px;

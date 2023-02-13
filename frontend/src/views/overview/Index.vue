@@ -71,50 +71,7 @@ export default {
       belongUsers: {
         totalCost: 0, // 总支出
         totalIncomes: 0, // 总收入
-        details: [
-          {
-            belongUserId: '63023d593783325f04872f00',
-            belongUserName: '栋',
-            money: 142,
-            userId: '63023d593783325f04872f00',
-            userName: '栋'
-          },
-          {
-            belongUserId: '630cd5db5d09bb41002461bb',
-            belongUserName: '宜',
-            money: 142,
-            userId: '63023d593783325f04872f00',
-            userName: '栋'
-          },
-          {
-            belongUserId: '',
-            belongUserName: '全部',
-            money: 142,
-            userId: '63023d593783325f04872f00',
-            userName: '栋'
-          },
-          {
-            belongUserId: '630cd5db5d09bb41002461bb',
-            belongUserName: '宜',
-            money: 142,
-            userId: '630cd5db5d09bb41002461bb',
-            userName: '宜'
-          },
-          {
-            belongUserId: '63023d593783325f04872f00',
-            belongUserName: '栋',
-            money: 142,
-            userId: '630cd5db5d09bb41002461bb',
-            userName: '宜'
-          },
-          {
-            belongUserId: '',
-            belongUserName: '全部',
-            money: 142,
-            userId: '630cd5db5d09bb41002461bb',
-            userName: '宜'
-          }
-        ]
+        details: []
       },
       belongCondition: {
         startDate: '',
@@ -155,14 +112,7 @@ export default {
       // 年度支出趋势折线图
       perYearChart: null,
       // 各归属人不同类型支出数据
-      belongTypeDatas: {
-        type: ['住房', '餐饮买菜', '交通', '日用品', '家居', '餐饮买菜1', '交通1', '日用品1', '家居1', '餐饮买菜2', '交通2', '日用品2', '家居2'],
-        datas: [
-          { name: '全部', datas: [42154, 12055, 414, 816, 6151, 12055, 414, 86, 6151, 12055, 414, 816, 6151] },
-          { name: '栋', datas: [48154, 1355, 504, 836, 5151, 1305, 504, 836, 5151, 1355, 504, 836, 5151] },
-          { name: '宜', datas: [5154, 16055, 614, 786, 4151, 16055, 614, 786, 4151, 16055, 614, 786, 4151] }
-        ]
-      },
+      belongTypeDatas: {},
       belongOptions: {
         title: {
           text: '',
@@ -195,19 +145,14 @@ export default {
   },
   mounted() {
     this.initChart()
-    setTimeout(() => {
-      this.belongCondition.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
-      this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
-      this.getBalanceAndPieData()
-    }, 300)
+    if (this.bill) {
+      this.initData(this.bill)
+    }
   },
   watch: {
     bill: {
       handler(bill) {
-        this.belongCondition.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
-        this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
-        this.users = bill.users
-        this.getBalanceAndPieData()
+        this.initData(bill)
       }
     }
   },
@@ -218,6 +163,12 @@ export default {
     })
   },
   methods: {
+    initData(bill) {
+      this.belongCondition.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+      this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
+      this.users = bill.users
+      this.getBalanceAndPieData()
+    },
     initChart() {
       this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
       this.belongTypeChart1 = this.$echarts.init(document.getElementById('belongTypeChart1'))
@@ -242,18 +193,19 @@ export default {
     },
     // 设置饼图
     setPieData() {
-      const setSeriesData = (target, source, chart) => {
-        this.belongOptions.title.text = source.name + '-各支出比例'
-        target.name = source.name
-        target.data = source.datas.map((item, index) => {
-          return { value: item, name: this.belongTypeDatas.type[index] }
+      const setSeriesData = (target, source, chart, chartName) => {
+        this.belongOptions.title.text = chartName + '-各支出比例'
+        target.name = chartName
+        target.data = source.map((item) => {
+          return { value: item.money.toFixed(2), name: item.name }
         })
         chart.setOption(this.belongOptions, true)
       }
       this.belongOptions.legend.data = this.belongTypeDatas.type
-      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[0], this.belongTypeChart1)
-      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[1], this.belongTypeChart2)
-      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas.datas[2], this.belongTypeChart3)
+
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas['全部'], this.belongTypeChart1, '全部')
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas['宜'], this.belongTypeChart2, '宜')
+      setSeriesData(this.belongOptions.series[0], this.belongTypeDatas['栋'], this.belongTypeChart3, '栋')
     },
     async getBalanceAndPieData() {
       const params = { billId: this.billId, beginDate: this.belongCondition.startDate, endDate: this.belongCondition.endDate }
@@ -268,9 +220,74 @@ export default {
           item.userName = this.users.find((ite) => ite.id === item.userId).name
           return item
         })
+        this.setTypeData(res.data.costTypeRank)
+        this.setPieData()
+        this.setYearLineChartData()
       } else {
         this.$message.error('查询概览失败' + res.message)
       }
+    },
+    setTypeData(costTypeRank) {
+      const proportion = this.belongCondition.proportion.split(':')
+      const total = Number(proportion[0]) + Number(proportion[1])
+      const proportion1 = proportion[0] / total // 宜比例
+      const proportion2 = proportion[1] / total // 栋比例
+      console.log(proportion1, proportion2, proportion)
+      const data = {
+        全部: [],
+        宜: [],
+        栋: []
+      }
+      const allRank = costTypeRank['全部'] || []
+      const rank1 = costTypeRank['宜'] || [] // 宜
+      const rank2 = costTypeRank['栋'] || [] // 栋
+      // 全部类型数据处理
+      const totalTypeDataHandle = (item) => {
+        const allTypeDataIndex = data['全部'].findIndex((ite) => ite.type === item.type)
+        if (allTypeDataIndex !== -1) {
+          const obj = data['全部'][allTypeDataIndex]
+          data['全部'][allTypeDataIndex] = { ...obj, money: obj.money + item.money }
+        } else data['全部'].push(item)
+      }
+      allRank.forEach((item) => {
+        data['全部'].push(item)
+        data['宜'].push({ ...item, money: item.money * proportion1 })
+        data['栋'].push({ ...item, money: item.money * proportion2 })
+      })
+      rank1.forEach((item) => {
+        const index = data['宜'].findIndex((ite) => ite.type === item.type)
+        if (index !== -1) {
+          const obj = data['宜'][index]
+          data['宜'][index] = { ...obj, money: obj.money + item.money }
+        } else data['宜'].push(item)
+
+        totalTypeDataHandle(item)
+      })
+      rank2.forEach((item) => {
+        const index = data['栋'].findIndex((ite) => ite.type === item.type)
+        if (index !== -1) {
+          const obj = data['栋'][index]
+          console.log(obj, 111)
+          data['栋'][index] = { ...obj, money: obj.money + item.money }
+        } else data['栋'].push(item)
+        totalTypeDataHandle(item)
+      })
+
+      const sortData = (data) => {
+        return data
+          .sort((a, b) => b.money - a.money)
+          .map((item) => {
+            item.money = Number(item.money.toFixed(2))
+            return item
+          })
+      }
+
+      // 对数据进行排序
+      data['全部'] = sortData(data['全部'])
+      data['栋'] = sortData(data['栋'])
+      data['宜'] = sortData(data['宜'])
+
+      this.belongTypeDatas = data
     }
   }
 }

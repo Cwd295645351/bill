@@ -14,7 +14,7 @@ export const getBlance = async (data, userId) => {
   let totalCost = 0,
     totalIncomes = 0,
     belongUserCosts = [],
-    costTypeCost = []
+    costTypeRank = {}
   res.forEach((item) => {
     if (item.type === 1) {
       // 支出
@@ -37,23 +37,30 @@ export const getBlance = async (data, userId) => {
       })
     }
 
-    // 统计当月各个支出类型的金额
-    const costType = costTypeCost.find((ite) => ite.type === item.costTypeId)
-    if (costType) {
-      costType.money += item.money
-    } else {
-      costTypeCost.push({ type: item.costTypeId, name: item.costTypeName, money: item.money })
+    // 只统计支出
+    if (item.type === 1) {
+      if (costTypeRank[item.belongUserName]) {
+        // 有对应归属人类型
+        const costType = costTypeRank[item.belongUserName].find((ite) => ite.type === item.costTypeId)
+        if (costType) {
+          costType.money += item.money
+        } else {
+          costTypeRank[item.belongUserName].push({ type: item.costTypeId, name: item.costTypeName, money: item.money })
+        }
+      } else {
+        costTypeRank[item.belongUserName] = [
+          {
+            type: item.costTypeId,
+            name: item.costTypeName,
+            money: item.money
+          }
+        ]
+      }
     }
   })
 
-  // 按照从大到小排序
-  costTypeCost = costTypeCost
-    .sort((a, b) => b.money - a.money)
-    .map((item) => {
-      item.money = Number(item.money.toFixed(2))
-      return item
-    })
+  const result = { totalCost: totalCost.toFixed(2), totalIncomes: totalIncomes.toFixed(2), belongUserCosts, costTypeRank }
 
-  if (res) return [null, { totalCost: totalCost.toFixed(2), totalIncomes: totalIncomes.toFixed(2), belongUserCosts, costTypeCost }]
+  if (res) return [null, result]
   else return ['查询失败', null]
 }

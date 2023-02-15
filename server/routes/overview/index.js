@@ -1,7 +1,5 @@
 import koaRouter from 'koa-router'
 import { ResModel } from '../../model/resModel'
-import { xssData } from '../../utils/xss'
-import dayjs from 'dayjs'
 
 import * as Overview from './controller'
 
@@ -19,7 +17,18 @@ router.get('/balance', async (ctx, next) => {
   else {
     const params = { billId, beginDate: new Date(beginDate + ' 00:00:00'), endDate: new Date(endDate + ' 23:59:59') }
     const [err, res] = await Overview.getBlance(params)
-    if (res) ctx.body = new ResModel(res, '查询成功' )
+    if (res) ctx.body = new ResModel(res, '查询成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
+
+// 近三年支出
+router.get('/threeYearCost', async (ctx, next) => {
+  const { billId } = ctx.query
+  if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
+  else {
+    const [err, res] = await Overview.getCosts(billId)
+    if (res) ctx.body = new ResModel(res, '查询成功')
     else ctx.body = new ResModel(null, err, 'error')
   }
 })

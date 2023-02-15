@@ -1,4 +1,5 @@
 import Transaction from '../../database/modules/Transaction'
+import dayjs from 'dayjs'
 
 // 查询收支和各归属人概况
 export const getBlance = async (data, userId) => {
@@ -63,4 +64,52 @@ export const getBlance = async (data, userId) => {
 
   if (res) return [null, result]
   else return ['查询失败', null]
+}
+
+// 查询过去三年的支出类型
+export const getCosts = async (billId) => {
+  const date = new Date()
+  const lastYear = dayjs(date).subtract(1, 'year')
+  const twoYearBefore = dayjs(date).subtract(2, 'year')
+  const threeYearBefore = dayjs(date).subtract(3, 'year')
+
+  const currDateRange = {
+    beginDate: lastYear.startOf('year').toDate(),
+    endDate: lastYear.endOf('year').toDate()
+  }
+  const lastDateRange = {
+    beginDate: twoYearBefore.startOf('year').toDate(),
+    endDate: twoYearBefore.endOf('year').toDate()
+  }
+  const twoYearBeforeRange = {
+    beginDate: threeYearBefore.startOf('year').toDate(),
+    endDate: threeYearBefore.endOf('year').toDate()
+  }
+  const params = {
+    billId: billId,
+    date: {
+      $gte: currDateRange.beginDate,
+      $lte: currDateRange.endDate
+    },
+    type: 1,
+    isDel: false
+  }
+  const lastYearRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
+  params.date = {
+    $gte: lastDateRange.beginDate,
+    $lte: lastDateRange.endDate
+  }
+  const twoYearBeforeRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
+  params.date = {
+    $gte: twoYearBeforeRange.beginDate,
+    $lte: twoYearBeforeRange.endDate
+  }
+  const threeYearBeforeRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
+
+  const res = [
+    { name: lastYear.format('YYYY'), datas: lastYearRes },
+    { name: twoYearBefore.format('YYYY'), datas: twoYearBeforeRes },
+    { name: threeYearBefore.format('YYYY'), datas: threeYearBeforeRes }
+  ]
+  return [null, res]
 }

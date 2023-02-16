@@ -42,12 +42,15 @@
           <div class="line bold">
             <div class="line-item">年份</div>
             <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
+            <div class="line-item">合计</div>
           </div>
           <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
             <div class="line-item bold">{{ item.name }}</div>
             <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
               {{ ite }}
             </div>
+            <div class="line-item">{{ item.total.toFixed(2) }}</div>
+            <!-- <div class="line-item">{{ Number(item.total).toFixed(2) }}</div> -->
           </div>
         </div>
       </div>
@@ -226,6 +229,9 @@ export default {
       if (res.retCode === 0) {
         const data = res.data
         this.perYearCostDatas = data
+        data.datas.forEach((item) => {
+          item.total = item.datas.reduce((prev, curr) => Number(prev) + Number(curr))
+        })
         this.setYearLineChartData()
       } else {
         this.$message.error('查询过去三年支出概况失败，' + res.message)
@@ -392,7 +398,7 @@ export default {
           }
           .line-item {
             flex: 1;
-            min-width: 0;
+            min-width: auto;
             height: 100%;
             text-align: center;
             & + .line-item {

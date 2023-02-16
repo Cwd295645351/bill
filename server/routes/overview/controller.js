@@ -111,5 +111,69 @@ export const getCosts = async (billId) => {
     { name: twoYearBefore.format('YYYY'), datas: twoYearBeforeRes },
     { name: threeYearBefore.format('YYYY'), datas: threeYearBeforeRes }
   ]
-  return [null, res]
+  const result = batchDeal(res)
+  return [null, result]
+}
+
+const batchDeal = (res) => {
+  // 对一年的数据进行处理
+  const deal = (res) => {
+    const result = []
+    res.forEach((item) => {
+      let typeObj = result.find((ite) => ite.id === item.costTypeId)
+      if (typeObj) {
+        typeObj.value += item.money
+      } else {
+        typeObj = { id: item.costTypeId, name: item.costTypeName, value: item.money }
+        result.push(typeObj)
+      }
+    })
+    result.forEach((item) => {
+      item.value = item.value.toFixed(2)
+    })
+    return result
+  }
+
+  // 补充剩余的支出类型
+  const completeType = (array, maxLength, maxData) => {
+    array.forEach((item) => {
+      if (item.length !== maxLength) {
+        const noData = maxData.filter((ite) => !item.datas.find((it) => it.id === ite.id))
+        noData.forEach((ite) => {
+          const obj = Object.assign({}, ite)
+          obj.value = 0
+          item.datas.push(obj)
+        })
+      }
+    })
+  }
+  const result = res.map((item) => {
+    const datas = deal(item.datas)
+    return {
+      name: item.name,
+      datas: datas,
+      length: datas.length
+    }
+  })
+  const length1 = result[0].length
+  const length2 = result[1].length
+  const length3 = result[2].length
+
+  const maxLength = Math.max(length1, length2, length3)
+
+  const maxData = result.find((item) => item.length === maxLength).datas
+  completeType(result, maxLength, maxData)
+
+  result.forEach((item) => {
+    item.datas = item.datas.sort((a, b) => a.id - b.id)
+  })
+
+  const resObj = {
+    type: result[0].datas.map((item) => item.name),
+    datas: result.map((item) => {
+      return { name: item.name, datas: item.datas.map((ite) => ite.value) }
+    })
+  }
+
+  return resObj
 }

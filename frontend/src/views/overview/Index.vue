@@ -61,7 +61,7 @@
 </template>
 
 <script>
-import { getBalance } from './api'
+import { getBalance, getThreeYearCost } from './api'
 import { mapState } from 'vuex'
 import dayjs from 'dayjs'
 export default {
@@ -80,12 +80,8 @@ export default {
       },
       // 年度支出趋势数据
       perYearCostDatas: {
-        type: ['住房', '餐饮买菜', '交通', '日用品', '家居', '餐饮买菜1', '交通1', '日用品1', '家居1', '餐饮买菜2', '交通2', '日用品2', '家居2'],
-        datas: [
-          { name: '2020', datas: [42154, 12055, 414, 816, 6151, 12055, 414, 816, 6151, 12055, 414, 816, 6151] },
-          { name: '2021', datas: [48154, 13055, 504, 836, 5151, 13055, 504, 836, 5151, 13055, 504, 836, 5151] },
-          { name: '2022', datas: [52154, 16055, 614, 786, 4151, 16055, 614, 786, 4151, 16055, 614, 786, 4151] }
-        ]
+        type: [],
+        datas: []
       },
       colorOptions: ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc'],
       // 年度支出趋势折线图配置
@@ -103,7 +99,7 @@ export default {
         xAxis: {
           type: 'category',
           boundaryGap: true,
-          axisLabel: { fontSize: 16 },
+          axisLabel: { fontSize: 16, interval: 0 },
           data: []
         },
         yAxis: { type: 'value', axisLabel: { fontSize: 16 } },
@@ -168,6 +164,7 @@ export default {
       this.belongCondition.endDate = dayjs().format('YYYY-MM-DD')
       this.users = bill.users
       this.getBalanceAndPieData()
+      this.getThreeYearCostData()
     },
     initChart() {
       this.perYearChart = this.$echarts.init(document.getElementById('perYearChart'))
@@ -176,9 +173,6 @@ export default {
       this.belongTypeChart3 = this.$echarts.init(document.getElementById('belongTypeChart3'))
       this.perYearOptions.color = this.colorOptions
       this.belongOptions.color = this.colorOptions
-    },
-    search() {
-      console.log(this.belongCondition)
     },
     // 设置折线图
     setYearLineChartData() {
@@ -211,7 +205,6 @@ export default {
       const params = { billId: this.billId, beginDate: this.belongCondition.startDate, endDate: this.belongCondition.endDate }
       const [err, res] = await getBalance({ params })
       if (err) return
-      console.log(res)
       if (res.retCode === 0) {
         this.belongUsers.totalCost = res.data.totalCost
         this.belongUsers.totalIncomes = res.data.totalIncomes
@@ -222,9 +215,20 @@ export default {
         })
         this.setTypeData(res.data.costTypeRank)
         this.setPieData()
+      } else {
+        this.$message.error('查询概览失败，' + res.message)
+      }
+    },
+    async getThreeYearCostData() {
+      const params = { billId: this.billId }
+      const [err, res] = await getThreeYearCost(params)
+      if (err) return
+      if (res.retCode === 0) {
+        const data = res.data
+        this.perYearCostDatas = data
         this.setYearLineChartData()
       } else {
-        this.$message.error('查询概览失败' + res.message)
+        this.$message.error('查询过去三年支出概况失败，' + res.message)
       }
     },
     setTypeData(costTypeRank) {
@@ -373,6 +377,7 @@ export default {
       }
       .table-container {
         width: 100%;
+        height: 122px;
         border: 1px solid #aaa;
         .bold {
           font-weight: bold;

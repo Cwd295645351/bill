@@ -26,7 +26,7 @@
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="yyyy-MM-dd" type="date" placeholder="结束时间">
             </el-date-picker>
           </el-form-item>
-          <el-form-item prop="proportion" required size="small" label="比例（宜：栋）">
+          <el-form-item prop="proportion" required size="small" :label="'比例（宜：栋）==>' + belongCondition.money">
             <el-input v-model="belongCondition.proportion" placeholder="比例（宜：栋）"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="small">
@@ -79,7 +79,8 @@ export default {
       belongCondition: {
         startDate: '',
         endDate: '',
-        proportion: '954.44:1055'
+        proportion: '954.44:1055',
+        money: 0
       },
       // 年度支出趋势数据
       perYearCostDatas: {
@@ -212,16 +213,40 @@ export default {
         this.belongUsers.totalCost = res.data.totalCost
         this.belongUsers.totalIncomes = res.data.totalIncomes
         this.belongUsers.details = res.data.belongUserCosts.map((item) => {
-          console.log(this.users)
           item.userName = this.users.find((ite) => ite.id === item.userId).name
           return item
         })
+        this.calculateMoney()
         this.setTypeData(res.data.costTypeRank)
         this.setPieData()
       } else {
         this.$message.error('查询概览失败，' + res.message)
       }
     },
+    // 合计退款
+    calculateMoney() {
+      const costs = this.belongUsers.details
+      const proportion = this.belongCondition.proportion.split(':')
+      const total = Number(proportion[0]) + Number(proportion[1])
+      let money = 0
+      costs.forEach((item) => {
+        if (item.userName === '宜') {
+          if (item.belongUserId === '') {
+            money += item.money * (proportion[1] / total)
+          } else if (item.belongUserName === '栋') {
+            money += item.money
+          }
+        } else if (item.userName === '栋') {
+          if (item.belongUserId === '') {
+            money -= item.money * (proportion.first / total)
+          } else if (item.belongUserName === '宜') {
+            money -= item.money
+          }
+        }
+      })
+      this.belongCondition.money = money.toFixed(2)
+    },
+    // 查询过去三年支出概况
     async getThreeYearCostData() {
       const params = { billId: this.billId }
       const [err, res] = await getThreeYearCost(params)
@@ -237,6 +262,7 @@ export default {
         this.$message.error('查询过去三年支出概况失败，' + res.message)
       }
     },
+    // 设置各归属人支出比例
     setTypeData(costTypeRank) {
       const proportion = this.belongCondition.proportion.split(':')
       const total = Number(proportion[0]) + Number(proportion[1])

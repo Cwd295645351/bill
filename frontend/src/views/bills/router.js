@@ -4,9 +4,6 @@ export default [
   {
     path: '/layout/bills',
     name: 'Bills',
-    component: Bills,
-    meta: {
-      parent: '/layout'
-    }
+    component: Bills
   }
 ]

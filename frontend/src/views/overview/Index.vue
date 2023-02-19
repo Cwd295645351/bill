@@ -238,7 +238,7 @@ export default {
           }
         } else if (item.userName === '栋') {
           if (item.belongUserId === '') {
-            money -= item.money * (proportion.first / total)
+            money -= item.money * (proportion[0] / total)
           } else if (item.belongUserName === '宜') {
             money -= item.money
           }

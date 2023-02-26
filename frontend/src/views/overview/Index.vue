@@ -117,7 +117,10 @@ export default {
         title: {
           text: '',
           top: 50,
-          left: 'center'
+          left: 'center',
+          subtextStyle: {
+            fontSize: 16
+          }
         },
         tooltip: {
           trigger: 'item',
@@ -129,7 +132,7 @@ export default {
             name: '',
             type: 'pie',
             selectedMode: 'single',
-            radius: ['30', '50%'],
+            radius: ['40', '50%'],
             label: {
               formatter: '{b}({d}%)',
               fontSize: 14
@@ -192,11 +195,14 @@ export default {
     // 设置饼图
     setPieData() {
       const setSeriesData = (target, source, chart, chartName) => {
+        let total = 0
         this.belongOptions.title.text = chartName + '-各支出比例'
         target.name = chartName
         target.data = source.map((item) => {
+          total += item.money
           return { value: item.money.toFixed(2), name: item.name }
         })
+        this.belongOptions.title.subtext = '总花费：' + total.toFixed(2)
         chart.setOption(this.belongOptions, true)
       }
       this.belongOptions.legend.data = this.belongTypeDatas.type

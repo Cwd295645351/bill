@@ -133,6 +133,7 @@ export default {
             type: 'pie',
             selectedMode: 'single',
             radius: ['40', '50%'],
+            top: '15%',
             label: {
               formatter: '{b}({d}%)',
               fontSize: 14

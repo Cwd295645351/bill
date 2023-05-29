@@ -36,7 +36,7 @@
             :style="{
               height: '100%',
               width: `${item.costPercent * 100}%`,
-              background: item.costPercent !== 1 ? '#33e392' : 'red'
+              background: costColor(item)
             }"
           ></div>
         </div>
@@ -191,6 +191,16 @@ export default {
   },
 
   methods: {
+
+    // 预算背景颜色
+    costColor(item) {
+      if (item.costPercent < 0.25) return '#33e392'
+      else if (item.costPercent < 0.5) return '#f5d746'
+      else if (item.costPercent < 0.75) return '#ff9800'
+      else if (item.costPercent < 0.9) return '#ff5722'
+      else return 'red'
+    },
+
     // 获取当前年度预算详情
     async getDetail() {
       const params = { date: this.year, billId: this.billId }

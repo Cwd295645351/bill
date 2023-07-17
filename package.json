@@ -1,0 +1,16 @@
+{
+	"name": "bill",
+	"version": "1.0.0",
+	"description": "`frontent` 为前端页面，通过 `webpack` 构建，每个页面都是独立的模块，包含独有的 `api.js`、 `router.js` 等元素，框架会自动读取每个页面的 `router.js` 文件并加入到路由当中。",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"dev": "node ./script/dev.js"
+	},
+	"keywords": [],
+	"author": "",
+	"license": "ISC",
+	"devDependencies": {
+		"concurrently": "^8.2.0"
+	}
+}

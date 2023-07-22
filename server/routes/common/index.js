@@ -1,6 +1,6 @@
-import koaRouter from 'koa-router'
-import { ResModel } from '../../model/resModel'
-import { getLoginConfig, updateEncryptionKey, login, createJwt } from './controller'
+const koaRouter = require('koa-router')
+const { ResModel } = require('../../model/resModel')
+const { getLoginConfig, updateEncryptionKey, login, createJwt } = require('./controller')
 
 const router = koaRouter({ prefix: '/api/common' })
 
@@ -68,6 +68,7 @@ router.post('/refreshToken', async (ctx, next) => {
 
 // 获取登录配置
 router.get('/getLoginConfig', async (ctx, next) => {
+  console.log(111)
   const [err, res] = await getLoginConfig()
   if (res) ctx.body = new ResModel({ publicKey: res.publicKey }, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -85,4 +86,5 @@ router.post('/createEncryption', async (ctx, next) => {
     else ctx.body = new ResModel(null, err, 'error')
   }
 })
-export default router
+
+module.exports = router

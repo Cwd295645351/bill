@@ -9,7 +9,7 @@ const REDIS_CONF = {
   port: 6379
 }
 
-export default {
+module.exports = {
   MONGODB_CONF,
   REDIS_CONF
 }

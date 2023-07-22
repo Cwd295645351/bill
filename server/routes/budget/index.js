@@ -1,7 +1,7 @@
-import koaRouter from 'koa-router'
-import * as Budget from './controller'
-import { ResModel } from '../../model/resModel'
-import { xssData } from '../../utils/xss'
+const koaRouter = require('koa-router')
+const Budget = require('./controller')
+const { ResModel } = require('../../model/resModel')
+const { xssData } = require('../../utils/xss')
 
 const router = koaRouter({ prefix: '/api/budget' })
 
@@ -79,4 +79,4 @@ router.post('/delete', async (ctx, next) => {
   }
 })
 
-export default router
+module.exports = router

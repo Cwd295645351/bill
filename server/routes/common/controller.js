@@ -1,13 +1,13 @@
-import crypto from 'crypto'
-import { xssData } from '../../utils/xss'
-import jwt from 'jsonwebtoken'
-import Encryption from '../../database/modules/Encryption'
-import User from '../../database/modules/User'
+const crypto = require('crypto')
+const { xssData } = require('../../utils/xss')
+const jwt = require('jsonwebtoken')
+const Encryption = require('../../database/modules/Encryption')
+const User = require('../../database/modules/User')
 
-import { genPassword } from '../../utils/cryp'
+const { genPassword } = require('../../utils/cryp')
 
 // 获取登录配置
-export const getLoginConfig = async () => {
+const getLoginConfig = async () => {
   try {
     const res = await Encryption.find({}, { publicKey: 1, _id: 0 })
     return [null, res[0]]
@@ -18,7 +18,7 @@ export const getLoginConfig = async () => {
 }
 
 // 更新密钥
-export const updateEncryptionKey = async () => {
+const updateEncryptionKey = async () => {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
     modulusLength: 512,
     publicKeyEncoding: {
@@ -49,7 +49,7 @@ export const updateEncryptionKey = async () => {
   }
 }
 
-export const login = async (username, password) => {
+const login = async (username, password) => {
   try {
     const keys = await Encryption.find({}, { privateKey: 1, _id: 0 })
     const decryptoPassword = crypto
@@ -76,7 +76,6 @@ export const login = async (username, password) => {
       }
     )
     if (res) {
-      
       return [null, res]
     } else {
       return ['账号密码不匹配', null]
@@ -88,7 +87,7 @@ export const login = async (username, password) => {
 }
 
 // 生成jwt授权
-export const createJwt = (data) => {
+const createJwt = (data) => {
   const SECRET_KEY = 'admin_jwt_token'
   const EXPIRES_TIME = 24 * 60 * 60 // 有效时间
   // jwt生成token
@@ -98,3 +97,5 @@ export const createJwt = (data) => {
 
   return { accessToken, refreshToken, EXPIRES_TIME }
 }
+
+module.exports = { getLoginConfig, updateEncryptionKey, login, createJwt }

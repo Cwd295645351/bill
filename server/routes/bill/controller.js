@@ -1,17 +1,17 @@
-import Bill from '../../database/modules/Bills'
-import mongoose from '../../database/index'
-import { encode, decode } from '../../utils/cryp'
-import * as InitData from '../../database/initDatas'
+const Bill = require('../../database/modules/Bills')
+const mongoose = require('../../database/index')
+const { encode, decode } = require('../../utils/cryp')
+const InitData = require('../../database/initDatas')
 
 // 查询账本列表
-export const getBillList = async ({ userId, nickName }) => {
+exports.getBillList = async ({ userId, nickName }) => {
   const params = { users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
   const res = await Bill.find(params, { creator: 1, name: 1 })
   return [null, res]
 }
 
 // 创建账本
-export const createBill = async ({ userId, name, nickName }) => {
+exports.createBill = async ({ userId, name, nickName }) => {
   const findData = { name: name, creator: userId }
   const findBill = await Bill.findOne(findData, {})
   if (findBill) {
@@ -34,7 +34,7 @@ export const createBill = async ({ userId, name, nickName }) => {
 }
 
 // 编辑账本名称
-export const editBill = async ({ id, name }) => {
+exports.editBill = async ({ id, name }) => {
   const params = { _id: mongoose.Types.ObjectId(id) }
   const res = await Bill.findOneAndUpdate(params, { name: name }, { new: true })
   if (res) return [null, true]
@@ -42,7 +42,7 @@ export const editBill = async ({ id, name }) => {
 }
 
 // 删除账本
-export const delBill = async ({ userId, id }) => {
+exports.delBill = async ({ userId, id }) => {
   const params = { _id: mongoose.Types.ObjectId(id), creator: userId, isDel: false }
   const billRes = await Bill.findOneAndUpdate(params, { isDel: true }, { new: true })
   if (!billRes) return ['找不到该账本或您非该账本的创建者', null]
@@ -50,7 +50,7 @@ export const delBill = async ({ userId, id }) => {
 }
 
 // 查询账本详情
-export const getBillDetail = async ({ userId, id, nickName }) => {
+exports.getBillDetail = async ({ userId, id, nickName }) => {
   const params = { _id: mongoose.Types.ObjectId(id), users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
   const filterData = {
     planBuy: 1,
@@ -68,7 +68,7 @@ export const getBillDetail = async ({ userId, id, nickName }) => {
 }
 
 // 用公钥生成将id和有效时间生成密文
-export const invite = async ({ userId, id }) => {
+exports.invite = async ({ userId, id }) => {
   // 查找该用户是否是账本的持有者
   const billParams = { _id: mongoose.Types.ObjectId(id), creator: userId, isDel: false }
   const billRes = await Bill.findOne(billParams, { users: 1 })
@@ -86,7 +86,7 @@ export const invite = async ({ userId, id }) => {
 }
 
 // 加入某个账本
-export const joinBill = async ({ userId, code, nickName }) => {
+exports.joinBill = async ({ userId, code, nickName }) => {
   let billId = ''
   try {
     const sign = decode(code)
@@ -116,7 +116,7 @@ export const joinBill = async ({ userId, code, nickName }) => {
 }
 
 // 退出账本
-export const quitBill = async ({ userId, id, nickName }) => {
+exports.quitBill = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则退出账本
   const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
 
@@ -130,7 +130,7 @@ export const quitBill = async ({ userId, id, nickName }) => {
 }
 
 // 将某个移出账本
-export const removePerson = async ({ userId, id, nickName }) => {
+exports.removePerson = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则移除
   const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
 

@@ -1,5 +1,5 @@
-import xss from 'xss'
-export const xssData = (data) => {
+const xss = require('xss')
+const xssData = (data) => {
   if (typeof data === 'string') {
     return xss(data)
   } else if (typeof data === 'number' || typeof data === 'boolean') {
@@ -11,3 +11,5 @@ export const xssData = (data) => {
     return data
   }
 }
+
+module.exports = { xssData }

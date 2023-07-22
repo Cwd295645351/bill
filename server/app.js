@@ -1,27 +1,27 @@
-import Koa from 'koa'
-import json from 'koa-json'
-import onerror from 'koa-onerror'
-import logger from 'koa-logger'
-import koaStatic from 'koa-static'
+const Koa = require('koa')
+const json = require('koa-json')
+const onerror = require('koa-onerror')
+const logger = require('koa-logger')
+const koaStatic = require('koa-static')
 
 // 第三方依赖
-import koaBody from 'koa-body' // 接口数据处理
-import path from 'path'
-import fs from 'fs'
-import morgan from 'koa-morgan' // 日志处理
-import session from 'koa-generic-session' // session
-import redisStore from 'koa-redis' // redis
-import cors from 'koa2-cors' // 跨域处理
-import koajwt from 'koa-jwt' // jwt权限管理
+const koaBody = require('koa-body') // 接口数据处理
+const path = require('path')
+const fs = require('fs')
+const morgan = require('koa-morgan') // 日志处理
+const session = require('koa-generic-session') // session
+const redisStore = require('koa-redis') // redis
+const cors = require('koa2-cors') // 跨域处理
+const koajwt = require('koa-jwt') // jwt权限管理
 
-import CONF from './config/db'
+const CONF = require('./config/db')
 
 // 路由
-import common from './routes/common/index'
-import bill from './routes/bill/index'
-import transaction from './routes/transaction/index'
-import budget from './routes/budget/index'
-import overview from './routes/overview/index'
+const common = require('./routes/common/index')
+const bill = require('./routes/bill/index')
+const transaction = require('./routes/transaction/index')
+const budget = require('./routes/budget/index')
+const overview = require('./routes/overview/index')
 
 const app = new Koa()
 
@@ -154,4 +154,4 @@ app.on('error', (err, ctx) => {
   console.error('server error', err, ctx)
 })
 
-export default app
+module.exports = app

@@ -1,4 +1,4 @@
-import mongoose from '../index'
+const mongoose = require('../index')
 
 // 用户
 const UserSchema = mongoose.Schema({
@@ -13,4 +13,4 @@ const UserSchema = mongoose.Schema({
 
 const User = mongoose.model('users', UserSchema)
 
-export default User
+module.exports =  User

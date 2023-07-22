@@ -1,7 +1,7 @@
-import koaRouter from 'koa-router'
-import { ResModel } from '../../model/resModel'
+const koaRouter = require('koa-router')
+const { ResModel } = require('../../model/resModel')
 
-import * as Overview from './controller'
+const Overview = require('./controller')
 
 const router = koaRouter({ prefix: '/api/overview' })
 
@@ -33,4 +33,4 @@ router.get('/threeYearCost', async (ctx, next) => {
   }
 })
 
-export default router
+module.exports = router

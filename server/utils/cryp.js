@@ -1,4 +1,4 @@
-import crypto from 'crypto'
+const crypto = require('crypto')
 
 // md5加密
 const md5 = (content) => {
@@ -7,7 +7,7 @@ const md5 = (content) => {
 }
 
 // 对密码进行加密
-export const genPassword = (password) => {
+const genPassword = (password) => {
   // 密钥
   const SECRET_KEY = '15641#!#0.SAFAasd'
   const str = `password=${password}&key=${SECRET_KEY}`
@@ -15,7 +15,7 @@ export const genPassword = (password) => {
 }
 
 // 对称加密
-export const encode = (src) => {
+const encode = (src) => {
   const key = 'chenyd-bill-keys'
   const iv = 'chenyd--bill--iv'
   let sign = ''
@@ -26,7 +26,7 @@ export const encode = (src) => {
 }
 
 // 对称解密
-export const decode = (src) => {
+const decode = (src) => {
   const key = 'chenyd-bill-keys'
   const iv = 'chenyd--bill--iv'
   let sign = ''
@@ -35,3 +35,5 @@ export const decode = (src) => {
   sign += cipher.final('utf8')
   return sign
 }
+
+module.exports = { genPassword, encode, decode }

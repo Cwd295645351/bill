@@ -3,7 +3,7 @@
  */
 
 // 默认支出类型
-export const costTypes = [
+exports.costTypes = [
   { id: '1001', name: '餐饮买菜' },
   { id: '1002', name: '交通' },
   { id: '1003', name: '衣服鞋帽' },
@@ -26,7 +26,7 @@ export const costTypes = [
 ]
 
 // 默认收入类型表
-export const incomesTypes = [
+exports.incomesTypes = [
   { id: '2001', name: '工资' },
   { id: '2002', name: '生活费' },
   { id: '2003', name: '兼职外快' },
@@ -37,7 +37,7 @@ export const incomesTypes = [
 ]
 
 // 默认支付方式
-export const payMethods = [
+exports.payMethods = [
   { id: '3001', name: '支付宝' },
   { id: '3002', name: '微信' },
   { id: '3003', name: '现金' },

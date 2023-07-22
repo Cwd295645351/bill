@@ -1,4 +1,4 @@
-import mongoose from '../index'
+const mongoose = require('../index')
 
 // 密钥/公钥
 const EncryptionSchema = mongoose.Schema({
@@ -8,4 +8,4 @@ const EncryptionSchema = mongoose.Schema({
 
 const Encryption = mongoose.model('encryptions', EncryptionSchema)
 
-export default Encryption
+module.exports = Encryption

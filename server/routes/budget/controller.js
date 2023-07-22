@@ -1,9 +1,9 @@
-import Bill from '../../database/modules/Bills'
-import Transaction from '../../database/modules/Transaction'
-import dayjs from 'dayjs'
+const Bill = require('../../database/modules/Bills')
+const Transaction = require('../../database/modules/Transaction')
+const dayjs = require('dayjs')
 
 // 查询预算列表
-export const getList = async (data) => {
+exports.getList = async (data) => {
   data.date = Number(data.date)
   const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
@@ -16,7 +16,7 @@ export const getList = async (data) => {
 }
 
 // 新增预算
-export const addBudget = async (data) => {
+exports.addBudget = async (data) => {
   data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
@@ -74,7 +74,7 @@ export const addBudget = async (data) => {
 }
 
 // 修改预算
-export const editBudget = async (data) => {
+exports.editBudget = async (data) => {
   data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
@@ -91,7 +91,7 @@ export const editBudget = async (data) => {
   else return ['编辑失败', null]
 }
 
-export const deleteBudget = async (data) => {
+exports.deleteBudget = async (data) => {
   const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]

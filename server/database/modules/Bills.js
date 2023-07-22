@@ -1,4 +1,4 @@
-import mongoose from '../index'
+const mongoose = require('../index')
 
 // 账本
 const BillSchema = mongoose.Schema({
@@ -45,4 +45,4 @@ const BillSchema = mongoose.Schema({
 
 const Bills = mongoose.model('bills', BillSchema)
 
-export default Bills
+module.exports = Bills

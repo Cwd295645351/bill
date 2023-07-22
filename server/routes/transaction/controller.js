@@ -1,14 +1,14 @@
-import Transaction from '../../database/modules/Transaction'
-import Bill from '../../database/modules/Bills'
-import User from '../../database/modules/User'
-import mongoose from '../../database/index'
-import dayjs from 'dayjs'
-import { createXlsx } from '../../utils/xlsx'
-import xlsx from 'node-xlsx'
-import fs from 'fs'
+const Transaction = require('../../database/modules/Transaction')
+const Bill = require('../../database/modules/Bills')
+const User = require('../../database/modules/User')
+const mongoose = require('../../database/index')
+const dayjs = require('dayjs')
+const { createXlsx } = require('../../utils/xlsx')
+const xlsx = require('node-xlsx')
+const fs = require('fs')
 
 // 查询列表
-export const getList = async (data) => {
+exports.getList = async (data) => {
   const pageIndex = data.pageIndex
   const pageSize = data.pageSize
   const params = {
@@ -51,7 +51,7 @@ export const getList = async (data) => {
 }
 
 // 新增交易信息
-export const addTransaction = async (data) => {
+exports.addTransaction = async (data) => {
   data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
@@ -130,7 +130,7 @@ export const addTransaction = async (data) => {
 }
 
 // 编辑交易信息
-export const editTransaction = async (data) => {
+exports.editTransaction = async (data) => {
   data.money = Number(data.money)
   const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
   if (!findBill) return ['未找到账本', null]
@@ -201,7 +201,7 @@ export const editTransaction = async (data) => {
 }
 
 // 删除交易信息
-export const deleteTransaction = async (data) => {
+exports.deleteTransaction = async (data) => {
   const params = { _id: mongoose.Types.ObjectId(data.id), isDel: false }
   const res = await Transaction.findOneAndUpdate(params, { isDel: true }, { new: true })
   if (!res) return ['该明细不存在', null]
@@ -238,7 +238,7 @@ export const deleteTransaction = async (data) => {
 }
 
 // 查询当月收支和各归属人概况
-export const getCurrentMonthCost = async (data, userId) => {
+exports.getCurrentMonthCost = async (data, userId) => {
   const params = {
     billId: data.billId,
     reimbursement: 0,
@@ -288,7 +288,7 @@ export const getCurrentMonthCost = async (data, userId) => {
 }
 
 // 导出交易明细
-export const exportData = async (data) => {
+exports.exportData = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
@@ -318,7 +318,7 @@ export const exportData = async (data) => {
 }
 
 // 解析 excel 文件
-export const getExcelObjs = async (filePath, billId, userId) => {
+exports.getExcelObjs = async (filePath, billId, userId) => {
   const findBill = await Bill.findById(billId, { users: 1, costTypes: 1 })
   if (!findBill) return ['未找到账本', null]
   const workbook = xlsx.parse(filePath)

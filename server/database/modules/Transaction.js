@@ -1,8 +1,8 @@
 /*
  * 交易表
  */
-import mongoose from '../index'
-import dayjs from 'dayjs'
+const mongoose = require('../index')
+const dayjs = require('dayjs')
 
 const transactionSchema = mongoose.Schema({
   billId: { type: String, required: true }, // 所属账本
@@ -38,4 +38,4 @@ transactionSchema.set('toJSON', { getters: true })
 
 const Transaction = mongoose.model('transaction', transactionSchema)
 
-export default Transaction
+module.exports = Transaction

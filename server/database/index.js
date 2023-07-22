@@ -1,5 +1,5 @@
-import mongoose from 'mongoose'
-import CONF from '../config/db'
+const mongoose = require('mongoose')
+const CONF = require('../config/db')
 
 const url = `mongodb://${CONF.MONGODB_CONF.host}:${CONF.MONGODB_CONF.port}`
 const dbName = CONF.MONGODB_CONF.dbName
@@ -21,4 +21,4 @@ db.once('open', () => {
   console.log('mongoose connect success')
 })
 
-export default mongoose
+module.exports =  mongoose

@@ -1,8 +1,8 @@
-import Transaction from '../../database/modules/Transaction'
-import dayjs from 'dayjs'
+const Transaction = require('../../database/modules/Transaction')
+const dayjs = require('dayjs')
 
 // 查询收支和各归属人概况
-export const getBlance = async (data, userId) => {
+exports.getBlance = async (data, userId) => {
   const params = {
     billId: data.billId,
     date: {
@@ -67,7 +67,7 @@ export const getBlance = async (data, userId) => {
 }
 
 // 查询过去三年的支出类型
-export const getCosts = async (billId) => {
+exports.getCosts = async (billId) => {
   const date = new Date()
   const lastYear = dayjs(date).subtract(1, 'year')
   const twoYearBefore = dayjs(date).subtract(2, 'year')

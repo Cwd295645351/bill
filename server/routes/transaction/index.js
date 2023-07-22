@@ -1,8 +1,8 @@
-import koaRouter from 'koa-router'
-import * as Transaction from './controller'
-import { ResModel } from '../../model/resModel'
-import { xssData } from '../../utils/xss'
-import dayjs from 'dayjs'
+const koaRouter = require('koa-router')
+const Transaction = require('./controller')
+const { ResModel } = require('../../model/resModel')
+const { xssData } = require('../../utils/xss')
+const dayjs = require('dayjs')
 
 const router = koaRouter({ prefix: '/api/transaction' })
 
@@ -20,14 +20,14 @@ router.get('/list', async (ctx, next) => {
       ctx.body = new ResModel(null, '开始时间不规范', 'error')
       return
     }
-    data.beginDate = new Date(beginDate + " 00:00:00")
+    data.beginDate = new Date(beginDate + ' 00:00:00')
   }
   if (endDate) {
     if (!endDate.match(dateReg)) {
       ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
       return
     }
-    data.endDate = new Date(endDate + " 23:59:59")
+    data.endDate = new Date(endDate + ' 23:59:59')
   }
   // 页码小于1的统一按第一页开始，前端页码从1开始
   data.pageIndex = pageIndex < 1 ? 0 : pageIndex - 1
@@ -134,7 +134,7 @@ router.post('/export', async (ctx, next) => {
 })
 
 // 导入交易明细
-router.post('/import', async (ctx, next) => {
+router.post('/const', async (ctx, next) => {
   const file = ctx.request.files.file // 获取上传文件
   const billId = ctx.request.body.billId
   const userId = ctx.header.userid
@@ -145,4 +145,4 @@ router.post('/import', async (ctx, next) => {
   else ctx.body = new ResModel(null, err, 'error')
 })
 
-export default router
+module.exports = router

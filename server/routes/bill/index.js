@@ -2,8 +2,9 @@ const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
 const { xssData } = require('../../utils/xss')
 const BILL = require('./controller')
+const VERSION = require('../../config/version')
 
-const router = koaRouter({ prefix: '/api/bill' })
+const router = koaRouter({ prefix: `/api/${VERSION}/bill` })
 const name_reg = /^[\u4E00-\u9FA5A-Za-z0-9_]{3,10}$/ // 账本名称校验
 
 router.get('/list', async (ctx, next) => {
@@ -16,7 +17,7 @@ router.get('/list', async (ctx, next) => {
 })
 
 // 新增账本
-router.post('/create', async (ctx, next) => {
+router.post('/', async (ctx, next) => {
   const data = ctx.request.body
   xssData(data)
   const name = data.name
@@ -35,7 +36,7 @@ router.post('/create', async (ctx, next) => {
 })
 
 // 编辑账本名称
-router.post('/edit', async (ctx, next) => {
+router.put('/', async (ctx, next) => {
   const data = ctx.request.body
   xssData(data)
   const name = data.name
@@ -53,8 +54,8 @@ router.post('/edit', async (ctx, next) => {
 })
 
 // 删除账本
-router.post('/delete', async (ctx, next) => {
-  const data = ctx.request.body
+router.delete('/', async (ctx, next) => {
+  const data = ctx.request.query
   xssData(data)
   const id = data.id
   const userId = ctx.header.userid
@@ -68,7 +69,7 @@ router.post('/delete', async (ctx, next) => {
 })
 
 // 查看账本详情
-router.get('/detail', async (ctx, next) => {
+router.get('/', async (ctx, next) => {
   const params = ctx.query
   xssData(params)
   const id = params.id

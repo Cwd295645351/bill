@@ -2,7 +2,9 @@ const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
 const { getLoginConfig, updateEncryptionKey, login, createJwt } = require('./controller')
 
-const router = koaRouter({ prefix: '/api/common' })
+const VERSION = require('../../config/version')
+
+const router = koaRouter({ prefix: `/api/${VERSION}/common` })
 
 // 登录
 router.post('/login', async (ctx, next) => {
@@ -45,7 +47,7 @@ router.post('/logout', async (ctx, next) => {
 })
 
 // 刷新token
-router.post('/refreshToken', async (ctx, next) => {
+router.put('/refreshToken', async (ctx, next) => {
   const { refreshToken } = ctx.request.body
   console.log(refreshToken)
   if (refreshToken && ctx.session.refreshToken === refreshToken) {
@@ -67,15 +69,14 @@ router.post('/refreshToken', async (ctx, next) => {
 })
 
 // 获取登录配置
-router.get('/getLoginConfig', async (ctx, next) => {
-  console.log(111)
+router.get('/login_config', async (ctx, next) => {
   const [err, res] = await getLoginConfig()
   if (res) ctx.body = new ResModel({ publicKey: res.publicKey }, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
 
-// 生成密钥
-router.post('/createEncryption', async (ctx, next) => {
+// 更新密钥
+router.put('/encryption', async (ctx, next) => {
   const MANAGER = { username: 'admin', password: '123456' } // 管理员账号
   const data = ctx.request.body
   if (data.username !== MANAGER.username || data.password !== MANAGER.password) {

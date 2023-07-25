@@ -16,6 +16,8 @@ const koajwt = require('koa-jwt') // jwt权限管理
 
 const CONF = require('./config/db')
 
+const VERSION = require('./config/version')
+
 // 路由
 const common = require('./routes/common/index')
 const bill = require('./routes/bill/index')
@@ -119,7 +121,7 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/common\/login/, /\/api\/common\/logout/, /\api\/common\/getLoginConfig/]
+    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/]
   })
 )
 

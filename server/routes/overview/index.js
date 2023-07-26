@@ -2,8 +2,9 @@ const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
 
 const Overview = require('./controller')
+const VERSION = require('../../config/version')
 
-const router = koaRouter({ prefix: '/api/overview' })
+const router = koaRouter({ prefix: `/api/${VERSION}/overview` })
 
 // 收支记录
 router.get('/balance', async (ctx, next) => {

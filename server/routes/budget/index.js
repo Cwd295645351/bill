@@ -1,9 +1,10 @@
 const koaRouter = require('koa-router')
-const Budget = require('./controller')
 const { ResModel } = require('../../model/resModel')
 const { xssData } = require('../../utils/xss')
+const Budget = require('./controller')
+const VERSION = require('../../config/version')
 
-const router = koaRouter({ prefix: '/api/budget' })
+const router = koaRouter({ prefix: `/api/${VERSION}/budget` })
 
 // 查询预算列表
 router.get('/list', async (ctx, next) => {
@@ -27,7 +28,7 @@ router.get('/list', async (ctx, next) => {
 })
 
 // 新增预算
-router.post('/add', async (ctx, next) => {
+router.post('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   data.userId = userId
@@ -45,7 +46,7 @@ router.post('/add', async (ctx, next) => {
 })
 
 // 编辑预算
-router.post('/edit', async (ctx, next) => {
+router.put('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   data.userId = userId
@@ -63,8 +64,8 @@ router.post('/edit', async (ctx, next) => {
 })
 
 // 删除预算
-router.post('/delete', async (ctx, next) => {
-  const data = ctx.request.body
+router.delete('/', async (ctx, next) => {
+  const data = ctx.request.query
   const userId = ctx.header.userid
   data.userId = userId
   xssData(data)

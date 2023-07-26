@@ -1,10 +1,11 @@
 const koaRouter = require('koa-router')
-const Transaction = require('./controller')
 const { ResModel } = require('../../model/resModel')
 const { xssData } = require('../../utils/xss')
 const dayjs = require('dayjs')
+const Transaction = require('./controller')
+const VERSION = require('../../config/version')
 
-const router = koaRouter({ prefix: '/api/transaction' })
+const router = koaRouter({ prefix: `/api/${VERSION}/transaction` })
 
 // 交易明细(可根据周/月/年进行查询)
 router.get('/list', async (ctx, next) => {
@@ -46,7 +47,7 @@ router.get('/list', async (ctx, next) => {
 })
 
 // 新增交易
-router.post('/add', async (ctx, next) => {
+router.post('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   data.userId = userId
@@ -65,7 +66,7 @@ router.post('/add', async (ctx, next) => {
 })
 
 // 编辑交易
-router.post('/edit', async (ctx, next) => {
+router.put('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   data.userId = userId
@@ -84,8 +85,8 @@ router.post('/edit', async (ctx, next) => {
 })
 
 // 删除交易
-router.post('/delete', async (ctx, next) => {
-  const data = ctx.request.body
+router.delete('/', async (ctx, next) => {
+  const data = ctx.request.query
   xssData(data)
   const { id } = data
   if (!id) ctx.body = new ResModel(null, 'id不能为空', 'error')

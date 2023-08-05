@@ -73,6 +73,7 @@ router.put('/', async (ctx, next) => {
   xssData(data)
   const { date, money, type, id, billId } = data
   if (!id) ctx.body = new ResModel(null, 'id不能为空', 'error')
+  else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
   else if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
   else if (!date) ctx.body = new ResModel(null, '记账时间不能为空', 'error')
   else if (!money) ctx.body = new ResModel(null, '金额不能为空', 'error')

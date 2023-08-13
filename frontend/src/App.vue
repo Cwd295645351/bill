@@ -1,36 +1,12 @@
+<script setup lang="ts">
+import zhCn from 'element-plus/dist/locale/zh-cn.mjs'
+</script>
+
 <template>
-  <div id="app">
-    <router-view></router-view>
-  </div>
+  <el-config-provider :locale="zhCn">
+    <router-view />
+  </el-config-provider>
 </template>
 
-<script>
-export default {
-  name: 'app',
-  props: {},
-
-  components: {},
-
-  data() {
-    return {}
-  },
-
-  computed: {},
-
-  mounted() {
-    console.log('%cRUNNING_AT:', 'color: #fff;background:#008000;padding: 0 10px;', ENV)
-    console.log('%cBUILD_TIME:', 'color: #fff;background:#008000;padding: 0 10px;', BUILD_TIME)
-  },
-
-  methods: {}
-}
-</script>
-<style>
-#app {
-  height: 100vh;
-  width: 100vw;
-  margin: 0;
-  padding: 0;
-  color: #333;
-}
+<style scoped>
 </style>

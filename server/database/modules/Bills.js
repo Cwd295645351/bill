@@ -15,10 +15,7 @@ const BillSchema = mongoose.Schema({
     details: [
       {
         id: { type: String, required: true },
-        name: { type: String, required: true }, // 预购内容
-        costTypeId: { type: String, required: true }, // 支出类型id
-        costTypeName: { type: String, required: true }, // 支出类型名称
-        cost: { type: Number, required: true, default: 0 }, // 金额
+        context: { type: String, required: true }, // 预购内容
         sort: { type: Number, required: true, default: 0, index: true }, // 排序
         isDel: { type: Boolean, required: true, default: false } // 是否删除
       }

@@ -24,6 +24,7 @@ const bill = require('./routes/bill/index')
 const transaction = require('./routes/transaction/index')
 const budget = require('./routes/budget/index')
 const overview = require('./routes/overview/index')
+const plan = require('./routes/plan/index')
 
 const app = new Koa()
 
@@ -150,6 +151,7 @@ app.use(bill.routes(), bill.allowedMethods())
 app.use(transaction.routes(), transaction.allowedMethods())
 app.use(budget.routes(), budget.allowedMethods())
 app.use(overview.routes(), budget.allowedMethods())
+app.use(plan.routes(), plan.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

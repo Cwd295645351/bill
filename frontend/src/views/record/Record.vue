@@ -13,8 +13,8 @@
         <!-- 查询交易 -->
         <el-form :inline="true">
           <el-form-item class="form-item width-150" size="small" label="日期">
-            <el-date-picker v-model="searchOptions.beginDate" value-format="yyyy-MM-dd" type="date" placeholder="请选择" clearable></el-date-picker>~
-            <el-date-picker v-model="searchOptions.endDate" value-format="yyyy-MM-dd" type="date" placeholder="请选择" clearable></el-date-picker>
+            <el-date-picker v-model="searchOptions.beginDate" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>~
+            <el-date-picker v-model="searchOptions.endDate" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
           <el-form-item class="form-item width-150" size="small" label="记账人">
             <el-select v-model="searchOptions.userId" filterable placeholder="请选择" clearable>

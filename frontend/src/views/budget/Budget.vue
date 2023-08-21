@@ -203,6 +203,11 @@ const rules = {
       padding: 10px;
       margin-right: 20px;
       margin-bottom: 20px;
+      cursor: pointer;
+      &:hover {
+        box-shadow: 1px 1px 10px #ddd;
+        border: 1px solid #ddd;
+      }
       .type {
         height: 30px;
         line-height: 30px;

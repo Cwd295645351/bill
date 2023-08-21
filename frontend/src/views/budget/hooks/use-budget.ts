@@ -65,13 +65,9 @@ export const useBudget = () => {
     ],
   })
 
-  watch(
-    bill,
-    (val) => {
-      costTypes.value = (val as Bill).costTypes
-    },
-    { immediate: true },
-  )
+  watch(bill, (val) => {
+    costTypes.value = (val as Bill).costTypes
+  })
 
   /** 预算背景颜色 */
   const costColor = (item: BudgetDetail) => {
@@ -184,7 +180,9 @@ export const useBudget = () => {
   onMounted(() => {
     chart.value = echarts.init(document.getElementById('budgetStatistics') as HTMLElement)
     year.value = new Date().getFullYear()
-    getDetail()
+    setTimeout(() => {
+      getDetail()
+    }, 300)
   })
 
   return {

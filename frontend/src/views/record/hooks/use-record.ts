@@ -3,13 +3,15 @@ import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
 import { getRecordList, exportData } from '../api'
+import dayjs from 'dayjs'
+
 import type { InformationType } from '../type'
 import type { UserInfo } from '@/types/user-info'
 import type { Bill, User, CostType, IncomesType, PayMethod } from '@/types/bill'
 
 export const useRecord = () => {
   const store = useBillStore()
-  const { bill } = storeToRefs(store)
+  const { bill, costTypeId } = storeToRefs(store)
 
   const loadingMore = ref(false)
   const noMore = ref(false)
@@ -21,12 +23,12 @@ export const useRecord = () => {
   const typeName = ref('costTypeName')
 
   /** 查询条件 */
-  const searchOptions = ref({
+  const searchOptions = ref<any>({
     beginDate: '', // 开始时间
     endDate: '', // 结束时间
     userId: '', // 记账人id
     belongUserId: '', // 归属人id
-    costTypeId: '', // 支出类型
+    costTypeId: null, // 支出类型
     incomesTypeId: '', // 收入类型
     payMethodId: '', // 支付方式
     remark: '', // 内容
@@ -227,7 +229,18 @@ export const useRecord = () => {
   }
 
   onMounted(() => {
+    console.log(costTypeId.value, 'costType========')
     userInfo.value = getUserInfo()
+    if (costTypeId.value !== 0) {
+      searchOptions.value.costTypeId = costTypeId.value
+      const currDate = new Date()
+      /** 获取当前年度的开始日期和结束日期 */
+      const currentYear_firstDay = dayjs(currDate).startOf('year').format('YYYY-MM-DD')
+      const currentYear_lastDay = dayjs(currDate).endOf('year').format('YYYY-MM-DD')
+      searchOptions.value.beginDate = currentYear_firstDay
+      searchOptions.value.endDate = currentYear_lastDay
+      store.updateState({ key: 'costTypeId', value: 0 })
+    }
     setTimeout(() => {
       listData.value = []
       initData(bill.value as Bill)

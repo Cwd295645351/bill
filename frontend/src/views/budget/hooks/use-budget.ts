@@ -1,12 +1,14 @@
 import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
+import router from '@/router'
 import * as echarts from 'echarts'
 import { getBudgetList, budgetAdd, budgetEdit, budgetDelete } from '../api'
 
 import type { Bill, CostType, BudgetDetail } from '@/types/bill'
+import type { Emits } from '../type'
 
-export const useBudget = () => {
+export const useBudget = (emits: Emits) => {
   const store = useBillStore()
   const { bill, billId } = storeToRefs(store)
 
@@ -177,6 +179,15 @@ export const useBudget = () => {
     }
   }
 
+  /** 跳转到记账页面，查看当前年度中该预算的花费 */
+  const jumpRecord = (item: BudgetDetail) => {
+    emits('changeValue', 'record')
+    store.updateState({ key: 'costTypeId', value: item.costTypeId })
+    router.push({
+      path: '/layout/record',
+    })
+  }
+
   onMounted(() => {
     chart.value = echarts.init(document.getElementById('budgetStatistics') as HTMLElement)
     year.value = new Date().getFullYear()
@@ -192,19 +203,17 @@ export const useBudget = () => {
     editBudgetObj,
     btnLoading,
     deleteDialog,
-    deleteObj,
     totalBudget,
     totalCost,
-    year,
     costTypes,
     addInformation,
     budgetDetails,
     costColor,
-    getDetail,
     addBudget,
     showEdit,
     submitEditBudget,
     showDelete,
     submitDeleteBudget,
+    jumpRecord,
   }
 }

@@ -62,6 +62,12 @@ export const useLayout = () => {
     router.push(tab.route)
   }
 
+  /** 子模块跳转路由 */
+  const changeTabValue = (value: string) => {
+    currentMenu.value = value
+    sessionStorage.setItem('tabValue', value)
+  }
+
   /** 返回账本页 */
   const backToBills = () => {
     if (router.currentRoute.value.path === '/layout/bill') return
@@ -113,5 +119,5 @@ export const useLayout = () => {
     init()
   })
 
-  return { $joinForm, joinBillDialog, dialogLoading, form, currentMenu, menus, avatarUrl, userInfo, changeMenu, backToBills, logout, showJoinBillDialog, join }
+  return { $joinForm, joinBillDialog, dialogLoading, form, currentMenu, menus, avatarUrl, userInfo, changeMenu, backToBills, logout, showJoinBillDialog, join, changeTabValue }
 }

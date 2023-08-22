@@ -29,7 +29,7 @@
         </template>
       </el-popover>
     </header>
-    <router-view></router-view>
+    <router-view @changeValue="changeTabValue"></router-view>
     <el-dialog title="加入账本" class="join-bill-dialog" v-model="joinBillDialog">
       <el-form ref="$joinForm" :model="form" :rules="rules">
         <el-form-item label="分享码" label-width="80px" prop="name" style="margin-bottom: 0">
@@ -49,7 +49,7 @@
 <script setup lang="ts">
 import { useLayout } from './hooks/use-layout'
 
-const { $joinForm, joinBillDialog, dialogLoading, form, currentMenu, menus, avatarUrl, userInfo, changeMenu, backToBills, logout, showJoinBillDialog, join } = useLayout()
+const { $joinForm, joinBillDialog, dialogLoading, form, currentMenu, menus, avatarUrl, userInfo, changeMenu, backToBills, logout, showJoinBillDialog, join, changeTabValue } = useLayout()
 
 const rules = {
   name: [

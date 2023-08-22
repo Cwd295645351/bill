@@ -11,10 +11,13 @@ export const useBillStore = defineStore('bill', () => {
   const bill = ref<Bill | null>(null)
   /** 当前账本是否更新 */
   const updateBill = ref(false)
+  /** 查看当前年度的预算类型 */
+  const costTypeId = ref(0)
 
   refObjects['updateBill'] = updateBill
   refObjects['billId'] = billId
   refObjects['bill'] = bill
+  refObjects['costTypeId'] = costTypeId
 
   const updateState = (payload: { key: string; value: any } | { key: string; value: any }[]) => {
     if (Array.isArray(payload)) {
@@ -43,5 +46,5 @@ export const useBillStore = defineStore('bill', () => {
     }
   }
 
-  return { billId, bill, updateBill, updateState }
+  return { costTypeId, billId, bill, updateBill, updateState }
 })

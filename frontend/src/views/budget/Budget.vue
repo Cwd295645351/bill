@@ -26,7 +26,7 @@
       </div>
     </div>
     <div class="budget-list-cards">
-      <div class="budget-list-card-item" v-for="(item, index) in budgetDetails" :key="item.costTypeId + index">
+      <div class="budget-list-card-item" v-for="(item, index) in budgetDetails" :key="item.costTypeId + index" @click="jumpRecord(item)">
         <div class="type">{{ item.costTypeName }}</div>
         <div class="tips">预算：{{ item.budget }}</div>
         <div class="line budget"></div>
@@ -79,6 +79,9 @@
 <script setup lang="ts">
 import { useBudget } from './hooks/use-budget'
 import { Delete, Edit } from '@element-plus/icons-vue'
+import type { Emits } from './type'
+
+const emits = defineEmits<Emits>()
 
 const {
   $addForm,
@@ -87,21 +90,19 @@ const {
   editBudgetObj,
   btnLoading,
   deleteDialog,
-  deleteObj,
   totalBudget,
   totalCost,
-  year,
   costTypes,
   addInformation,
   budgetDetails,
   costColor,
-  getDetail,
   addBudget,
   showEdit,
   submitEditBudget,
   showDelete,
   submitDeleteBudget,
-} = useBudget()
+  jumpRecord,
+} = useBudget(emits)
 const rules = {
   money: [
     { required: true, message: '请输入金额', trigger: 'change' },

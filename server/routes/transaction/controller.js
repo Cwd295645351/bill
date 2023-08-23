@@ -14,8 +14,10 @@ exports.getList = async (data) => {
   const params = {
     billId: data.billId,
     type: data.type,
-    isDel: false
+    isDel: false,
+    money: {}
   }
+  params.money[`$${data.condition}`] = data.rangeMoney
   if (data.beginDate && data.endDate) {
     params.date = {
       $gte: new Date(data.beginDate),

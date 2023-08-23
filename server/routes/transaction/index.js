@@ -40,6 +40,7 @@ router.get('/list', async (ctx, next) => {
   if (type != 2) {
     data.type = 1
   }
+  if (!data.rangeMoney) data.rangeMoney = 0
 
   const [err, res] = await Transaction.getList(data)
   if (res) ctx.body = new ResModel(res, '查找成功')

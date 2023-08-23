@@ -32,26 +32,33 @@ export const useRecord = () => {
     incomesTypeId: '', // 收入类型
     payMethodId: '', // 支付方式
     remark: '', // 内容
+    condition: 'gte',
+    rangeMoney: 0,
   })
+
+  /** 查询金额条件 */
+  const conditionOptions = ref([
+    { name: '>=', id: 'gte' },
+    { name: '>', id: 'gt' },
+    { name: '<=', id: 'lte' },
+    { name: '<', id: 'lt' },
+  ])
+
   /** 记账开始日期限制条件 */
-  const beginDateOptions = {
-    disabledDate(time: any) {
-      if (searchOptions.value.endDate) {
-        return time.getTime() > searchOptions.value.endDate
-      } else {
-        return false
-      }
-    },
+  const beginDateOptions = (time: Date) => {
+    if (searchOptions.value.endDate) {
+      return time.getTime() > new Date(searchOptions.value.endDate).getTime()
+    } else {
+      return false
+    }
   }
   /** 记账结束日期限制条件 */
-  const endDateOptions = {
-    disabledDate(time: any) {
-      if (searchOptions.value.beginDate) {
-        return time.getTime() < searchOptions.value.beginDate
-      } else {
-        return false
-      }
-    },
+  const endDateOptions = (time: Date) => {
+    if (searchOptions.value.beginDate) {
+      return time.getTime() < new Date(searchOptions.value.beginDate).getTime()
+    } else {
+      return false
+    }
   }
   const pageContent = ref({ pageIndex: 1, pageSize: 60 })
   /** 记账人配置项 */
@@ -104,6 +111,8 @@ export const useRecord = () => {
       costTypeId: options.costTypeId,
       payMethodId: options.payMethodId,
       incomesTypeId: options.incomesTypeId,
+      condition: options.condition,
+      rangeMoney: options.rangeMoney,
       remark: options.remark,
       billId: (bill.value as Bill)._id,
     }
@@ -265,5 +274,6 @@ export const useRecord = () => {
     load,
     changeAddType,
     search,
+    conditionOptions,
   }
 }

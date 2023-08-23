@@ -13,37 +13,43 @@
         <!-- 查询交易 -->
         <el-form :inline="true">
           <el-form-item class="form-item width-150" size="small" label="日期">
-            <el-date-picker v-model="searchOptions.beginDate" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>~
-            <el-date-picker v-model="searchOptions.endDate" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
+            <el-date-picker v-model="searchOptions.beginDate" :disabled-date="beginDateOptions" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>~
+            <el-date-picker v-model="searchOptions.endDate" :disabled-date="endDateOptions" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
-          <el-form-item class="form-item width-150" size="small" label="记账人">
+          <el-form-item class="form-item width-100" size="small" label="记账人">
             <el-select v-model="searchOptions.userId" filterable placeholder="请选择" clearable>
               <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" v-show="type === 1" size="small" label="支出类型">
+          <el-form-item class="form-item width-100" v-show="type === 1" size="small" label="支出类型">
             <el-select v-model="searchOptions.costTypeId" filterable placeholder="请选择" clearable>
               <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" v-show="type === 1" size="small" label="支付方式">
+          <el-form-item class="form-item width-100" v-show="type === 1" size="small" label="支付方式">
             <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" clearable>
               <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" size="small" label="归属人">
+          <el-form-item class="form-item width-100" size="small" label="归属人">
             <el-select v-model="searchOptions.belongUserId" filterable placeholder="请选择" clearable>
               <el-option label="全部" value=""></el-option>
               <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" v-show="type === 2" size="small" label="收入类型">
+          <el-form-item class="form-item width-100" v-show="type === 2" size="small" label="收入类型">
             <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" clearable>
               <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-150" size="small" label="内容">
+          <el-form-item class="form-item width-100" size="small" label="内容">
             <el-input v-model="searchOptions.remark" placeholder="请输入"></el-input>
+          </el-form-item>
+          <el-form-item class="form-item width-80" v-show="type === 1" size="small" label="金额范围">
+            <el-select v-model="searchOptions.condition" placeholder="请选择">
+              <el-option v-for="(item, index) in conditionOptions" :label="item.name" :value="item.id"></el-option>
+            </el-select>
+            <el-input v-model="searchOptions.rangeMoney" placeholder="请输入"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="small">
             <el-button @click="serachAll">查询</el-button>
@@ -229,6 +235,7 @@ const {
   type,
   typeName,
   searchOptions,
+  conditionOptions,
   beginDateOptions,
   endDateOptions,
   users,
@@ -477,7 +484,7 @@ const serachAll = () => {
               }
               .operate {
                 margin-left: 40px;
-                .el-link +.el-link  {
+                .el-link + .el-link {
                   margin-left: 5px;
                 }
               }
@@ -539,6 +546,18 @@ const serachAll = () => {
     .el-input,
     .el-input__wrapper {
       width: 150px;
+    }
+  }
+  .width-100 {
+    .el-input,
+    .el-input__wrapper {
+      width: 100px;
+    }
+  }
+  .width-80 {
+    .el-input {
+      width: 50px;
+      margin-right: 5px;
     }
   }
   .el-radio {

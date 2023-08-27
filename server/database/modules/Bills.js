@@ -11,12 +11,11 @@ const BillSchema = mongoose.Schema({
   // 计划购入
   planBuy: {
     count: { type: Number, required: true, default: 0 }, // 数量
-    totalCost: { type: Number, required: true, default: 0 }, // 总花费
     details: [
       {
-        id: { type: String, required: true },
         context: { type: String, required: true }, // 预购内容
-        sort: { type: Number, required: true, default: 0, index: true }, // 排序
+        priority: { type: Number, required: true }, // 优先级
+        isBuy: { type: Boolean, required: true }, // 是否已购买
         isDel: { type: Boolean, required: true, default: false } // 是否删除
       }
     ]

@@ -5,9 +5,11 @@ exports.getList = async ({ userId, billId }) => {
   const findBill = await Bill.findById(billId, { users: 1, planBuy: 1 })
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
-  const plans = findBill.planBuy
-  if (plans) return [null, plans]
-  else return ['查询失败', null]
+  const plans = JSON.parse(JSON.stringify(findBill.planBuy))
+  if (!plans) ['查询失败', null]
+  plans.details = plans.details.filter((item) => !item.isDel)
+  plans.notBuyCount = plans.details.filter((item) => !item.isBuy).length
+  return [null, plans]
 }
 
 /** 新增账本计划 */

@@ -26,8 +26,8 @@ export const useLayout = () => {
   const recordMenu: Menu[] = [
     { label: '记账', value: 'record', route: '/layout/record' },
     { label: '概览', value: 'overview', route: '/layout/overview' },
-    // { label: '计划', value: 'plan', route: '/layout/record' },
     { label: '预算', value: 'budget', route: '/layout/budget' },
+    { label: '计划', value: 'plan', route: '/layout/plan' },
     // { label: '设置', value: 'setting', route: '/layout/record' }
   ]
   const menus = ref<Menu[]>(billsMenu)

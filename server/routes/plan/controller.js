@@ -7,8 +7,8 @@ exports.getList = async ({ userId, billId }) => {
   if (!findBill.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
   const plans = JSON.parse(JSON.stringify(findBill.planBuy))
   if (!plans) ['查询失败', null]
-  plans.details = plans.details.filter((item) => !item.isDel)
-  plans.notBuyCount = plans.details.filter((item) => !item.isBuy).length
+  plans.details = plans.details.filter((item) => !item.isDel && !item.isBuy)
+  plans.count = plans.details.length
   return [null, plans]
 }
 

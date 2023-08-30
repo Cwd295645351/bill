@@ -10,7 +10,6 @@ export const useList = () => {
 
   const planList = ref<PlanItem[]>([])
   const total = ref(0)
-  const notBuyCount = ref(0)
 
   watch(bill, (val) => {
     getList()
@@ -21,11 +20,9 @@ export const useList = () => {
     const [err, res] = await getPlanList({ params })
     if (err) return
     if (res.retCode === 0) {
-      console.log(res.data)
       const data = res.data
       planList.value = data.details
       total.value = data.count
-      notBuyCount.value = data.notBuyCount
     } else {
       ElMessage.error('查询计划列表失败，' + res.message)
     }
@@ -35,5 +32,5 @@ export const useList = () => {
     if (bill.value) getList()
   })
 
-  return { getList, planList, total, notBuyCount }
+  return { getList, planList, total }
 }

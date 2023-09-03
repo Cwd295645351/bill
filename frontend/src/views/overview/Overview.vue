@@ -86,7 +86,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     height: 100%;
     margin-right: 20px;
     border-radius: 8px;
-    box-shadow: 1px 1px 5px #999;
+    box-shadow: 1px 1px 5px #ddd;
     background-color: #fff;
     padding: 20px;
     display: flex;
@@ -134,7 +134,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     min-width: 0;
     height: 100%;
     .per-year-container {
-      box-shadow: 1px 1px 5px #999;
+      box-shadow: 1px 1px 5px #ddd;
       border-radius: 8px;
       width: 100%;
       height: 50%;
@@ -184,7 +184,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
       .belong-type-chart {
         width: 32%;
         height: 100%;
-        box-shadow: 1px 1px 5px #999;
+        box-shadow: 1px 1px 5px #ddd;
         border-radius: 8px;
       }
     }

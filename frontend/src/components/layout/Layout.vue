@@ -83,6 +83,8 @@ const rules = {
     align-items: center;
     font-size: 20px;
     background-color: #f7f7f7;
+    box-shadow: 0px 1px 5px 0 #b9b9b9;
+    position: relative;
     .title {
       margin-left: 20px;
       font-size: 24px;

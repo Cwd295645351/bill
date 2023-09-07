@@ -13,18 +13,13 @@ exports.getList = async ({ userId, billId }) => {
 }
 
 /** 新增账本计划 */
-exports.add = async ({ billId, userId, context, priority }) => {
+exports.add = async ({ billId, userId, context, priority, title }) => {
   const findBill = await Bill.findById(billId, { users: 1, planBuy: 1 })
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
   const plans = findBill.planBuy
   plans.count++
-  const addData = {
-    context: context,
-    priority: priority,
-    isBuy: false,
-    idDel: false
-  }
+  const addData = { title, context, priority, isBuy: false, idDel: false }
   plans.details.push(addData)
   const updateBillRes = await Bill.findByIdAndUpdate(billId, { planBuy: plans }, { new: true })
   if (updateBillRes) return [null, true]
@@ -32,7 +27,7 @@ exports.add = async ({ billId, userId, context, priority }) => {
 }
 
 /** 编辑账本计划 */
-exports.edit = async ({ billId, id, userId, context, priority, isBuy }) => {
+exports.edit = async ({ billId, id, userId, context, priority, title }) => {
   const findBill = await Bill.findById(billId, { users: 1, planBuy: 1 })
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
@@ -40,7 +35,7 @@ exports.edit = async ({ billId, id, userId, context, priority, isBuy }) => {
   if (!planDetailItem) return ['不存在该计划', null]
   planDetailItem.context = context
   planDetailItem.priority = priority
-  planDetailItem.isBuy = isBuy
+  planDetailItem.title = title
   const updateBillRes = await Bill.findByIdAndUpdate(billId, { planBuy: findBill.planBuy }, { new: true })
   if (updateBillRes) return [null, true]
   else return ['编辑失败', null]

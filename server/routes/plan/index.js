@@ -24,13 +24,14 @@ router.post('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   xssData(data)
-  const { billId, context, priority } = data
+  const { billId, context, priority, title } = data
   if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
   else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
+  else if (!title) ctx.body = new ResModel(null, '标题不能为空', 'error')
   else if (!context) ctx.body = new ResModel(null, '内容不能为空', 'error')
   else if (!priority) ctx.body = new ResModel(null, '优先级不能为空', 'error')
   else {
-    const [err, res] = await Plan.add({ billId, userId, context, priority })
+    const [err, res] = await Plan.add({ billId, userId, context, priority, title })
     if (res) ctx.body = new ResModel(res, '新增成功')
     else ctx.body = new ResModel(null, err, 'error')
   }
@@ -41,15 +42,15 @@ router.put('/', async (ctx, next) => {
   const data = ctx.request.body
   const userId = ctx.header.userid
   xssData(data)
-  const { id, billId, context, priority, isBuy } = data
+  const { id, billId, context, priority, title } = data
   if (!id) ctx.body = new ResModel(null, '计划id不能为空', 'error')
   else if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
   else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
+  else if (!title) ctx.body = new ResModel(null, '标题不能为空', 'error')
   else if (!context) ctx.body = new ResModel(null, '内容不能为空', 'error')
   else if (!priority) ctx.body = new ResModel(null, '优先级不能为空', 'error')
-  else if (!isBuy) ctx.body = new ResModel(null, '是否已购不能为空', 'error')
   else {
-    const [err, res] = await Plan.edit({ billId, id, userId, context, priority, isBuy })
+    const [err, res] = await Plan.edit({ billId, id, userId, context, priority, title })
     if (res) ctx.body = new ResModel(res, '编辑成功')
     else ctx.body = new ResModel(null, err, 'error')
   }

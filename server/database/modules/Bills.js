@@ -13,6 +13,7 @@ const BillSchema = mongoose.Schema({
     count: { type: Number, required: true, default: 0 }, // 数量
     details: [
       {
+        title: { type: String, required: true }, // 预购标题
         context: { type: String, required: true }, // 预购内容
         priority: { type: Number, required: true }, // 优先级
         isBuy: { type: Boolean, required: true }, // 是否已购买

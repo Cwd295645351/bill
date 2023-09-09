@@ -24,8 +24,8 @@ router.post('/login', async (ctx, next) => {
   if (res) {
     // jwt生成token
     const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: res._id })
-    ctx.session.userId = res._id
-    ctx.session.refreshToken = refreshToken
+    ctx.session.bill_userId = res._id
+    ctx.session.bill_refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
       refreshToken: refreshToken,
@@ -50,11 +50,11 @@ router.post('/logout', async (ctx, next) => {
 router.put('/refreshToken', async (ctx, next) => {
   const { refreshToken } = ctx.request.body
   console.log(refreshToken)
-  if (refreshToken && ctx.session.refreshToken === refreshToken) {
+  if (refreshToken && ctx.session.bill_refreshToken === refreshToken) {
     // 当前用户已登录，刷新token
     // jwt生成token
     const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: ctx.header.userid })
-    ctx.session.refreshToken = refreshToken
+    ctx.session.bill_refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
       refreshToken: refreshToken,

@@ -67,7 +67,7 @@ const {
 const rules = {
   name: [
     {
-      validator: (rule, value, callback) => {
+      validator: (rule: any, value: any, callback: Function) => {
         console.log(value)
         if (!value) {
           return callback(new Error('请输入账本名称'))

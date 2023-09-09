@@ -32,7 +32,7 @@ export const useLogin = () => {
   /** 密码加密 */
   const encryptPassword = (password: string) => {
     const pub: any = rs.KEYUTIL.getKey(publicKey.value)
-    const encryptData = rs.KJUR.crypto.Cipher.encrypt(password, pub)
+    const encryptData = rs.KJUR.crypto.Cipher.encrypt(password, pub, 'RSA')
     return rs.hextob64(encryptData)
   }
 

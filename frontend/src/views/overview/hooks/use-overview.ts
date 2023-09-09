@@ -49,7 +49,7 @@ export const useOverview = (options: { colorOptions: string[] }) => {
       const data = res.data
       perYearCostDatas.value = data
       data.datas.forEach((item: any) => {
-        item.total = item.datas.reduce((prev: string, curr: string) => Number(prev) + Number(curr))
+        item.total = item.datas.reduce((prev: string, curr: string) => Number(prev) + Number(curr), 0)
       })
       setYearLineChartData()
     } else {

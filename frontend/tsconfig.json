@@ -24,7 +24,9 @@
       "@*": ["./src*"],
       "@/views*": ["./src/views*"],
       "@/types*": ["./src/types*"]
-    }
+    },
+
+    "removeComments": true, // 是否移除 TypeScript 代码中的注释
   },
   "include": ["**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }]

@@ -1,6 +1,6 @@
 import { onMounted, ref } from 'vue'
 import router from '@/router'
-import rs from 'jsrsasign'
+import { KEYUTIL, KJUR, hextob64 } from 'jsrsasign'
 
 import { userLogin, getLoginConfig } from '../api'
 
@@ -31,9 +31,9 @@ export const useLogin = () => {
 
   /** 密码加密 */
   const encryptPassword = (password: string) => {
-    const pub: any = rs.KEYUTIL.getKey(publicKey.value)
-    const encryptData = rs.KJUR.crypto.Cipher.encrypt(password, pub, 'RSA')
-    return rs.hextob64(encryptData)
+    const pub: any = KEYUTIL.getKey(publicKey.value)
+    const encryptData = KJUR.crypto.Cipher.encrypt(password, pub, 'RSA')
+    return hextob64(encryptData)
   }
 
   // 登录

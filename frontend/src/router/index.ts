@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
+import { getUserInfo } from '@/utils/common-info'
 
 import loginRoute from '@/components/login/router'
 import layoutRoute from '@/components/layout/router'
@@ -20,4 +21,14 @@ const router = createRouter({
   routes,
 })
 
+const NOT_CHECK_ROUTE = '/login'
+router.beforeEach((route, next) => {
+  if (!NOT_CHECK_ROUTE.includes(route.fullPath)) {
+    try {
+      getUserInfo()
+    } catch {
+      router.push('/login')
+    }
+  }
+})
 export default router

@@ -18,6 +18,9 @@ export default defineConfig({
       resolvers: [ElementPlusResolver()],
     }),
   ],
+  define: {
+    __VUE_OPTIONS_API__: false,
+  },
   esbuild: {
     drop: ['console', 'debugger'],
   },

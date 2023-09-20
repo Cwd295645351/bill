@@ -86,16 +86,16 @@ const { operationDisabled, $loginForm, formInfo, registerUser, forgetPassword, l
       border-radius: 10%;
       box-shadow: 0px 0px 10px #efefef;
       &.img-1 {
-        background-image: url('@/assets/images/img1.jpg');
+        background-image: url('/images/img1.jpg');
       }
       &.img-2 {
-        background-image: url('@/assets/images/img2.jpg');
+        background-image: url('/images/img2.jpg');
       }
       &.img-3 {
-        background-image: url('@/assets/images/img3.jpg');
+        background-image: url('/images/img3.jpg');
       }
       &.img-4 {
-        background-image: url('@/assets/images/img4.jpg');
+        background-image: url('/images/img4.jpg');
       }
     }
   }

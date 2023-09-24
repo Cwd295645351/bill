@@ -173,7 +173,7 @@
       </template>
     </el-dialog>
     <el-dialog title="编辑明细" class="edit-transaction-dialog" v-model="editDialog">
-      <el-form v-if="editDialog" class="form-container" label-width="70px">
+      <el-form v-if="editDialog" class="form-container">
         <el-form-item class="form-item" size="small" label="日期">
           <el-date-picker v-model="operateData.date" type="date" placeholder="请选择" clearable></el-date-picker>
         </el-form-item>
@@ -570,10 +570,13 @@ const serachAll = () => {
 .edit-transaction-dialog {
   width: 430px;
   .form-item {
+    .el-form-item__label {
+      width: 70px;
+    }
     .el-date-editor,
     .el-input,
     .el-input__wrapper {
-      width: 320px;
+      width: 310px;
     }
   }
 }

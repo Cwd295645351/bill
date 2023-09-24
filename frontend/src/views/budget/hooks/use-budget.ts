@@ -131,6 +131,7 @@ export const useBudget = (emits: Emits) => {
 
   /** 显示编辑弹窗 */
   const showEdit = (item: BudgetDetail) => {
+    event?.stopPropagation()
     editBudgetObj.value = JSON.parse(JSON.stringify(item))
     editDialog.value = true
   }
@@ -159,6 +160,7 @@ export const useBudget = (emits: Emits) => {
 
   /** 显示删除弹窗 */
   const showDelete = (item: BudgetDetail) => {
+    event?.stopPropagation()
     deleteObj.value = item
     deleteDialog.value = true
   }

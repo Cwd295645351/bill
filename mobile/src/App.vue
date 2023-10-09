@@ -1,9 +1,6 @@
-<script setup lang="ts">
-</script>
-
 <template>
-  <van-button type="primary">主要按钮</van-button>
+  <router-view />
 </template>
+<script setup lang="ts"></script>
 
-<style scoped>
-</style>
+<style scoped lang="scss"></style>

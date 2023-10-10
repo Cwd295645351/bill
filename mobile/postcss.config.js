@@ -1,7 +1,7 @@
 export default {
   plugins: {
     'postcss-px-to-viewport': {
-      viewportWidth: 1920,
+      viewportWidth: 375,
       unitPrecision: 3,
       propList: ['*'],
       viewportUnit: 'vw',

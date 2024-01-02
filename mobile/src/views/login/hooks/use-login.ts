@@ -57,7 +57,7 @@ export const useLogin = () => {
       sessionStorage.setItem('expiresAt', expiresAt.toString())
       sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
       closeToast()
-      // router.push('/layout/bill')
+      router.push('/layout')
     } else {
       showFailToast('登录失败，' + res.message)
     }

@@ -1,9 +1,11 @@
 import { createRouter, createWebHashHistory, RouteRecordRaw } from 'vue-router'
 
 import loginRoute from '@/views/login/router'
+import layoutRoute from '@/views/layout/router'
 
 const routes: Array<RouteRecordRaw> = [{ path: '/', redirect: '/login' }]
 routes.push(...loginRoute)
+routes.push(...layoutRoute)
 
 const router = createRouter({
   history: createWebHashHistory(),

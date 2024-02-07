@@ -10,7 +10,7 @@
             clearable
             name="username"
             label="账号"
-            label-width="40px"
+            label-width="50px"
             placeholder="请输入账号"
             :rules="[{ validator: rules.username, message: '用户名只能包含英文和数字' }]"
           />
@@ -21,7 +21,7 @@
             name="password"
             label="密码"
             type="password"
-            label-width="40px"
+            label-width="50px"
             placeholder="请输入密码"
             :rules="[{ validator: rules.password, message: '密码只能包含英文、数字和下划线' }]"
           />

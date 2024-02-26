@@ -5,11 +5,12 @@
         <template #left>
           <van-button square type="primary" text="分享" />
         </template>
-        <van-cell :border="false" :title="item.name" is-link />
+        <van-cell :border="false" :title="item.name" is-link @click="onBillClick(item)" />
         <template #right>
           <van-button square type="danger" text="删除" />
         </template>
       </van-swipe-cell>
+      <div class="decorate-bottom"></div>
     </div>
     <van-empty v-if="showEmpty" description="当前无账本">
       <van-button round type="primary" class="bottom-button">新增账本</van-button>
@@ -20,7 +21,7 @@
 <script setup lang="ts">
 import { useBills } from './hooks/use-bills'
 
-const { billList, showEmpty, billListLoading, getBillList, billEvent } = useBills()
+const { billList, showEmpty, billListLoading, getBillList, billEvent, onBillClick } = useBills()
 </script>
 
 <style scoped lang="scss">
@@ -37,6 +38,11 @@ const { billList, showEmpty, billListLoading, getBillList, billEvent } = useBill
     box-shadow: 1px 1px 1px #eee;
     & + .bill-item {
       margin-top: 10px;
+    }
+    .decorate-bottom {
+      width: 100%;
+      height: 4px;
+      background-color: #7baeff;
     }
   }
 }

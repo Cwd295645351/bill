@@ -1,7 +1,9 @@
 import { onMounted, ref } from 'vue'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
+import router from '@/router'
 import { billListApi, shareBillApi, deleteBillApi } from '../api'
-import { Bill } from '../type'
+
+import type { Bill } from '../type'
 
 export const useBills = () => {
   /** 账本列表 */
@@ -38,11 +40,15 @@ export const useBills = () => {
         return true
       case 'right':
         return new Promise((resolve) => {
-          console.log(111)
           showDeleteBillDialog(name)
           resolve(true)
         })
     }
+  }
+
+  /** 账本点击，进入账本列表页 */
+  const onBillClick = (item: Bill) => {
+    router.push(`/layout/bill-detail/${item._id}`)
   }
 
   /** 删除账本弹窗 */
@@ -69,5 +75,5 @@ export const useBills = () => {
 
   onMounted(getBillList)
 
-  return { billList, showEmpty, billListLoading, getBillList, billEvent }
+  return { billList, showEmpty, billListLoading, getBillList, billEvent, onBillClick }
 }

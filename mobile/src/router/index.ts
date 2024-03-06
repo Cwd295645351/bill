@@ -3,19 +3,17 @@ import { logoutUser, getUserInfo } from '@/utils/common-info'
 
 import loginRoute from '@/views/login/router'
 import layoutRoute from '@/views/layout/router'
+import billDetailRoute from '@/views/bill-detail/router'
 
 // 动态读取 views 子路由
 const childRouteModules: any = import.meta.glob('@/views/**/router.merge.ts', { eager: true })
-const childRoutes = Object.keys(childRouteModules)
-  .map((path: string) => childRouteModules[path].default)
+const childRoutes = Object.values(childRouteModules)
+  .map((item: any) => item.default)
   .flat()
 
-console.log('childRoutes', childRoutes)
 layoutRoute[0].children!.push(...childRoutes)
 
-const routes: Array<RouteRecordRaw> = [{ path: '/', redirect: '/login' }]
-routes.push(...loginRoute)
-routes.push(...layoutRoute)
+const routes: Array<RouteRecordRaw> = [{ path: '/', redirect: '/login' }, ...loginRoute, ...layoutRoute, ...billDetailRoute]
 
 const router = createRouter({
   history: createWebHashHistory(),

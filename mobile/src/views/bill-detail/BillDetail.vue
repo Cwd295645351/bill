@@ -15,10 +15,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useBillStore } from '@/store'
+import { getBillInfoApi } from './api'
 import Records from './components/records/Index.vue'
 
+const store = useBillStore()
+const { billId } = storeToRefs(store)
+
 const tab = ref('record')
+
+const getBillInfo = async () => {
+  const params = { id: billId.value }
+  const [err, res] = await getBillInfoApi({ params })
+  if (err) return
+  store.updateBill(res.data)
+}
+
+watch(billId, getBillInfo, { immediate: true })
 </script>
 
 <style scoped lang="scss">

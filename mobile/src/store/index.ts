@@ -12,5 +12,9 @@ export const useBillStore = defineStore('bill', () => {
     billId.value = id
   }
 
-  return { billId, bill, updateBillId }
+  const updateBill = (billInfo: Bill) => {
+    bill.value = billInfo
+  }
+
+  return { billId, bill, updateBillId, updateBill }
 })

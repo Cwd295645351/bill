@@ -1,13 +1,23 @@
 <template>
   <div class="record-container">
     <div class="title-header">
-      <div class="bill-name">{{ bill.name }}</div>
-      <div class="operater-box">搜索按钮</div>
+      <div class="bill-name">{{ bill?.name }}</div>
+      <van-icon name="search" size="30" color="#fff" @click="jumpToSearchPage" />
     </div>
-    <div class="context-container">
+    <div class="context-container van-safe-area-bottom">
       <div class="budget-cost-card">
-        <div class="item-box cost">年度支出：{{ budgetInfo.currCost.toFixed(2) }}</div>
-        <div class="item-box budget">剩余预算：{{ budgetInfo.restBudget.toFixed(2) }}</div>
+        <div class="budget-item">
+          <div class="item-title">年度支出</div>
+          <div class="item-number">{{ budgetInfo.currCost.toFixed(2) }}</div>
+        </div>
+        <div class="budget-item">
+          <div class="item-title">当月支出</div>
+          <div class="item-number">{{ budgetInfo.currentMonthCost }}</div>
+        </div>
+        <div class="budget-item">
+          <div class="item-title">剩余预算</div>
+          <div class="item-number">{{ budgetInfo.restBudget.toFixed(2) }}</div>
+        </div>
       </div>
       <van-button class="add-new-record" icon="records" size="large" type="primary">添加一条新记账</van-button>
       <div class="record-list"></div>
@@ -16,15 +26,19 @@
 </template>
 
 <script setup lang="ts">
-import { Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
+import router from '@/router'
 import { useBudget } from './hooks/use-budget'
 
 const store = useBillStore()
-const { billId, bill } = storeToRefs(store)
+const { bill } = storeToRefs(store)
 
-const { getBudgetInfo, budgetInfo } = useBudget(billId as Ref<string>)
+const { budgetInfo } = useBudget()
+
+const jumpToSearchPage = () => {
+  router.push('/bill-record-search')
+}
 </script>
 
 <style scoped lang="scss">
@@ -42,7 +56,7 @@ const { getBudgetInfo, budgetInfo } = useBudget(billId as Ref<string>)
     justify-content: space-between;
     align-items: center;
     line-height: 40px;
-    background-color: #4285F4;
+    background-color: #4285f4;
     .bill-name {
       flex: 1;
       height: 100%;
@@ -54,27 +68,31 @@ const { getBudgetInfo, budgetInfo } = useBudget(billId as Ref<string>)
   }
   .context-container {
     flex: 1;
-    min-height: 0;
-    width: 100%;
-    padding: 10px;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    width: 100%;
+    padding: 10px 10px 0;
+    background-color: #eee;
     .budget-cost-card {
+      display: flex;
       width: 100%;
       height: 120px;
       border-radius: 4px;
       padding: 10px;
-      background-color: #7baeff;
-      color: #fff;
+      color: #333;
+      background-image: linear-gradient(153deg, #dcf8f9 10%, #4285f4 100%);
+      box-shadow: 1px 1px 3px 0 #999;
 
-      .item-box {
-        &.cost {
-          // color: #f74f4f
+      .budget-item {
+        text-align: center;
+        .item-title {
+          margin-bottom: 10px;
+          font-size: 14px;
+          color: #999;
         }
-        .budget {
-        }
-        & + .item-box {
-          margin-top: 5px;
+        & + .budget-item {
+          margin-left: 20px;
         }
       }
     }
@@ -89,3 +107,4 @@ const { getBudgetInfo, budgetInfo } = useBudget(billId as Ref<string>)
   }
 }
 </style>
+./components/search-page/hooks/use-search

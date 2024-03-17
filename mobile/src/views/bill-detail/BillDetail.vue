@@ -1,7 +1,9 @@
 <template>
   <div class="bill-tail-container">
     <div class="detail-container">
-      <Records v-show="tab === 'record'" />
+      <template v-if="showContent">
+        <Records v-show="tab === 'record'" />
+      </template>
     </div>
     <div class="bill-tail-bottom-container">
       <van-tabbar v-model="tab" active-color="#4285F4" safe-area-inset-bottom>
@@ -15,25 +17,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useBillStore } from '@/store'
-import { getBillInfoApi } from './api'
 import Records from './components/records/Index.vue'
 
-const store = useBillStore()
-const { billId } = storeToRefs(store)
+import { useBillDetail } from './hooks/use-bill-detail'
 
-const tab = ref('record')
-
-const getBillInfo = async () => {
-  const params = { id: billId.value }
-  const [err, res] = await getBillInfoApi({ params })
-  if (err) return
-  store.updateBill(res.data)
-}
-
-watch(billId, getBillInfo, { immediate: true })
+const { tab, showContent } = useBillDetail()
 </script>
 
 <style scoped lang="scss">

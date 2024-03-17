@@ -1,13 +1,11 @@
 import { onMounted, ref } from 'vue'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
 import router from '@/router'
-import { useBillStore } from '@/store'
 import { billListApi, shareBillApi, deleteBillApi } from '../api'
 
 import type { Bill } from '../type'
 
 export const useBills = () => {
-  const store = useBillStore()
 
   /** 账本列表 */
   const billList = ref<Bill[]>([])
@@ -51,7 +49,7 @@ export const useBills = () => {
 
   /** 账本点击，进入账本列表页 */
   const onBillClick = (item: Bill) => {
-    store.updateBillId(item._id)
+    sessionStorage.setItem('billId', item._id)
     router.push('/bill-detail')
   }
 
@@ -77,7 +75,10 @@ export const useBills = () => {
     })
   }
 
-  onMounted(getBillList)
+  onMounted(() => {
+    sessionStorage.setItem('billId', '')
+    getBillList()
+  })
 
   return { billList, showEmpty, billListLoading, getBillList, billEvent, onBillClick }
 }

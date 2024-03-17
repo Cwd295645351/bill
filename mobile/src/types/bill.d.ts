@@ -73,6 +73,8 @@ export interface Budget {
   currCost: number
   /** 剩余预算金额 */
   restBudget: number
+  /** 当月支出 */
+  currentMonthCost: string
   /** 明细 */
   details: BudgetDetail[]
 }

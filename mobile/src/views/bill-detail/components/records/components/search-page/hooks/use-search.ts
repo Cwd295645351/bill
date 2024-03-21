@@ -1,4 +1,4 @@
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import type { Bill, User, CostType, IncomesType, PayMethod } from '@/types/bill'
@@ -8,32 +8,53 @@ export const useSearch = () => {
   const { billId, bill } = storeToRefs(store)
 
   /** 显示选择器 */
-  const showPicker = ref(false)
-  /** 当前选择器配置 */
+  const showSelectPicker = ref(false)
+  /** 下拉选择器配置 */
   const currentPickerOptions = ref({
     type: '',
     options: [],
   })
+  /** 显示日期选择器 */
+  const showDatePicker = ref(false)
+  /** 日期选择器配置 */
+  const datePickerType = ref<'beginDate' | 'endDate'>('beginDate')
 
   /** 查询条件 */
   const searchOptions: any = ref({
     beginDate: '', // 开始时间
     endDate: '', // 结束时间
+    remark: '', // 内容
+    type: 1, // 类型 1-支出 2-收入
     userId: '', // 记账人 id
     userName: '', // 记账人名称
     belongUserId: '', // 归属人 id
     belongUserName: '', // 归属人名称
-    costTypeId: null, // 支出类型 id
-    costTypeName: null, // 支出类型
     incomesTypeId: '', // 收入类型
-    incomesTypeName: null, // 支出类型
+    incomesTypeName: '', // 支出类型
+    costTypeId: '', // 支出类型 id
+    costTypeName: '', // 支出类型
     payMethodId: '', // 支付方式 id
     payMethodName: '', // 支付方式
-    remark: '', // 内容
+
     conditionId: 'gte',
-    conditionName: 'gte',
+    conditionName: '大于等于',
     rangeMoney: 0,
   })
+
+  watch(
+    () => searchOptions.value.type,
+    (type) => {
+      if (type === 1) {
+        searchOptions.value.costTypeId = ''
+        searchOptions.value.costTypeName = ''
+        searchOptions.value.payMethodId = ''
+        searchOptions.value.payMethodName = ''
+      } else {
+        searchOptions.value.incomesTypeId = ''
+        searchOptions.value.incomesTypeName = ''
+      }
+    },
+  )
 
   const pickerOptionsMap: any = ref({
     /** 记账人配置项 */
@@ -44,11 +65,14 @@ export const useSearch = () => {
     incomeType: [],
     /** 支付方式配置项 */
     payMethod: [],
+    /** 归属人配置项 */
+    belongUser: [],
+    /** 比较条件配置项 */
     condition: [
-      { name: '>=', id: 'gte' },
-      { name: '>', id: 'gt' },
-      { name: '<=', id: 'lte' },
-      { name: '<', id: 'lt' },
+      { name: '大于等于', id: 'gte' },
+      { name: '大于', id: 'gt' },
+      { name: '小于等于', id: 'lte' },
+      { name: '小于', id: 'lt' },
     ],
   })
 
@@ -57,25 +81,45 @@ export const useSearch = () => {
     const billInfo = bill.value as Bill
     const options = pickerOptionsMap.value
     options.user = billInfo.users
+    options.belongUser = [{ id: '', name: '全部' }].concat(billInfo.users)
     options.costType = billInfo.costTypes
     options.incomesType = billInfo.incomesTypes
     options.payMethod = billInfo.payMethods
   }
 
-  const showPickerAction = (type: 'user' | 'costType' | 'incomeType' | 'payMethod') => {
+  const showPickerAction = (type: 'user' | 'costType' | 'incomeType' | 'payMethod' | 'belongUser' | 'condition') => {
     currentPickerOptions.value.options = pickerOptionsMap.value[type]
     currentPickerOptions.value.type = type
-    showPicker.value = true
+    showSelectPicker.value = true
   }
 
+  /** 下拉选择器确认 */
   const onConfirmPicker = ({ selectedOptions }) => {
     const idKey = `${currentPickerOptions.value.type}Id`
     const nameKey = `${currentPickerOptions.value.type}Name`
     searchOptions.value[idKey] = selectedOptions[0].id
     searchOptions.value[nameKey] = selectedOptions[0].name
-    showPicker.value = false
+    showSelectPicker.value = false
   }
+
+  /** 显示日期选择器 */
+  const showDatePickerAction = (type: 'beginDate' | 'endDate') => {
+    datePickerType.value = type
+    showDatePicker.value = true
+  }
+
+  /** 日期选择器确认 */
+  const onConfirmDatePicker = ({ selectedValues }) => {
+    const value = selectedValues.join('-')
+    if (datePickerType.value === 'beginDate') {
+      searchOptions.value.beginDate = value
+    } else {
+      searchOptions.value.endDate = value
+    }
+    showDatePicker.value = false
+  }
+
   onMounted(init)
 
-  return { searchOptions, showPicker, currentPickerOptions, showPickerAction, onConfirmPicker }
+  return { searchOptions, showSelectPicker, showDatePicker, currentPickerOptions, showPickerAction, onConfirmPicker, showDatePickerAction, onConfirmDatePicker }
 }

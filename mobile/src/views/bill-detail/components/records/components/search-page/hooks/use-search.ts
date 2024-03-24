@@ -1,11 +1,17 @@
-import { onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import dayjs from 'dayjs'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import type { Bill, User, CostType, IncomesType, PayMethod } from '@/types/bill'
+import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
+import { getRecordListApi } from '../../../api'
+import type { Bill } from '@/types/bill'
+import type { RecordItem } from '../../../type'
 
 export const useSearch = () => {
   const store = useBillStore()
   const { billId, bill } = storeToRefs(store)
+
+  const showSearchCondition = ref(false)
 
   /** 显示选择器 */
   const showSelectPicker = ref(false)
@@ -14,6 +20,9 @@ export const useSearch = () => {
     type: '',
     options: [],
   })
+
+  const weekMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+
   /** 显示日期选择器 */
   const showDatePicker = ref(false)
   /** 日期选择器配置 */
@@ -39,6 +48,19 @@ export const useSearch = () => {
     conditionId: 'gte',
     conditionName: '大于等于',
     rangeMoney: 0,
+  })
+
+  const pageIndex = ref(1)
+  const pageSize = ref(20)
+  const dateMap = ref(new Map())
+  const total = ref(0)
+
+  const searchList = computed(() => {
+    const res = []
+    for (const item of dateMap.value.values()) {
+      res.push(item)
+    }
+    return res
   })
 
   watch(
@@ -85,6 +107,7 @@ export const useSearch = () => {
     options.costType = billInfo.costTypes
     options.incomesType = billInfo.incomesTypes
     options.payMethod = billInfo.payMethods
+    dateMap.value.clear()
   }
 
   const showPickerAction = (type: 'user' | 'costType' | 'incomeType' | 'payMethod' | 'belongUser' | 'condition') => {
@@ -119,7 +142,75 @@ export const useSearch = () => {
     showDatePicker.value = false
   }
 
+  const initSearch = () => {
+    dateMap.value.clear()
+    searchDatas()
+  }
+
+  /** 查询数据 */
+  const searchDatas = async () => {
+    const options = searchOptions.value
+    const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesType, conditionId, rangeMoney, remark } = options
+    const params = {
+      beginDate,
+      endDate,
+      userId,
+      belongUserId,
+      type,
+      payMethodId,
+      incomesType,
+      condition: conditionId,
+      rangeMoney,
+      remark,
+      billId: billId.value,
+      pageIndex: pageIndex.value,
+      pageSize: pageSize.value,
+    }
+    const [err, res] = await getRecordListApi({ params })
+    if (err) return
+    if (res.retCode === 0) {
+      const data = res.data.datas as RecordItem[]
+      data.forEach((item) => {
+        let dateMapItem = dateMap.value.get(item.date)
+        if (!dateMapItem) {
+          dateMapItem = {
+            date: dayjs(item.date).format('YYYY年MM月DD日'),
+            week: weekMap[new Date(item.date).getDay()],
+            arr: [item],
+            cost: 0,
+            incomes: 0,
+          }
+        }
+        dateMapItem.arr.push(item)
+        if (item.type === 1) {
+          dateMapItem.cost += item.money
+        } else {
+          dateMapItem.incomes += item.money
+        }
+        dateMap.value.set(item.date, dateMapItem)
+      })
+      console.log(dateMap)
+      total.value = res.data.total
+    } else {
+      showFailToast('搜索账本数据失败，' + res.message)
+    }
+    showSearchCondition.value = false
+  }
+
   onMounted(init)
 
-  return { searchOptions, showSelectPicker, showDatePicker, currentPickerOptions, showPickerAction, onConfirmPicker, showDatePickerAction, onConfirmDatePicker }
+  return {
+    showSearchCondition,
+    searchList,
+    searchOptions,
+    showSelectPicker,
+    showDatePicker,
+    currentPickerOptions,
+    showPickerAction,
+    onConfirmPicker,
+    showDatePickerAction,
+    onConfirmDatePicker,
+    searchDatas,
+    initSearch,
+  }
 }

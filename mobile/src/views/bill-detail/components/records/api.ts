@@ -4,6 +4,9 @@ import { BILL, BUDGET, TRANSACTION } from '@/utils/api-services'
 export const getBudgetListApi = BUDGET.get('/list')
 
 /** 获取当月花费 */
-export const getCurrentMonthCostApi = TRANSACTION.get('currentMonthCost')
+export const getCurrentMonthCostApi = TRANSACTION.get('/currentMonthCost')
+
+/** 获取收支列表 */
+export const getRecordListApi = TRANSACTION.get('/list')
 
 

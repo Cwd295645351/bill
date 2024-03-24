@@ -1,13 +1,35 @@
 <template>
-  <van-search v-model="searchOptions.remark" show-action label="内容" shape="round" background="#4285F4" placeholder="请输入搜索关键词" @search="onSubmit">
-    <template #action>
-      <div @click="showSearchCondition = true">筛选</div>
-    </template>
-  </van-search>
-  <div @click="showSearchCondition = true">搜索</div>
+  <div class="search-list-page">
+    <van-search v-model="searchOptions.remark" show-action label="内容" shape="round" background="#4285F4" placeholder="请输入搜索关键词" @search="initSearch">
+      <template #action>
+        <div @click="showSearchCondition = true" style="color: #fff">筛选</div>
+      </template>
+    </van-search>
+    <div class="search-list-container">
+      <template v-for="item in searchList">
+        <div class="day-info">
+          <div class="date">
+            {{ item.date }} <span style="color: #999">{{ item.week }}</span>
+          </div>
+          <div class="day-cost">
+            收：<span class="incomes">{{ item.incomes }}</span> 支：<span class="cost">{{ item.cost.toFixed(2) }}</span>
+          </div>
+        </div>
+        <div class="list-item">
+          <div class="record-item" v-for="record in item.arr">
+            <div class="record-overview">
+              <div class="record-detail">{{ record.belongUserName }}--{{ record.type === 1 ? record.costTypeName : record.incomesTypeName }}</div>
+              <div class="record-money" :class="[record.type === 1 ? 'cost' : 'incomes']">{{ record.money }}</div>
+            </div>
+            <div class="record-context">{{ record.remark }}</div>
+          </div>
+        </div>
+      </template>
+    </div>
+  </div>
   <!-- 右侧弹出 -->
   <van-popup v-model:show="showSearchCondition" position="right" :style="{ width: '80%', height: '100%' }">
-    <van-form @submit="onSubmit">
+    <van-form @submit="searchDatas">
       <van-field v-model="searchOptions.beginDate" is-link readonly name="datePicker" label="开始时间" placeholder="点击选择时间" @click="showDatePickerAction('beginDate')" />
       <van-field v-model="searchOptions.endDate" is-link readonly name="datePicker" label="结束时间" placeholder="点击选择时间" @click="showDatePickerAction('endDate')" />
       <van-field v-model="searchOptions.remark" name="input" label="内容" placeholder="请输入内容" />
@@ -79,13 +101,92 @@
 <script setup lang="ts">
 import { Ref, ref } from 'vue'
 import { useSearch } from './hooks/use-search'
-const showSearchCondition = ref(false)
 
-const { searchOptions, showSelectPicker, showDatePicker, currentPickerOptions, showPickerAction, onConfirmPicker, showDatePickerAction, onConfirmDatePicker } = useSearch()
-
-const onSubmit = () => {
-  console.log(searchOptions.value)
-}
+const {
+  showSearchCondition,
+  searchList,
+  searchOptions,
+  showSelectPicker,
+  showDatePicker,
+  currentPickerOptions,
+  showPickerAction,
+  onConfirmPicker,
+  showDatePickerAction,
+  onConfirmDatePicker,
+  searchDatas,
+  initSearch
+} = useSearch()
 </script>
 
-<style scoped></style>
+<style scoped lang="scss">
+.search-list-page {
+  display: flex;
+  flex-direction: column;
+  width: 100vw;
+  height: 100vh;
+  .search-list-container {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    background-color: #fbfbfb;
+    padding: 10px;
+    color: #333;
+    overflow: auto;
+    .day-info {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      height: 24px;
+      margin-bottom: 2px;
+      .day-cost {
+        .cost {
+          color: #f74f4f;
+        }
+        .incomes {
+          color: #18a356;
+        }
+      }
+    }
+    .list-item {
+      width: 100%;
+      box-shadow: 0px 0px 4px 0px #ccc;
+      padding: 5px;
+      border-radius: 2px;
+      background-color: #fff;
+      & + .day-info {
+        margin-top: 10px;
+      }
+
+      .record-item {
+        width: 100%;
+        height: calc(100% - 24px);
+        padding: 4px;
+        & + .record-item {
+          border-top: 1px dotted #ddd;
+        }
+        .record-overview {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          height: 24px;
+          width: 100%;
+          .record-money {
+            &.cost {
+              color: #f74f4f;
+            }
+            &.incomes {
+              color: #18a356;
+            }
+          }
+        }
+        .record-context {
+          color: #999;
+          font-size: 12px;
+          padding-top: 2px;
+        }
+      }
+    }
+  }
+}
+</style>

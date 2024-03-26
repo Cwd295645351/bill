@@ -6,7 +6,6 @@ import { billListApi, shareBillApi, deleteBillApi } from '../api'
 import type { Bill } from '../type'
 
 export const useBills = () => {
-
   /** 账本列表 */
   const billList = ref<Bill[]>([])
   /** 加载 loading */
@@ -33,7 +32,7 @@ export const useBills = () => {
   }
 
   // position 为关闭时点击的位置
-  const billEvent = ({ name, position }) => {
+  const billEvent: any = ({ name, position }) => {
     switch (position) {
       case 'left':
       case 'cell':

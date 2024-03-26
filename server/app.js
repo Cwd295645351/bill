@@ -25,6 +25,7 @@ const transaction = require('./routes/transaction/index')
 const budget = require('./routes/budget/index')
 const overview = require('./routes/overview/index')
 const plan = require('./routes/plan/index')
+const pages = require('./routes/pages/index')
 
 const app = new Koa()
 
@@ -34,7 +35,8 @@ onerror(app)
 // middlewares
 app.use(json())
 app.use(logger())
-app.use(koaStatic(__dirname + '/public'))
+app.use(koaStatic(__dirname + '/public/pc'))
+app.use(koaStatic(__dirname + '/public/mobile'))
 
 // logger
 app.use(async (ctx, next) => {
@@ -122,7 +124,7 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/]
+    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/, /\/pc/, /\/mobile/]
   })
 )
 
@@ -152,6 +154,7 @@ app.use(transaction.routes(), transaction.allowedMethods())
 app.use(budget.routes(), budget.allowedMethods())
 app.use(overview.routes(), budget.allowedMethods())
 app.use(plan.routes(), plan.allowedMethods())
+app.use(pages.routes(), pages.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

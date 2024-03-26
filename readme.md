@@ -16,10 +16,17 @@
 pnpm run install_all
 ```
 
-
 ## 三、运行调试
 
 ```js
 // 运行
 npm run dev
+```
+
+## 四、打包
+
+`frontend` 和 `mobile` 项目打包后需要把打包文件放置到 server 项目的 `public` 文件夹下的 `pc` 和 `mobile` 目录，然后运行 `npm run dev` 命令即可
+
+```
+
 ```

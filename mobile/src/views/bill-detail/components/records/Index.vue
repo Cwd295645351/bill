@@ -20,7 +20,29 @@
         </div>
       </div>
       <van-button class="add-new-record" icon="records" size="large" type="primary">添加一条新记账</van-button>
-      <div class="record-list"></div>
+      <div class="record-list">
+        <van-list v-model:loading="loading" :finished="loadFinish" finished-text="没有更多了" @load="loadDatas">
+          <template v-for="item in searchList">
+            <div class="day-info">
+              <div class="date">
+                {{ item.date }} <span style="color: #999">{{ item.week }}</span>
+              </div>
+              <div class="day-cost">
+                收：<span class="incomes">{{ item.incomes }}</span> 支：<span class="cost">{{ item.cost.toFixed(2) }}</span>
+              </div>
+            </div>
+            <div class="list-item">
+              <div class="record-item" v-for="record in item.arr">
+                <div class="record-overview">
+                  <div class="record-detail">{{ record.belongUserName }}--{{ record.type === 1 ? record.costTypeName : record.incomesTypeName }}</div>
+                  <div class="record-money" :class="[record.type === 1 ? 'cost' : 'incomes']">{{ record.money }}</div>
+                </div>
+                <div class="record-context">{{ record.remark }}</div>
+              </div>
+            </div>
+          </template>
+        </van-list>
+      </div>
     </div>
   </div>
 </template>
@@ -30,11 +52,23 @@ import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import router from '@/router'
 import { useBudget } from './hooks/use-budget'
+import { useSearch } from './hooks/use-search'
+import { ref } from 'vue'
 
 const store = useBillStore()
 const { bill } = storeToRefs(store)
 
+const pageIndex = ref(1)
+const loadFinish = ref(false)
+
 const { budgetInfo } = useBudget()
+
+const { total, loading, searchList, searchDatas } = useSearch(40)
+
+const loadDatas = async () => {
+  await searchDatas(pageIndex.value++)
+  if (total.value === searchList.value.length) loadFinish.value = true
+}
 
 const jumpToSearchPage = () => {
   router.push('/bill-record-search')
@@ -42,6 +76,8 @@ const jumpToSearchPage = () => {
 </script>
 
 <style scoped lang="scss">
+@import './styles/record-item.scss';
+
 .record-container {
   width: 100%;
   height: 100%;
@@ -70,6 +106,7 @@ const jumpToSearchPage = () => {
     flex: 1;
     display: flex;
     flex-direction: column;
+    overflow: auto;
     min-height: 0;
     width: 100%;
     padding: 10px 10px 0;
@@ -107,4 +144,3 @@ const jumpToSearchPage = () => {
   }
 }
 </style>
-./components/search-page/hooks/use-search

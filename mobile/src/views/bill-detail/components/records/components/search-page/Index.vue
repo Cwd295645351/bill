@@ -29,7 +29,7 @@
   </div>
   <!-- 右侧弹出 -->
   <van-popup v-model:show="showSearchCondition" position="right" :style="{ width: '80%', height: '100%' }">
-    <van-form @submit="searchDatas">
+    <van-form @submit="initSearch">
       <van-field v-model="searchOptions.beginDate" is-link readonly name="datePicker" label="开始时间" placeholder="点击选择时间" @click="showDatePickerAction('beginDate')" />
       <van-field v-model="searchOptions.endDate" is-link readonly name="datePicker" label="结束时间" placeholder="点击选择时间" @click="showDatePickerAction('endDate')" />
       <van-field v-model="searchOptions.remark" name="input" label="内容" placeholder="请输入内容" />
@@ -100,7 +100,8 @@
 
 <script setup lang="ts">
 import { Ref, ref } from 'vue'
-import { useSearch } from './hooks/use-search'
+import { showLoadingToast } from 'vant'
+import { useSearch } from '../../hooks/use-search'
 
 const {
   showSearchCondition,
@@ -113,12 +114,12 @@ const {
   onConfirmPicker,
   showDatePickerAction,
   onConfirmDatePicker,
-  searchDatas,
-  initSearch
-} = useSearch()
+  initSearch,
+} = useSearch(400)
 </script>
 
 <style scoped lang="scss">
+@import '../../styles/record-item.scss';
 .search-list-page {
   display: flex;
   flex-direction: column;
@@ -132,61 +133,6 @@ const {
     padding: 10px;
     color: #333;
     overflow: auto;
-    .day-info {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      height: 24px;
-      margin-bottom: 2px;
-      .day-cost {
-        .cost {
-          color: #f74f4f;
-        }
-        .incomes {
-          color: #18a356;
-        }
-      }
-    }
-    .list-item {
-      width: 100%;
-      box-shadow: 0px 0px 4px 0px #ccc;
-      padding: 5px;
-      border-radius: 2px;
-      background-color: #fff;
-      & + .day-info {
-        margin-top: 10px;
-      }
-
-      .record-item {
-        width: 100%;
-        height: calc(100% - 24px);
-        padding: 4px;
-        & + .record-item {
-          border-top: 1px dotted #ddd;
-        }
-        .record-overview {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          height: 24px;
-          width: 100%;
-          .record-money {
-            &.cost {
-              color: #f74f4f;
-            }
-            &.incomes {
-              color: #18a356;
-            }
-          }
-        }
-        .record-context {
-          color: #999;
-          font-size: 12px;
-          padding-top: 2px;
-        }
-      }
-    }
   }
 }
 </style>

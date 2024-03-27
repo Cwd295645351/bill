@@ -3,11 +3,11 @@ import dayjs from 'dayjs'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
-import { getRecordListApi } from '../../../api'
+import { getRecordListApi } from '../api'
 import type { Bill } from '@/types/bill'
-import type { RecordItem } from '../../../type'
+import type { RecordItem } from '../type'
 
-export const useSearch = () => {
+export const useSearch = (pageSize: number) => {
   const store = useBillStore()
   const { billId, bill } = storeToRefs(store)
 
@@ -51,9 +51,9 @@ export const useSearch = () => {
   })
 
   const pageIndex = ref(1)
-  const pageSize = ref(20)
   const dateMap = ref(new Map())
   const total = ref(0)
+  const loading = ref(false)
 
   const searchList = computed(() => {
     const res = []
@@ -144,11 +144,12 @@ export const useSearch = () => {
 
   const initSearch = () => {
     dateMap.value.clear()
-    searchDatas()
+    searchDatas(1)
   }
 
   /** 查询数据 */
-  const searchDatas = async () => {
+  const searchDatas = async (page: number) => {
+    pageIndex.value = page
     const options = searchOptions.value
     const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesType, conditionId, rangeMoney, remark } = options
     const params = {
@@ -164,9 +165,12 @@ export const useSearch = () => {
       remark,
       billId: billId.value,
       pageIndex: pageIndex.value,
-      pageSize: pageSize.value,
+      pageSize: pageSize,
     }
+    loading.value = true
     const [err, res] = await getRecordListApi({ params })
+    loading.value = false
+    showSearchCondition.value = false
     if (err) return
     if (res.retCode === 0) {
       const data = res.data.datas as RecordItem[]
@@ -194,12 +198,14 @@ export const useSearch = () => {
     } else {
       showFailToast('搜索账本数据失败，' + res.message)
     }
-    showSearchCondition.value = false
   }
 
   onMounted(init)
 
   return {
+    total,
+    loading,
+    initSearch,
     showSearchCondition,
     searchList,
     searchOptions,
@@ -211,6 +217,5 @@ export const useSearch = () => {
     showDatePickerAction,
     onConfirmDatePicker,
     searchDatas,
-    initSearch,
   }
 }

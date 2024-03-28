@@ -180,7 +180,7 @@ export const useSearch = (pageSize: number) => {
           dateMapItem = {
             date: dayjs(item.date).format('YYYY年MM月DD日'),
             week: weekMap[new Date(item.date).getDay()],
-            arr: [item],
+            arr: [],
             cost: 0,
             incomes: 0,
           }

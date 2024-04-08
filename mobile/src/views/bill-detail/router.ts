@@ -2,6 +2,7 @@ import { RouteRecordRaw } from 'vue-router'
 
 const BillDetail = () => import('./BillDetail.vue')
 const SearchRecord = () => import('./components/records/components/search-page/Index.vue')
+const AddRecord = () => import('./components/records/components/add-page/Index.vue')
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -13,6 +14,11 @@ const routes: Array<RouteRecordRaw> = [
     path: '/bill-record-search',
     name: 'BillRecordSearch',
     component: SearchRecord,
+  },
+  {
+    path: '/bill-record-add',
+    name: 'BillRecordAdd',
+    component: AddRecord,
   },
 ]
 

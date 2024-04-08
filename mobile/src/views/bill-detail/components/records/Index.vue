@@ -19,7 +19,7 @@
           <div class="item-number">{{ budgetInfo.restBudget.toFixed(2) }}</div>
         </div>
       </div>
-      <van-button class="add-new-record" icon="records" size="large" type="primary">添加一条新记账</van-button>
+      <van-button class="add-new-record" icon="records" size="large" type="primary" @click="jumpToAddPage">添加一条新记账</van-button>
       <div class="record-list">
         <van-list v-model:loading="loading" :finished="loadFinish" finished-text="没有更多了" @load="loadDatas">
           <template v-for="item in searchList">
@@ -72,6 +72,10 @@ const loadDatas = async () => {
 
 const jumpToSearchPage = () => {
   router.push('/bill-record-search')
+}
+
+const jumpToAddPage = () => {
+  router.push('/bill-record-add')
 }
 </script>
 

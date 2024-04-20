@@ -71,7 +71,7 @@
         name="picker"
         label="收入类型"
         placeholder="点击选择收入类型"
-        @click="showPickerAction('incomeType')"
+        @click="showPickerAction('incomesType')"
       />
       <van-field
         v-show="searchOptions.type === 1"

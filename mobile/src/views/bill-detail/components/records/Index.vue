@@ -63,11 +63,12 @@ const loadFinish = ref(false)
 
 const { budgetInfo } = useBudget()
 
-const { total, loading, searchList, searchDatas } = useSearch(40)
+const { total, loadedLength, loading, searchList, searchDatas } = useSearch(40)
 
 const loadDatas = async () => {
+  if (loadFinish.value) return
   await searchDatas(pageIndex.value++)
-  if (total.value === searchList.value.length) loadFinish.value = true
+  if (total.value === loadedLength.value) return (loadFinish.value = true)
 }
 
 const jumpToSearchPage = () => {

@@ -55,6 +55,10 @@ export const useSearch = (pageSize: number) => {
   const total = ref(0)
   const loading = ref(false)
 
+  /** 已加载数据列表长度 */
+  const loadedLength = ref(0)
+
+  /** 展示列表 */
   const searchList = computed(() => {
     const res = []
     for (const item of dateMap.value.values()) {
@@ -84,7 +88,7 @@ export const useSearch = (pageSize: number) => {
     /** 支出类型配置项 */
     costType: [],
     /** 收入类型配置项 */
-    incomeType: [],
+    incomesType: [],
     /** 支付方式配置项 */
     payMethod: [],
     /** 归属人配置项 */
@@ -107,10 +111,11 @@ export const useSearch = (pageSize: number) => {
     options.costType = billInfo.costTypes
     options.incomesType = billInfo.incomesTypes
     options.payMethod = billInfo.payMethods
+    loadedLength.value = 0
     dateMap.value.clear()
   }
 
-  const showPickerAction = (type: 'user' | 'costType' | 'incomeType' | 'payMethod' | 'belongUser' | 'condition') => {
+  const showPickerAction = (type: 'user' | 'costType' | 'incomesType' | 'payMethod' | 'belongUser' | 'condition') => {
     currentPickerOptions.value.options = pickerOptionsMap.value[type]
     currentPickerOptions.value.type = type
     showSelectPicker.value = true
@@ -151,7 +156,7 @@ export const useSearch = (pageSize: number) => {
   const searchDatas = async (page: number) => {
     pageIndex.value = page
     const options = searchOptions.value
-    const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesType, conditionId, rangeMoney, remark } = options
+    const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesTypeId, conditionId, rangeMoney, remark } = options
     const params = {
       beginDate,
       endDate,
@@ -159,7 +164,7 @@ export const useSearch = (pageSize: number) => {
       belongUserId,
       type,
       payMethodId,
-      incomesType,
+      incomesTypeId,
       condition: conditionId,
       rangeMoney,
       remark,
@@ -193,6 +198,7 @@ export const useSearch = (pageSize: number) => {
         }
         dateMap.value.set(item.date, dateMapItem)
       })
+      loadedLength.value += data.length
       console.log(dateMap)
       total.value = res.data.total
     } else {
@@ -203,6 +209,7 @@ export const useSearch = (pageSize: number) => {
   onMounted(init)
 
   return {
+    loadedLength,
     total,
     loading,
     initSearch,

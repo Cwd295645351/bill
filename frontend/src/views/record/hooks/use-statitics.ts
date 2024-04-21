@@ -39,7 +39,7 @@ export const useStatistics = (options: { users: Ref<User[]> }) => {
       {
         name: '各支出类型占比',
         type: 'pie',
-        radius: '80%',
+        radius: '70%',
         data: [],
         label: {
           show: false,

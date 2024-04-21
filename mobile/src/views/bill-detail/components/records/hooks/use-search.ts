@@ -156,13 +156,14 @@ export const useSearch = (pageSize: number) => {
   const searchDatas = async (page: number) => {
     pageIndex.value = page
     const options = searchOptions.value
-    const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesTypeId, conditionId, rangeMoney, remark } = options
+    const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesTypeId, costTypeId, conditionId, rangeMoney, remark } = options
     const params = {
       beginDate,
       endDate,
       userId,
       belongUserId,
       type,
+      costTypeId,
       payMethodId,
       incomesTypeId,
       condition: conditionId,

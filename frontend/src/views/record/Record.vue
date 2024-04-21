@@ -513,7 +513,7 @@ const serachAll = () => {
 <style lang="scss">
 .record {
   .el-form-item__label {
-    font-size: 16px;
+    font-size: 14px;
   }
   .el-form--inline .el-form-item {
     margin-right: 10px;

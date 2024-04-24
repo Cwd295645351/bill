@@ -25,7 +25,7 @@
           @click="showPickerAction('incomesType')"
         />
         <van-field v-model="searchOptions.rangeMoney" label="金额" readonly clickable @touchstart.stop="showNumberPop = true" />
-        <van-number-keyboard v-model="searchOptions.rangeMoney" :show="showNumberPop" :maxlength="6" @blur="showNumberPop = false" />
+        <van-number-keyboard v-model="searchOptions.rangeMoney" :show="showNumberPop" :maxlength="10" extra-key="." close-button-text="完成" @blur="showNumberPop = false" />
 
         <div style="margin: 16px">
           <van-button round block type="primary" native-type="submit"> 提交 </van-button>

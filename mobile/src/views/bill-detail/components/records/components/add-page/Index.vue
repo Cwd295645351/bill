@@ -71,6 +71,7 @@ const submitForm = async () => {
     remark: information.remark,
   }
   if (type.value === 1) {
+    data.reimbursement = 0
     data.costTypeId = information.costTypeId
   } else {
     data.incomesTypeId = information.incomesTypeId

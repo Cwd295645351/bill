@@ -42,7 +42,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import dayjs from 'dayjs'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
@@ -65,7 +66,7 @@ const submitForm = async () => {
   const data: any = {
     billId: billId.value,
     date: information.beginDate,
-    money: information.rangeMoney,
+    money: Number(information.rangeMoney),
     type: type.value,
     belongUserId: information.belongUserId,
     remark: information.remark,
@@ -94,6 +95,13 @@ const changeType = (changeType: 1 | 2) => {
 
 /** 返回 */
 const onClickLeft = () => history.back()
+
+onMounted(() => {
+  searchOptions.value.beginDate = dayjs().format('YYYY-MM-DD')
+  searchOptions.value.belongUserName = '全部'
+  searchOptions.value.costTypeName=  '餐饮买菜'
+  searchOptions.value.costTypeId=  '1001'
+})
 </script>
 
 <style scoped lang="scss">

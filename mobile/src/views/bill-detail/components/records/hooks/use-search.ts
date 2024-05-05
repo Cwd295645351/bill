@@ -47,7 +47,7 @@ export const useSearch = (pageSize: number) => {
 
     conditionId: 'gte',
     conditionName: '大于等于',
-    rangeMoney: 0,
+    rangeMoney: '0',
   })
 
   const pageIndex = ref(1)

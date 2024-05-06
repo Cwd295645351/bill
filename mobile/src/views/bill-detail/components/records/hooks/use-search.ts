@@ -62,6 +62,11 @@ export const useSearch = (pageSize: number) => {
   const searchList = computed(() => {
     const res = []
     for (const item of dateMap.value.values()) {
+      item.arr = item.arr.sort((a: any, b: any) => {
+        if (a.costTypeId - b.costTypeId < 0) return -1
+        else if (a.costTypeId - b.costTypeId > 0) return 1
+        else return b.money - a.money
+      })
       res.push(item)
     }
     return res

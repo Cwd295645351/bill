@@ -27,6 +27,8 @@ export const useSearch = (pageSize: number) => {
   const showDatePicker = ref(false)
   /** 日期选择器配置 */
   const datePickerType = ref<'beginDate' | 'endDate'>('beginDate')
+  /** 日期选择器值 */
+  const datePickerValue = ref('')
 
   /** 查询条件 */
   const searchOptions: any = ref({
@@ -47,7 +49,7 @@ export const useSearch = (pageSize: number) => {
 
     conditionId: 'gte',
     conditionName: '大于等于',
-    rangeMoney: '0',
+    rangeMoney: 0,
   })
 
   const pageIndex = ref(1)
@@ -139,6 +141,7 @@ export const useSearch = (pageSize: number) => {
   const showDatePickerAction = (type: 'beginDate' | 'endDate') => {
     datePickerType.value = type
     showDatePicker.value = true
+    datePickerValue.value = searchOptions.value[type].split('-')
   }
 
   /** 日期选择器确认 */
@@ -218,13 +221,14 @@ export const useSearch = (pageSize: number) => {
     loadedLength,
     total,
     loading,
-    initSearch,
     showSearchCondition,
     searchList,
     searchOptions,
     showSelectPicker,
     showDatePicker,
+    datePickerValue,
     currentPickerOptions,
+    initSearch,
     showPickerAction,
     onConfirmPicker,
     showDatePickerAction,

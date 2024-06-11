@@ -28,7 +28,7 @@ export const useSearch = (pageSize: number) => {
   /** 日期选择器配置 */
   const datePickerType = ref<'beginDate' | 'endDate'>('beginDate')
   /** 日期选择器值 */
-  const datePickerValue = ref('')
+  const datePickerValue = ref([])
 
   /** 查询条件 */
   const searchOptions: any = ref({

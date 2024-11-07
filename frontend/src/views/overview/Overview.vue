@@ -7,6 +7,12 @@
           总支出：<span class="color-red">{{ belongUsers.totalCost }}</span>
         </div>
         <div class="line">
+          总投资：<span class="color-red">{{ belongUsers.investCost }}</span>
+        </div>
+        <div class="line">
+          总消费：<span class="color-red">{{ belongUsers.consumptionCost.toFixed(2) }}</span>
+        </div>
+        <div class="line">
           总收入：<span class="color-green">{{ belongUsers.totalIncomes }}</span>
         </div>
       </div>

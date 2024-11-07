@@ -14,12 +14,17 @@ exports.getBlance = async (data, userId) => {
   const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, costTypeId: 1, costTypeName: 1, belongUserName: 1, userId: 1 })
   let totalCost = 0,
     totalIncomes = 0,
+    investCost = 0,
     belongUserCosts = [],
     costTypeRank = {}
   res.forEach((item) => {
     if (item.type === 1) {
       // 支出
       totalCost += item.money
+      if (item.costTypeId === '1015') {
+        // 投资支出
+        investCost += item.money
+      }
     } else {
       // 收入
       totalIncomes += item.money
@@ -60,7 +65,13 @@ exports.getBlance = async (data, userId) => {
     }
   })
 
-  const result = { totalCost: totalCost.toFixed(2), totalIncomes: totalIncomes.toFixed(2), belongUserCosts, costTypeRank }
+  const result = {
+    totalCost: totalCost.toFixed(2),
+    totalIncomes: totalIncomes.toFixed(2),
+    investCost: investCost.toFixed(2),
+    belongUserCosts,
+    costTypeRank
+  }
 
   if (res) return [null, result]
   else return ['查询失败', null]

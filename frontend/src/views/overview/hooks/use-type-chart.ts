@@ -18,7 +18,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const users = ref<User[]>([])
 
   const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', proportion: '954.44:1055', money: 0 })
-  const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, details: [] })
+  const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
   const belongOptions = ref<any>({
@@ -80,6 +80,8 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     if (res.retCode === 0) {
       belongUsers.value.totalCost = res.data.totalCost
       belongUsers.value.totalIncomes = res.data.totalIncomes
+      belongUsers.value.investCost = res.data.investCost
+      belongUsers.value.consumptionCost = res.data.totalCost - res.data.investCost
       belongUsers.value.details = res.data.belongUserCosts.map((item: any) => {
         item.userName = users.value.find((ite) => ite.id === item.userId)?.name ?? ''
         return item

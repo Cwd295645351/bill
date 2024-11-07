@@ -4,6 +4,10 @@ export interface BelongUser {
   totalCost: number
   /** 总收入 */
   totalIncomes: number
+  /** 总投资支出 */
+  investCost: number
+  /** 总消费支出 */
+  consumptionCost: number
   details: any[]
 }
 

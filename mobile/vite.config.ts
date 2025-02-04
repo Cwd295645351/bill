@@ -3,6 +3,7 @@ import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import Components from 'unplugin-vue-components/vite'
 import { VantResolver } from '@vant/auto-import-resolver'
+import { loadConfigPlugin } from './plugins/load-config'
 
 const pathResolve = (dir: string) => path.resolve(__dirname, dir)
 
@@ -13,6 +14,7 @@ export default defineConfig({
     Components({
       resolvers: [VantResolver()],
     }),
+    loadConfigPlugin(),
   ],
   base: './', // 设置公共基础路径
   css: {

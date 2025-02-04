@@ -1,4 +1,4 @@
 window.config = {
-  baseURL: 'http://www.day10.cn:5000',
+  baseURL: '',
   version: 'v1',
 }

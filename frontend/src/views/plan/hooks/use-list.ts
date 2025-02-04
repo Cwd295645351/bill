@@ -12,10 +12,6 @@ export const useList = () => {
     [index: number]: PlanItem[]
   }>([[], [], []])
 
-  watch(bill, (val) => {
-    getList()
-  })
-
   const getList = async () => {
     const params = { billId: billId.value }
     planList.value = [[], [], []]
@@ -33,10 +29,14 @@ export const useList = () => {
       ElMessage.error('查询计划列表失败，' + res.message)
     }
   }
-
-  onMounted(() => {
-    if (bill.value) getList()
-  })
+  watch(
+    bill,
+    (val) => {
+      if (!val) return
+      getList()
+    },
+    { immediate: true },
+  )
 
   return { getList, planList }
 }

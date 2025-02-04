@@ -74,6 +74,7 @@ export const useLayout = () => {
     store.updateState({ key: 'billId', value: '' })
     sessionStorage.setItem('billId', '')
     sessionStorage.setItem('tabValue', 'bills')
+    store.updateState({ key: 'bill', value: null})
     router.push('/layout/bill')
   }
 

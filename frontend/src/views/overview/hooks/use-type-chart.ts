@@ -55,45 +55,6 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const belongTypeChart2 = ref<any>(null)
   const belongTypeChart3 = ref<any>(null)
 
-  const initData = (bill: Bill) => {
-    belongCondition.value.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
-    belongCondition.value.endDate = dayjs().format('YYYY-MM-DD')
-    users.value = bill.users
-    getBalanceAndPieData()
-  }
-
-  const initChart = () => {
-    belongTypeChart1.value = echarts.init(document.getElementById('belongTypeChart1') as HTMLElement)
-    belongTypeChart2.value = echarts.init(document.getElementById('belongTypeChart2') as HTMLElement)
-    belongTypeChart3.value = echarts.init(document.getElementById('belongTypeChart3') as HTMLElement)
-    belongOptions.value.color = colorOptions
-  }
-
-  watch(bill, (val) => {
-    initData(val as Bill)
-  })
-
-  const getBalanceAndPieData = async () => {
-    const params = { billId: billId.value, beginDate: belongCondition.value.startDate, endDate: belongCondition.value.endDate }
-    const [err, res] = await getBalance({ params })
-    if (err) return
-    if (res.retCode === 0) {
-      belongUsers.value.totalCost = res.data.totalCost
-      belongUsers.value.totalIncomes = res.data.totalIncomes
-      belongUsers.value.investCost = res.data.investCost
-      belongUsers.value.consumptionCost = res.data.totalCost - res.data.investCost
-      belongUsers.value.details = res.data.belongUserCosts.map((item: any) => {
-        item.userName = users.value.find((ite) => ite.id === item.userId)?.name ?? ''
-        return item
-      })
-      calculateMoney()
-      setTypeData(res.data.costTypeRank)
-      setPieData()
-    } else {
-      ElMessage.error('查询概览失败，' + res.message)
-    }
-  }
-
   /** 合计退款 */
   const calculateMoney = () => {
     const costs = belongUsers.value.details
@@ -203,11 +164,52 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['栋'], belongTypeChart3.value, '栋')
   }
 
+  const getBalanceAndPieData = async () => {
+    const params = { billId: billId.value, beginDate: belongCondition.value.startDate, endDate: belongCondition.value.endDate }
+    const [err, res] = await getBalance({ params })
+    if (err) return
+    if (res.retCode === 0) {
+      belongUsers.value.totalCost = res.data.totalCost
+      belongUsers.value.totalIncomes = res.data.totalIncomes
+      belongUsers.value.investCost = res.data.investCost
+      belongUsers.value.consumptionCost = res.data.totalCost - res.data.investCost
+      belongUsers.value.details = res.data.belongUserCosts.map((item: any) => {
+        item.userName = users.value.find((ite) => ite.id === item.userId)?.name ?? ''
+        return item
+      })
+      calculateMoney()
+      setTypeData(res.data.costTypeRank)
+      setPieData()
+    } else {
+      ElMessage.error('查询概览失败，' + res.message)
+    }
+  }
+
+  const initData = (bill: Bill) => {
+    belongCondition.value.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+    belongCondition.value.endDate = dayjs().format('YYYY-MM-DD')
+    users.value = bill.users
+    getBalanceAndPieData()
+  }
+
+  const initChart = () => {
+    belongTypeChart1.value = echarts.init(document.getElementById('belongTypeChart1') as HTMLElement)
+    belongTypeChart2.value = echarts.init(document.getElementById('belongTypeChart2') as HTMLElement)
+    belongTypeChart3.value = echarts.init(document.getElementById('belongTypeChart3') as HTMLElement)
+    belongOptions.value.color = colorOptions
+  }
+
+  watch(
+    bill,
+    (val) => {
+      if (!val) return
+      initData(val)
+    },
+    { immediate: true },
+  )
+
   onMounted(() => {
     initChart()
-    if (bill.value) {
-      initData(bill.value)
-    }
   })
 
   return { belongCondition, belongUsers, getBalanceAndPieData }

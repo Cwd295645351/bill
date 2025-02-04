@@ -101,21 +101,23 @@ export const useStatistics = (options: { users: Ref<User[]> }) => {
     currProportion.money = Number(money.toFixed(2))
   }
 
-  watch(bill, (val) => {
-    initData(val as Bill)
-  })
-
   const initData = (bill: Bill) => {
     const budget = bill.budget
     monthOverview.value.budget = budget.find((item) => item.date === Number(dayjs(new Date()).format('YYYY-MM')))?.totalBudget || 0
     getCost()
   }
 
+  watch(
+    bill,
+    (val) => {
+      if (!val) return
+      initData(val)
+    },
+    { immediate: true },
+  )
+
   onMounted(() => {
     chart.value = echarts.init(document.getElementById('costStatistics') as HTMLElement)
-    setTimeout(() => {
-      initData(bill.value as Bill)
-    }, 300)
   })
 
   return { monthOverview, proportion, getCost, calculateMoney }

@@ -78,25 +78,6 @@ export const useRecord = () => {
   /** 用户信息 */
   const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
 
-  watch(bill, (val) => {
-    listData.value = []
-    initData(val as Bill)
-  })
-
-  watch(type, (val) => {
-    typeName.value = val === 1 ? 'costTypeName' : 'incomesTypeName'
-  })
-
-  /** 初始化 */
-  const initData = (bill: Bill) => {
-    users.value = bill.users
-    costTypes.value = bill.costTypes
-    incomesTypes.value = bill.incomesTypes
-    payMethods.value = bill.payMethods
-
-    getList()
-  }
-
   /** 查询明细列表 */
   const getList = async () => {
     const options = searchOptions.value
@@ -139,6 +120,30 @@ export const useRecord = () => {
     }
   }
 
+  /** 初始化 */
+  const initData = async (bill: Bill) => {
+    users.value = bill.users
+    costTypes.value = bill.costTypes
+    incomesTypes.value = bill.incomesTypes
+    payMethods.value = bill.payMethods
+
+    await getList()
+  }
+
+  watch(
+    bill,
+    async (val) => {
+      if (!val) return
+      listData.value = []
+      await initData(val)
+    },
+    { immediate: true },
+  )
+
+  watch(type, (val) => {
+    typeName.value = val === 1 ? 'costTypeName' : 'incomesTypeName'
+  })
+
   // 导出交易明细
   const exportExcel = async () => {
     const data = {
@@ -161,14 +166,14 @@ export const useRecord = () => {
   }
 
   /** 加载更多数据 */
-  const load = () => {
+  const load = async () => {
     if (totalCount.value === currentCount.value) {
       noMore.value = true
       return
     }
     loadingMore.value = true
     pageContent.value.pageIndex++
-    getList()
+    await getList()
   }
 
   /** 统计每日各类型金额及总金额 */
@@ -250,10 +255,6 @@ export const useRecord = () => {
       searchOptions.value.endDate = currentYear_lastDay
       store.updateState({ key: 'costTypeId', value: 0 })
     }
-    setTimeout(() => {
-      listData.value = []
-      initData(bill.value as Bill)
-    }, 300)
   })
 
   return {

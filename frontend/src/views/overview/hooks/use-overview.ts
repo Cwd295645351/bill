@@ -36,9 +36,18 @@ export const useOverview = (options: { colorOptions: string[] }) => {
   /** 年度支出趋势折线图chart */
   const perYearChart = ref<any>(null)
 
-  watch(bill, (val) => {
-    getThreeYearCostData()
-  })
+  /** 设置折线图 */
+  const setYearLineChartData = () => {
+    const options = perYearOptions.value
+    options.xAxis.data = perYearCostDatas.value.type
+    options.legend.data = []
+    options.series = []
+    perYearCostDatas.value.datas.forEach((item: any) => {
+      options.legend.data.push(item.name)
+      options.series.push({ name: item.name, type: 'bar', data: item.datas })
+    })
+    perYearChart.value.setOption(options, true)
+  }
 
   /** 查询过去三年支出概况 */
   const getThreeYearCostData = async () => {
@@ -57,24 +66,18 @@ export const useOverview = (options: { colorOptions: string[] }) => {
     }
   }
 
-  /** 设置折线图 */
-  const setYearLineChartData = () => {
-    const options = perYearOptions.value
-    options.xAxis.data = perYearCostDatas.value.type
-    options.legend.data = []
-    options.series = []
-    perYearCostDatas.value.datas.forEach((item: any) => {
-      options.legend.data.push(item.name)
-      options.series.push({ name: item.name, type: 'bar', data: item.datas })
-    })
-    perYearChart.value.setOption(options, true)
-  }
+  watch(
+    bill,
+    (val) => {
+      if (!val) return
+      getThreeYearCostData()
+    },
+    { immediate: true },
+  )
 
   onMounted(() => {
     perYearChart.value = echarts.init(document.getElementById('perYearChart') as HTMLElement)
     perYearOptions.value.color = colorOptions
-
-    if (bill.value) getThreeYearCostData()
   })
 
   return { perYearCostDatas }

@@ -15,6 +15,8 @@ export const useSearch = (pageSize: number) => {
 
   /** 显示选择器 */
   const showSelectPicker = ref(false)
+  /** 下拉选择器值 */
+  const currentPickerValue = ref([])
   /** 下拉选择器配置 */
   const currentPickerOptions = ref({
     type: '',
@@ -122,10 +124,11 @@ export const useSearch = (pageSize: number) => {
     dateMap.value.clear()
   }
 
-  const showPickerAction = (type: 'user' | 'costType' | 'incomesType' | 'payMethod' | 'belongUser' | 'condition') => {
+  const showPickerAction = (type: 'user' | 'costType' | 'incomesType' | 'payMethod' | 'belongUser' | 'condition', pickerValue?: string) => {
     currentPickerOptions.value.options = pickerOptionsMap.value[type]
     currentPickerOptions.value.type = type
     showSelectPicker.value = true
+    currentPickerValue.value = pickerValue ? [pickerValue] : []
   }
 
   /** 下拉选择器确认 */
@@ -225,6 +228,7 @@ export const useSearch = (pageSize: number) => {
     searchList,
     searchOptions,
     showSelectPicker,
+    currentPickerValue,
     showDatePicker,
     datePickerValue,
     currentPickerOptions,

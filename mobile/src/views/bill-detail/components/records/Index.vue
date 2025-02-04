@@ -32,7 +32,7 @@
               </div>
             </div>
             <div class="list-item">
-              <div class="record-item" v-for="record in item.arr">
+              <div class="record-item" v-for="record in item.arr" @click="jumpToEditPage(record)">
                 <div class="record-overview">
                   <div class="record-detail">{{ record.belongUserName }}--{{ record.type === 1 ? record.costTypeName : record.incomesTypeName }}</div>
                   <div class="record-money" :class="[record.type === 1 ? 'cost' : 'incomes']">{{ record.money }}</div>
@@ -77,6 +77,16 @@ const jumpToSearchPage = () => {
 
 const jumpToAddPage = () => {
   router.push('/bill-record-add')
+}
+
+const jumpToEditPage = (item) => {
+  router.push({
+    path: '/bill-record-edit',
+    query: {
+      recordItem: JSON.stringify(item)
+    }
+  })
+
 }
 </script>
 

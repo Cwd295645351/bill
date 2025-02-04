@@ -12,5 +12,13 @@ export const getRecordListApi = TRANSACTION.get('/list')
 /** 新增交易明细 */
 export const addTransactionApi = TRANSACTION.post('')
 
+/** 编辑交易明细 */
+export const editTransactionApi = TRANSACTION.put('')
+
+/** 删除交易明细 */
+export const deleteTransactionApi = TRANSACTION.delete('')
+
+
+
 
 

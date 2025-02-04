@@ -1,4 +1,4 @@
 window.config = {
-	baseURL: "http://192.168.0.105:3000",
+	baseURL: "",
 	version: 'v1'
 }

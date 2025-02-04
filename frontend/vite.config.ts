@@ -4,6 +4,7 @@ import path from 'path'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
+import { loadConfigPlugin } from './plugins/load-config'
 
 const pathResolve = (dir: string) => path.resolve(__dirname, dir)
 
@@ -17,6 +18,7 @@ export default defineConfig({
     Components({
       resolvers: [ElementPlusResolver()],
     }),
+    loadConfigPlugin(),
   ],
   define: {
     __VUE_OPTIONS_API__: false,

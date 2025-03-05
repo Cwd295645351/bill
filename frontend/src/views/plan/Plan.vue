@@ -101,7 +101,8 @@ const rules = {
 
 <style scoped lang="scss">
 .plan-module {
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;  
   width: 100%;
   padding: 20px 10%;
   display: flex;

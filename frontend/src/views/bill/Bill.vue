@@ -87,7 +87,8 @@ const rules = {
 
 <style scoped lang="scss">
 .bills {
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;  
   width: 100%;
   padding: 20px 0 0 20px;
   display: flex;

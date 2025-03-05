@@ -143,7 +143,8 @@ const rules = {
 <style scoped lang="scss">
 .budget-container {
   width: 100%;
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;  
   padding: 20px;
   display: flex;
   align-items: center;

@@ -74,6 +74,8 @@ const rules = {
 
 <style scoped lang="scss">
 .bill-layout-container {
+  display: flex;
+  flex-direction: column;
   height: 100vh;
   width: 100vw;
   .header {

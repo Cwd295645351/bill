@@ -75,7 +75,8 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
 </script>
 <style lang="scss">
 .overview-module {
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;  
   width: 100%;
   background-color: #fff;
   display: flex;

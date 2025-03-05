@@ -274,7 +274,8 @@ const serachAll = () => {
 
 <style scoped lang="scss">
 .record {
-  height: calc(100% - 60px);
+  flex: 1;
+  min-height: 0;
   width: 100%;
   background-color: #8cb3bf;
   padding: 20px;

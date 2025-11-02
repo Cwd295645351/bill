@@ -127,7 +127,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     }
     .add-data-container {
       width: 100%;
-      height: 320px;
+      height: 230px;
       border-top: 1px solid #ddd;
       .form-item {
         .el-form-item__content {

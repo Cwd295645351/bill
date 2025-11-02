@@ -30,3 +30,9 @@ npm run dev
 ```
 
 ```
+
+## node版本
+
+`server` 服务端使用 `node14.15.1` 版本，使用 `npm` 进行安装
+
+`frontend` 和 `mobile` 前端使用 `node18` 版本，使用 `pnpm` 进行安装

@@ -28,27 +28,3 @@ export interface Information {
   /** 内容 */
   remark: string
 }
-
-/** 归属人支出明细 */
-export interface BelongUserCost {
-  /** 归属人id */
-  belongUserId: string
-  /** 归属人名称 */
-  belongUserName: string
-  /** 记账人id */
-  userId: string
-  /** 记账人名称 */
-  userName: string
-  /** 金额 */
-  money: number
-}
-
-/** 本月概览数据 */
-export interface MonthOverview {
-  /** 总支出 */
-  totalCost: number
-  /** 团队归属人支出明细 */
-  belongUserCosts: BelongUserCost[]
-  /** 预算 */
-  budget: number
-}

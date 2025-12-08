@@ -17,8 +17,4 @@ export interface BelongCondition {
   startDate: string
   /** 结束时间 */
   endDate: string
-  /** 比例 */
-  proportion: string
-  /** 金额 */
-  money: number
 }

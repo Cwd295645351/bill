@@ -29,9 +29,6 @@
           <el-form-item prop="endDate" required size="small" label="结束时间">
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="YYYY-MM-DD" type="date" placeholder="结束时间"> </el-date-picker>
           </el-form-item>
-          <el-form-item prop="proportion" required size="small" :label="'比例（宜：栋）==>' + belongCondition.money">
-            <el-input v-model="belongCondition.proportion" placeholder="比例（宜：栋）"></el-input>
-          </el-form-item>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
@@ -43,17 +40,18 @@
         <div class="per-year-chart" id="perYearChart"></div>
         <div class="table-container">
           <div class="line bold">
-            <div class="line-item">年份</div>
+            <div class="line-item year">年份</div>
             <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
-            <div class="line-item">合计</div>
+            <div class="line-item total">总消费</div>
+            <div class="line-item total">总支出</div>
           </div>
           <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
-            <div class="line-item bold">{{ item.name }}</div>
+            <div class="line-item year bold">{{ item.name }}</div>
             <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
               {{ ite }}
             </div>
-            <div class="line-item">{{ item.total.toFixed(2) }}</div>
-            <!-- <div class="line-item">{{ Number(item.total).toFixed(2) }}</div> -->
+            <div class="line-item total">{{ item.consumption.toFixed(2) }}</div>
+            <div class="line-item total">{{ item.total.toFixed(2) }}</div>
           </div>
         </div>
       </div>
@@ -76,7 +74,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
 <style lang="scss">
 .overview-module {
   flex: 1;
-  min-height: 0;  
+  min-height: 0;
   width: 100%;
   background-color: #fff;
   display: flex;
@@ -89,7 +87,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     color: #18a356;
   }
   .belong-user-module {
-    width: 300px;
+    width: 280px;
     height: 100%;
     margin-right: 20px;
     border-radius: 8px;
@@ -127,7 +125,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     }
     .add-data-container {
       width: 100%;
-      height: 230px;
+      height: 170px;
       border-top: 1px solid #ddd;
       .form-item {
         .el-form-item__content {
@@ -152,7 +150,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
         flex: 1;
         min-height: 0;
         width: 100%;
-        margin: 20px 0;
+        margin-bottom: 20px;
       }
       .table-container {
         width: 100%;
@@ -161,6 +159,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
         .bold {
           font-weight: bold;
         }
+
         .line {
           height: 30px;
           line-height: 30px;
@@ -174,6 +173,12 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
             min-width: auto;
             height: 100%;
             text-align: center;
+            &.total {
+              flex: 1.1;
+            }
+            &.year {
+              flex: 0.7;
+            }
             & + .line-item {
               border-left: 1px solid #aaa;
             }

@@ -17,7 +17,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const users = ref<User[]>([])
 
-  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', proportion: '954.44:1055', money: 0 })
+  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: ''})
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -55,38 +55,13 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const belongTypeChart2 = ref<any>(null)
   const belongTypeChart3 = ref<any>(null)
 
-  /** 合计退款 */
-  const calculateMoney = () => {
-    const costs = belongUsers.value.details
-    const proportion = belongCondition.value.proportion.split(':')
-    const proportion0 = Number(proportion[0])
-    const proportion1 = Number(proportion[1])
-    const total = proportion0 + proportion1
-    let money = 0
-    costs.forEach((item) => {
-      if (item.userName === '宜') {
-        if (item.belongUserId === '') {
-          money += item.money * (proportion1 / total)
-        } else if (item.belongUserName === '栋') {
-          money += item.money
-        }
-      } else if (item.userName === '栋') {
-        if (item.belongUserId === '') {
-          money -= item.money * (proportion0 / total)
-        } else if (item.belongUserName === '宜') {
-          money -= item.money
-        }
-      }
-    })
-    belongCondition.value.money = Number(money.toFixed(2))
-  }
-
   /** 设置各归属人支出比例 */
-  const setTypeData = (costTypeRank: any) => {
-    const proportion = belongCondition.value.proportion.split(':')
-    const total = Number(proportion[0]) + Number(proportion[1])
-    const proportion1 = Number(proportion[0]) / total // 宜比例
-    const proportion2 = Number(proportion[1]) / total // 栋比例
+  const setTypeData = (costTypeRank: any, proportion: string) => {
+    const proportionArray = proportion.split(':')
+    const total = Number(proportionArray[0]) + Number(proportionArray[1])
+    const proportion1 = total ? Number(proportionArray[0]) / total : 0.5 // 宜比例
+    const proportion2 = total ? Number(proportionArray[1]) / total : 0.5 // 栋比例
+    console.log(proportion1, proportion2, 'proportion1, proportion2')
     const data: any = {
       全部: [],
       宜: [],
@@ -121,7 +96,6 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       const index = data['栋'].findIndex((ite: any) => ite.type === item.type)
       if (index !== -1) {
         const obj = data['栋'][index]
-        console.log(obj, 111)
         data['栋'][index] = { ...obj, money: obj.money + item.money }
       } else data['栋'].push(item)
       totalTypeDataHandle(item)
@@ -142,6 +116,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     data['宜'] = sortData(data['宜'])
 
     belongTypeDatas.value = data
+    console.log(belongTypeDatas.value, 111)
   }
 
   /** 设置饼图 */
@@ -177,8 +152,15 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
         item.userName = users.value.find((ite) => ite.id === item.userId)?.name ?? ''
         return item
       })
-      calculateMoney()
-      setTypeData(res.data.costTypeRank)
+
+      // 获取宜收入
+      const yiIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '宜')?.money ?? 0
+      // 获取栋收入
+      const dongIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '栋')?.money ?? 0
+      const proportion = `${yiIncomes.toFixed(2)}:${dongIncomes.toFixed(2)}`
+      console.log(proportion, 'proportion')
+
+      setTypeData(res.data.costTypeRank, proportion)
       setPieData()
     } else {
       ElMessage.error('查询概览失败，' + res.message)

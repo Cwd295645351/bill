@@ -15,10 +15,11 @@ export const useOverview = (options: { colorOptions: string[] }) => {
   /** 年度支出趋势折线图配置 */
   const perYearOptions = ref<any>({
     title: { text: '近三年支出趋势' },
-    tooltip: { trigger: 'axis' },
+    tooltip: { trigger: 'item' },
     legend: { data: [] },
     color: [],
     grid: {
+      top: 40,
       left: '1%',
       right: '1%',
       bottom: '0%',
@@ -57,9 +58,15 @@ export const useOverview = (options: { colorOptions: string[] }) => {
     if (res.retCode === 0) {
       const data = res.data
       perYearCostDatas.value = data
+      // 基金的类型下标
+      const fundIndex = data.type.findIndex((item: any) => item === '基金')
+      console.log(fundIndex, 'fundIndex')
       data.datas.forEach((item: any) => {
         item.total = item.datas.reduce((prev: string, curr: string) => Number(prev) + Number(curr), 0)
+        // 总消费需要剔除到基金
+        item.consumption = item.total - item.datas[fundIndex]
       })
+      console.log(perYearCostDatas.value, 'perYearCostDatas')
       setYearLineChartData()
     } else {
       ElMessage.error('查询过去三年支出概况失败，' + res.message)

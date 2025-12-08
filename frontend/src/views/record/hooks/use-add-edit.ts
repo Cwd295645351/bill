@@ -5,8 +5,8 @@ import { addTransaction, deleteTransaction, editTransaction } from '../api'
 import type { Information, InformationType } from '../type'
 import type { Bill } from '@/types/bill'
 
-export const useAddEdit = (options: { getCost: () => void; search: () => void; type: Ref<InformationType> }) => {
-  const { getCost, type, search } = options
+export const useAddEdit = (options: { search: () => void; type: Ref<InformationType> }) => {
+  const { type, search } = options
 
   const store = useBillStore()
   const { bill } = storeToRefs(store)
@@ -68,7 +68,6 @@ export const useAddEdit = (options: { getCost: () => void; search: () => void; t
     if (err) return
     if (res.retCode === 0) {
       ElMessage.success('删除交易明细成功')
-      getCost()
       search()
     } else {
       ElMessage.error('删除交易明细失败，' + res.message)
@@ -99,7 +98,6 @@ export const useAddEdit = (options: { getCost: () => void; search: () => void; t
     if (err) return
     if (res.retCode === 0) {
       ElMessage.success('新增交易明细成功')
-      getCost()
       search()
     } else {
       ElMessage.error('新增交易明细失败')
@@ -129,7 +127,6 @@ export const useAddEdit = (options: { getCost: () => void; search: () => void; t
     if (err) return
     if (res.retCode === 0) {
       ElMessage.success('编辑交易明细成功')
-      getCost()
       search()
     } else {
       ElMessage.error('编辑交易明细失败，' + res.message)

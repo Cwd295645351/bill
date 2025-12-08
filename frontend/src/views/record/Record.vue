@@ -1,23 +1,5 @@
 <template>
   <div class="record">
-    <div class="overview">
-      <div class="top-container item">
-        <div class="title">本月收支概览</div>
-        <div class="line">本月支出：{{ monthOverview.totalCost }}</div>
-        <div class="line" v-for="item in monthOverview.belongUserCosts" :key="item.belongUserId + item.userId">({{ item.userName }}) {{ item.belongUserName }}支出：{{ item.money.toFixed(2) }}</div>
-        <div class="line">本月预算：{{ monthOverview.budget }}</div>
-      </div>
-      <div class="calculate-container item">
-        <div class="title">收支合计：{{ proportion.money }}</div>
-        <el-input class="margin-top-10" v-model="proportion.first" size="large"></el-input>
-        <el-input class="margin-top-10" v-model="proportion.second" size="large"></el-input>
-        <el-button class="margin-top-10" size="large" @click="calculateMoney">计算</el-button>
-      </div>
-      <div class="monthly-cost item">
-        <div class="title">本月各类型支出比例</div>
-        <div class="record-cost-statistics" id="costStatistics"></div>
-      </div>
-    </div>
     <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
       <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
         <div class="decorate">
@@ -109,7 +91,7 @@
             <el-input v-model="searchOptions.rangeMoney" placeholder="请输入"></el-input>
           </el-form-item>
           <el-form-item class="form-item" size="large">
-            <el-button @click="serachAll">查询</el-button>
+            <el-button @click="search">查询</el-button>
             <el-button @click="exportExcel">导出</el-button>
             <el-button v-show="!showAdd" @click="changeAddContainer">新增</el-button>
           </el-form-item>
@@ -227,7 +209,6 @@
 <script setup lang="ts">
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
-import { useStatistics } from './hooks/use-statitics'
 
 const {
   loadingMore,
@@ -249,7 +230,6 @@ const {
   changeAddType,
   search,
 } = useRecord()
-const { monthOverview, proportion, getCost, calculateMoney } = useStatistics({ users })
 const {
   showAdd,
   saveLoading,
@@ -264,12 +244,7 @@ const {
   submitEditTransaction,
   addInfo,
   changeAddContainer,
-} = useAddEdit({ getCost, search, type })
-
-const serachAll = () => {
-  search()
-  getCost()
-}
+} = useAddEdit({ search, type })
 </script>
 
 <style scoped lang="scss">
@@ -280,48 +255,7 @@ const serachAll = () => {
   background-color: #8cb3bf;
   padding: 20px;
   display: flex;
-  .overview {
-    width: 240px;
-    margin-right: 20px;
-    .top-container {
-      height: fit-content;
 
-      .line {
-        margin-top: 10px;
-        font-size: 16px;
-      }
-    }
-    .item {
-      padding: 20px;
-      background-color: #fff;
-      border: 1px solid #ddd;
-      box-shadow: 1px 1px 5px #999;
-      border-radius: 8px;
-    }
-    .calculate-container {
-      margin-top: 20px;
-      text-align: center;
-      .margin-top-10 {
-        margin-top: 10px;
-      }
-    }
-    .monthly-cost {
-      margin-top: 20px;
-      padding: 10px;
-      height: 250px;
-      .record-cost-statistics {
-        height: calc(100% - 21px);
-        width: 100%;
-      }
-    }
-
-    .title {
-      text-align: center;
-      font-weight: bold;
-      font-size: 16px;
-      height: 21px;
-    }
-  }
   .timeline-container {
     flex: 1;
     min-width: 0;

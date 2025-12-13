@@ -29,6 +29,9 @@
           <el-form-item prop="endDate" required size="small" label="结束时间">
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="YYYY-MM-DD" type="date" placeholder="结束时间"> </el-date-picker>
           </el-form-item>
+          <el-form-item prop="days" required size="small" label="香港天数">
+            <el-input v-model="belongCondition.days" placeholder="请输入香港天数"> </el-input>
+          </el-form-item>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
@@ -125,7 +128,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     }
     .add-data-container {
       width: 100%;
-      height: 170px;
+      height: 240px;
       border-top: 1px solid #ddd;
       .form-item {
         .el-form-item__content {

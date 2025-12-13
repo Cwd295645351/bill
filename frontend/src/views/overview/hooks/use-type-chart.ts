@@ -17,7 +17,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const users = ref<User[]>([])
 
-  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: ''})
+  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', days: 0 })
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -154,7 +154,9 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       })
 
       // 获取宜收入
-      const yiIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '宜')?.money ?? 0
+      let yiIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '宜')?.money ?? 0
+      // 需要减去香港天数，一天 200 元
+      yiIncomes -= belongCondition.value.days * 200
       // 获取栋收入
       const dongIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '栋')?.money ?? 0
       const proportion = `${yiIncomes.toFixed(2)}:${dongIncomes.toFixed(2)}`

@@ -17,4 +17,6 @@ export interface BelongCondition {
   startDate: string
   /** 结束时间 */
   endDate: string
+  /** 香港天数 */
+  days: number
 }

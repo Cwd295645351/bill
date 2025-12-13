@@ -56,28 +56,28 @@
             <el-date-picker v-model="searchOptions.endDate" :disabled-date="endDateOptions" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="记账人">
-            <el-select v-model="searchOptions.userId" filterable placeholder="请选择" clearable>
+            <el-select v-model="searchOptions.userId" filterable placeholder="请选择" automatic-dropdown clearable>
               <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支出类型">
-            <el-select v-model="searchOptions.costTypeId" filterable placeholder="请选择" clearable>
+            <el-select v-model="searchOptions.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
               <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支付方式">
-            <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" clearable>
+            <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
               <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="归属人">
-            <el-select v-model="searchOptions.belongUserId" filterable placeholder="请选择" clearable>
+            <el-select v-model="searchOptions.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
               <el-option label="全部" value=""></el-option>
               <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" v-show="type === 2" size="large" label="收入类型">
-            <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" clearable>
+            <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
               <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
@@ -103,7 +103,7 @@
               <el-date-picker v-model="addInformation.date" type="date" placeholder="请选择" clearable></el-date-picker>
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支出类型">
-              <el-select filterable v-model="addInformation.costTypeId" placeholder="请选择" clearable>
+              <el-select filterable v-model="addInformation.costTypeId" placeholder="请选择" automatic-dropdown clearable>
                 <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
@@ -114,13 +114,13 @@
               <el-input v-model="addInformation.money" clearable placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="归属人">
-              <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" clearable>
+              <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
                 <el-option label="全部" value=""></el-option>
                 <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支付方式">
-              <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" clearable>
+              <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
                 <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
@@ -133,7 +133,7 @@
               </el-radio-group>
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 2" size="large" label="收入类型">
-              <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" clearable>
+              <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
                 <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
@@ -157,26 +157,26 @@
     <el-dialog title="编辑明细" class="edit-transaction-dialog" v-model="editDialog">
       <el-form v-if="editDialog" class="form-container">
         <el-form-item class="form-item" size="large" label="日期">
-          <el-date-picker v-model="operateData.date" type="date" placeholder="请选择" clearable></el-date-picker>
+          <el-date-picker v-model="operateData.date" type="date" placeholder="请选择" style="width: 100%" clearable></el-date-picker>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="支出类型">
-          <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" clearable>
+          <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
             <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="支付方式">
-          <el-select v-model="operateData.payMethodId" filterable placeholder="请选择" clearable>
+          <el-select v-model="operateData.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
             <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="归属人">
-          <el-select v-model="operateData.belongUserId" filterable placeholder="请选择" clearable>
+          <el-select v-model="operateData.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
             <el-option label="全部" value=""></el-option>
             <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="金额">
-          <el-input v-model="operateData.money" placeholder="请输入"></el-input>
+          <el-input v-model="operateData.money" placeholder="请输入" style="width: 100%"></el-input>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="报销进度">
           <el-radio-group v-model="operateData.reimbursement">
@@ -187,7 +187,7 @@
           </el-radio-group>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 2" size="large" label="收入类型">
-          <el-select v-model="operateData.incomesTypeId" filterable placeholder="请选择" clearable>
+          <el-select v-model="operateData.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
             <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>

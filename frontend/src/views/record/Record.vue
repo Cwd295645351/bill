@@ -65,11 +65,6 @@
               <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支付方式">
-            <el-select v-model="searchOptions.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
-              <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
-            </el-select>
-          </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="归属人">
             <el-select v-model="searchOptions.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
               <el-option label="全部" value=""></el-option>
@@ -119,11 +114,6 @@
                 <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
-            <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支付方式">
-              <el-select v-model="addInformation.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
-                <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
-              </el-select>
-            </el-form-item>
             <el-form-item class="form-item" v-show="type === 1" size="large" label="报销进度">
               <el-radio-group v-model="addInformation.reimbursement">
                 <el-radio :label="0">无需报销</el-radio>
@@ -162,11 +152,6 @@
         <el-form-item class="form-item" v-show="type === 1" size="large" label="支出类型">
           <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
             <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item class="form-item" v-show="type === 1" size="large" label="支付方式">
-          <el-select v-model="operateData.payMethodId" filterable placeholder="请选择" automatic-dropdown clearable>
-            <el-option v-for="(item, index) in payMethods" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="归属人">

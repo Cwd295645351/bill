@@ -74,7 +74,7 @@ const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3
 const { perYearCostDatas } = useOverview({ colorOptions })
 const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ colorOptions })
 </script>
-<style lang="scss">
+<style lang="scss" scoped>
 .overview-module {
   flex: 1;
   min-height: 0;
@@ -128,10 +128,13 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     }
     .add-data-container {
       width: 100%;
-      height: 240px;
+      height: 220px;
       border-top: 1px solid #ddd;
+      :deep(.el-form-item) {
+        margin-bottom: 10px;
+      }
       .form-item {
-        .el-form-item__content {
+        :deep(.el-form-item__content) {
           justify-content: center;
         }
       }

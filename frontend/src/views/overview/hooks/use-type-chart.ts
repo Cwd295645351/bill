@@ -157,8 +157,12 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       let yiIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '宜')?.money ?? 0
       // 需要减去香港天数，一天 200 元
       yiIncomes -= belongCondition.value.days * 200
+      // 减去宜缴纳社保金额
+      yiIncomes -= res.data.costTypeRank['宜'].find((item: any) => item.type === '1020')?.money ?? 0
       // 获取栋收入
-      const dongIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '栋')?.money ?? 0
+      let dongIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '栋')?.money ?? 0
+      // 减去栋缴纳社保金额
+      dongIncomes -= res.data.costTypeRank['栋'].find((item: any) => item.type === '1020')?.money ?? 0
       const proportion = `${yiIncomes.toFixed(2)}:${dongIncomes.toFixed(2)}`
       console.log(proportion, 'proportion')
 

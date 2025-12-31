@@ -35,6 +35,7 @@
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
+          <el-form-item requed size="small" :label="'应退金额：' + belongCondition.refundMoney"> </el-form-item>
         </el-form>
       </div>
     </div>
@@ -128,7 +129,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ co
     }
     .add-data-container {
       width: 100%;
-      height: 220px;
+      height: 240px;
       border-top: 1px solid #ddd;
       :deep(.el-form-item) {
         margin-bottom: 10px;

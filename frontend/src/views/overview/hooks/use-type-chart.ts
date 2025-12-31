@@ -17,7 +17,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const users = ref<User[]>([])
 
-  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', days: 0 })
+  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', days: 0, refundMoney: 0 })
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -139,6 +139,34 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['栋'], belongTypeChart3.value, '栋')
   }
 
+  /** 合计退款 */
+  const calculateMoney = (proportion: string) => {
+    const costs = belongUsers.value.details
+    const proportionArray = proportion.split(':')
+    const proportion0 = Number(proportionArray[0])
+    const proportion1 = Number(proportionArray[1])
+    console.log(proportion0, proportion1, 'proportion0, proportion1')
+    const total = proportion0 + proportion1
+    console.log(total, 'total')
+    let money = 0
+    costs.forEach((item) => {
+      if (item.userName === '宜') {
+        if (item.belongUserId === '') {
+          money += item.money * (proportion1 / total)
+        } else if (item.belongUserName === '栋') {
+          money += item.money
+        }
+      } else if (item.userName === '栋') {
+        if (item.belongUserId === '') {
+          money -= item.money * (proportion0 / total)
+        } else if (item.belongUserName === '宜') {
+          money -= item.money
+        }
+      }
+    })
+    belongCondition.value.refundMoney = Number(money.toFixed(2))
+  }
+
   const getBalanceAndPieData = async () => {
     const params = { billId: billId.value, beginDate: belongCondition.value.startDate, endDate: belongCondition.value.endDate }
     const [err, res] = await getBalance({ params })
@@ -165,7 +193,8 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       dongIncomes -= res.data.costTypeRank['栋'].find((item: any) => item.type === '1020')?.money ?? 0
       const proportion = `${yiIncomes.toFixed(2)}:${dongIncomes.toFixed(2)}`
       console.log(proportion, 'proportion')
-
+      
+      calculateMoney(proportion)
       setTypeData(res.data.costTypeRank, proportion)
       setPieData()
     } else {

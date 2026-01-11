@@ -146,8 +146,19 @@ export const useRecord = () => {
 
   // 导出交易明细
   const exportExcel = async () => {
+    const options = searchOptions.value
     const data = {
+      beginDate: options.beginDate,
+      endDate: options.endDate,
+      userId: options.userId,
+      belongUserId: options.belongUserId,
       type: type.value,
+      costTypeId: options.costTypeId,
+      payMethodId: options.payMethodId,
+      incomesTypeId: options.incomesTypeId,
+      condition: options.condition,
+      rangeMoney: options.rangeMoney,
+      remark: options.remark,
       billId: (bill.value as Bill)._id,
     }
     const [err, res] = await exportData({ data })

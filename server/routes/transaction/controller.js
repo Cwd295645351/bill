@@ -302,7 +302,36 @@ exports.exportData = async (data) => {
     users[item.id] = item.name
   })
   if (!findBill) return ['未找到账本', null]
-  const res = await Transaction.find(params, { date: 1, costTypeName: 1, userId: 1, belongUserName: 1, money: 1, remark: 1 }).sort({ date: -1 })
+
+  const exportParams = {
+    billId: data.billId,
+    type: data.type,
+    isDel: false,
+    money: {}
+  }
+  exportParams.money[`$${data.condition}`] = data.rangeMoney
+  if (data.beginDate && data.endDate) {
+    exportParams.date = {
+      $gte: new Date(data.beginDate),
+      $lte: new Date(data.endDate)
+    }
+  } else if (data.beginDate && !data.endDate) {
+    exportParams.date = {
+      $gte: new Date(data.beginDate)
+    }
+  } else if (!data.beginDate && data.endDate) {
+    exportParams.date = {
+      $lte: new Date(data.endDate)
+    }
+  }
+  if (data.remark) exportParams.remark = { $regex: data.remark, $options: 'im' }
+  if (data.costTypeId) exportParams.costTypeId = data.costTypeId // 支出类型
+  if (data.payMethodId) exportParams.payMethodId = data.payMethodId // 支付方式
+  if (data.incomesTypeId) exportParams.incomesTypeId = data.incomesTypeId // 收入类型
+  if (data.userId) exportParams.userId = { $in: data.userId } // 记账人
+  if (data.belongUserId) exportParams.belongUserId = { $in: data.belongUserId } // 归属人
+  
+  const res = await Transaction.find(exportParams, { date: 1, costTypeName: 1, userId: 1, belongUserName: 1, money: 1, remark: 1 }).sort({ date: -1 })
   const excelSrcData = res.map((item) => {
     item.userName = users[item.userId]
     return item

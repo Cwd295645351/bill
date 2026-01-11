@@ -6,7 +6,7 @@
           <div class="line"></div>
           <div class="circle"></div>
         </div>
-        <div class="date">{{ item.date }}</div>
+        <div class="date">{{ item.date }} {{ item.week }}</div>
         <div class="date-overview">
           <div class="types">
             <div class="type-item" v-for="typeData in item.types" :key="typeData.name">
@@ -15,7 +15,7 @@
           </div>
         </div>
         <div class="detail">
-          <div class="detail-item" v-for="detail in item.datas" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
+          <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
             <div class="top">
               <span>
                 <span class="belong-user">{{ detail.belongUserName }}</span>
@@ -283,7 +283,7 @@ const {
       }
       .date {
         position: absolute;
-        left: -130px;
+        left: -160px;
         top: -12px;
         width: fit-content;
         font-size: 18px;
@@ -371,7 +371,7 @@ const {
         }
         .date {
           left: unset;
-          right: -130px;
+          right: -160px;
         }
         .types {
           right: 20px;

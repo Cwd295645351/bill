@@ -1,4 +1,4 @@
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
@@ -7,7 +7,7 @@ import dayjs from 'dayjs'
 
 import type { InformationType } from '../type'
 import type { UserInfo } from '@/types/user-info'
-import type { Bill, User, CostType, IncomesType, PayMethod } from '@/types/bill'
+import type { Bill, User, CostType, IncomesType, PayMethod, RecordItem } from '@/types/bill'
 
 export const useRecord = () => {
   const store = useBillStore()
@@ -15,12 +15,14 @@ export const useRecord = () => {
 
   const loadingMore = ref(false)
   const noMore = ref(false)
+  const dateMap = ref(new Map())
+  const weekMap = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
 
   /** 类型：1=支出；2=收入 */
   const type = ref<InformationType>(1)
 
   /** 类型名称标识，costTypeName | incomesTypeName */
-  const typeName = ref('costTypeName')
+  const typeName = ref<'costTypeName' | 'incomesTypeName'>('costTypeName')
 
   /** 查询条件 */
   const searchOptions = ref<any>({
@@ -43,6 +45,20 @@ export const useRecord = () => {
     { name: '<=', id: 'lte' },
     { name: '<', id: 'lt' },
   ])
+
+  /** 交易明细数据 */
+  const listData = computed(() => {
+    const res = []
+    for (const item of dateMap.value.values()) {
+      item.arr = item.arr.sort((a: any, b: any) => {
+        if (a.costTypeId - b.costTypeId < 0) return -1
+        else if (a.costTypeId - b.costTypeId > 0) return 1
+        else return b.money - a.money
+      })
+      res.push(item)
+    }
+    return res
+  })
 
   /** 记账开始日期限制条件 */
   const beginDateOptions = (time: Date) => {
@@ -69,8 +85,6 @@ export const useRecord = () => {
   const incomesTypes = ref<IncomesType[]>([])
   /** 支付方式配置项 */
   const payMethods = ref<PayMethod[]>([])
-  /** 交易明细数据 */
-  const listData = ref<any[]>([])
   /** 总数 */
   const totalCount = ref(0)
   /** 当前加载总数 */
@@ -103,17 +117,26 @@ export const useRecord = () => {
     if (res.retCode === 0) {
       // 构造收支金额时间线
       totalCount.value = res.data.total
-      currentCount.value += res.data.datas.length
-      const currListData: any = setData(res.data.datas)
-      // 获取收支金额数组最后一个日期内容
-      const lastData: any = listData.value[listData.value.length - 1]
-      if (currListData.length > 0 && lastData?.date === currListData[0]?.date) {
-        mergeData(lastData, currListData[0])
-        currListData.shift()
-      }
-      listData.value = listData.value.concat(currListData)
-      listData.value.forEach((item: any) => {
-        item.datas = item.datas.sort((a: any, b: any) => a.costTypeId - b.costTypeId)
+      const data = res.data.datas as RecordItem[]
+      data.forEach((item) => {
+        let dateMapItem = dateMap.value.get(item.date)
+        if (!dateMapItem) {
+          dateMapItem = {
+            date: item.date,
+            week: weekMap[new Date(item.date).getDay()],
+            arr: [],
+            types: [] as { name: 'costTypeName' | 'incomesTypeName'; money: number }[],
+          }
+        }
+        dateMapItem.arr.push(item)
+        const itemTypeName = item[typeName.value]
+        const type = dateMapItem.types.find((type: { name: string; money: number }) => type.name === itemTypeName)
+        if (type) {
+          type.money += item.money
+        } else {
+          dateMapItem.types.push({ name: itemTypeName, money: item.money })
+        }
+        dateMap.value.set(item.date, dateMapItem)
       })
     } else {
       ElMessage.error('查询交易明细失败，' + res.message)
@@ -126,6 +149,7 @@ export const useRecord = () => {
     costTypes.value = bill.costTypes
     incomesTypes.value = bill.incomesTypes
     payMethods.value = bill.payMethods
+    dateMap.value.clear()
 
     await getList()
   }
@@ -134,7 +158,6 @@ export const useRecord = () => {
     bill,
     async (val) => {
       if (!val) return
-      listData.value = []
       await initData(val)
     },
     { immediate: true },
@@ -187,59 +210,6 @@ export const useRecord = () => {
     await getList()
   }
 
-  /** 统计每日各类型金额及总金额 */
-  const setData = (data: any[]) => {
-    const arr: any[] = []
-    let currDate = '' // 当前正在记录的日期，若存在，则代表已有相关对象
-    data.forEach((item) => {
-      if (item.date === currDate) {
-        // 已存在日期
-        const obj = arr[arr.length - 1]
-        // 判断是否无需报销且已存在该类型
-        if (item.reimbursement === 0) {
-          obj.money += item.money
-          const type = obj.types.find((type: any) => type.name === item[typeName.value])
-          if (type) {
-            type.money += item.money
-          } else {
-            obj.types.push({ name: item[typeName.value], money: item.money })
-          }
-        }
-        obj.datas.push(item)
-      } else {
-        // 新日期
-        currDate = item.date
-        const obj: any = {
-          date: currDate,
-          money: 0,
-          types: [],
-          datas: [item],
-        }
-        if (item.reimbursement === 0) {
-          // 无需报销时才记录类型
-          obj.money = item.money
-          obj.types = [{ name: item[typeName.value], money: item.money }]
-        }
-        arr.push(obj)
-      }
-    })
-    return arr
-  }
-
-  /** 合并同一日期的收支金额 */
-  const mergeData = (firstData: any, secondData: any) => {
-    firstData.money += secondData.money
-    firstData.datas.push(...secondData.datas)
-    secondData.types.forEach((item: any) => {
-      const type = firstData.types.find((type: any) => type.name === item.name)
-      if (type) {
-        type.money += item.money
-      } else {
-        firstData.types.push({ name: item.name, money: item.money })
-      }
-    })
-  }
-
   /** 切换收入/支出类型 */
   const changeAddType = (currType: InformationType) => {
     type.value = currType
@@ -247,14 +217,12 @@ export const useRecord = () => {
   }
 
   const search = () => {
-    listData.value = []
     pageContent.value.pageIndex = 1
     pageContent.value.pageSize = 60
     getList()
   }
 
   onMounted(() => {
-    console.log(costTypeId.value, 'costType========')
     userInfo.value = getUserInfo()
     if (costTypeId.value !== 0) {
       searchOptions.value.costTypeId = costTypeId.value

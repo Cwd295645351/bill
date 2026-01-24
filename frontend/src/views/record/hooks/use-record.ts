@@ -217,6 +217,7 @@ export const useRecord = () => {
   }
 
   const search = () => {
+    dateMap.value.clear()
     pageContent.value.pageIndex = 1
     pageContent.value.pageSize = 60
     getList()

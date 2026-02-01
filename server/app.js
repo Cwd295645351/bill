@@ -25,6 +25,7 @@ const transaction = require('./routes/transaction/index')
 const budget = require('./routes/budget/index')
 const overview = require('./routes/overview/index')
 const plan = require('./routes/plan/index')
+const asset = require('./routes/asset/index')
 const pages = require('./routes/pages/index')
 
 const app = new Koa()
@@ -154,6 +155,7 @@ app.use(transaction.routes(), transaction.allowedMethods())
 app.use(budget.routes(), budget.allowedMethods())
 app.use(overview.routes(), budget.allowedMethods())
 app.use(plan.routes(), plan.allowedMethods())
+app.use(asset.routes(), asset.allowedMethods())
 app.use(pages.routes(), pages.allowedMethods())
 
 // error-handling

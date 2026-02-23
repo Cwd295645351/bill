@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 
 import { getBalance } from '../api'
+import { getRecordList } from '../../record/api'
 
 import { Bill, User } from '@/types/bill'
 import type { BelongCondition, BelongUser } from '../type'
@@ -55,12 +56,88 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const belongTypeChart2 = ref<any>(null)
   const belongTypeChart3 = ref<any>(null)
 
+  const dialogVisible = ref(false)
+  const detailList = ref<any[]>([])
+  const loading = ref(false)
+  const currentCategory = ref('')
+  const currentCategoryTotal = ref(0)
+  const currentProportion = ref({ yi: 0.5, dong: 0.5 })
+
+  /** 点击饼图处理 */
+  const handleChartClick = async (params: any, belongUserName: string) => {
+    const categoryName = params.name
+    currentCategory.value = categoryName
+    currentCategoryTotal.value = params.value // echart 点击事件中 params.value 就是该项的值
+    dialogVisible.value = true
+    loading.value = true
+    detailList.value = []
+
+    // 查找 costTypeId
+    const costType = bill.value?.costTypes.find((item: any) => item.name === categoryName)
+    if (!costType) {
+      loading.value = false
+      return
+    }
+
+    const searchParams: any = {
+      beginDate: belongCondition.value.startDate,
+      endDate: belongCondition.value.endDate,
+      billId: (bill.value as Bill)._id,
+      type: 1, // 支出
+      costTypeId: costType.id,
+      pageIndex: 0,
+      pageSize: 1000,
+      condition: 'gte',
+      rangeMoney: 0,
+    }
+
+    // 如果点击的是特定归属人的饼图，查询该归属人 + "全部" 归属的数据
+    if (belongUserName !== '全部') {
+      const belongUser = bill.value?.users.find((u: any) => u.name === belongUserName)
+      if (belongUser) {
+        // 传入数组，查询该用户和归属人为"全部"(即空字符串)的数据
+        searchParams.belongUserId = [belongUser.id, '']
+      }
+    }
+
+    const [err, res] = await getRecordList({ params: searchParams })
+    loading.value = false
+    if (err) return
+    if (res.retCode === 0) {
+      const datas = res.data.datas as any[]
+      detailList.value = datas
+        .filter((item: any) => {
+          // 如果是专属饼图，额外确保只包含该归属人或“全部”归属的数据
+          // 防止后端在处理数组查询时返回不符合预期的数据
+          if (belongUserName !== '全部') {
+            const belongUser = bill.value?.users.find((u: any) => u.name === belongUserName)
+            const currentBelongUserId = belongUser ? belongUser.id : null
+            return item.belongUserId === currentBelongUserId || item.belongUserId === '' || !item.belongUserId
+          }
+          return true
+        })
+        .map((item: any) => {
+          item.userName = users.value.find((u: any) => u.id === item.userId)?.name || '未知'
+          item.date = dayjs(item.date).format('YYYY-MM-DD')
+          item.totalMoney = item.money // 保存原始总金额
+
+          // 如果是专属饼图，且这条记录的归属人是"全部"，则按比例计算
+          if (belongUserName !== '全部' && (item.belongUserId === '' || !item.belongUserId)) {
+            const ratio = belongUserName === '宜' ? currentProportion.value.yi : currentProportion.value.dong
+            item.money = Number((item.totalMoney * ratio).toFixed(2))
+          }
+          return item
+        })
+    }
+  }
+
   /** 设置各归属人支出比例 */
   const setTypeData = (costTypeRank: any, proportion: string) => {
     const proportionArray = proportion.split(':')
     const total = Number(proportionArray[0]) + Number(proportionArray[1])
     const proportion1 = total ? Number(proportionArray[0]) / total : 0.5 // 宜比例
     const proportion2 = total ? Number(proportionArray[1]) / total : 0.5 // 栋比例
+    currentProportion.value = { yi: proportion1, dong: proportion2 }
     console.log(proportion1, proportion2, 'proportion1, proportion2')
     const data: any = {
       全部: [],
@@ -203,7 +280,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   }
 
   const initData = (bill: Bill) => {
-    belongCondition.value.startDate = dayjs().startOf('month').format('YYYY-MM-DD')
+    belongCondition.value.startDate = dayjs().startOf('year').format('YYYY-MM-DD')
     belongCondition.value.endDate = dayjs().format('YYYY-MM-DD')
     users.value = bill.users
     getBalanceAndPieData()
@@ -214,6 +291,10 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     belongTypeChart2.value = echarts.init(document.getElementById('belongTypeChart2') as HTMLElement)
     belongTypeChart3.value = echarts.init(document.getElementById('belongTypeChart3') as HTMLElement)
     belongOptions.value.color = colorOptions
+
+    belongTypeChart1.value.on('click', (params: any) => handleChartClick(params, '全部'))
+    belongTypeChart2.value.on('click', (params: any) => handleChartClick(params, '宜'))
+    belongTypeChart3.value.on('click', (params: any) => handleChartClick(params, '栋'))
   }
 
   watch(
@@ -229,5 +310,5 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     initChart()
   })
 
-  return { belongCondition, belongUsers, getBalanceAndPieData }
+  return { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal }
 }

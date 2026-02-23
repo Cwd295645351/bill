@@ -65,6 +65,24 @@
         <div class="belong-type-chart" id="belongTypeChart3"></div>
       </div>
     </div>
+    <el-dialog v-model="dialogVisible" :title="`${currentCategory} - 消费明细 (共 ${currentCategoryTotal} 元)`" width="70%">
+      <el-table :data="detailList" v-loading="loading" stripe height="500px">
+        <el-table-column property="date" label="日期" width="160" sortable></el-table-column>
+        <el-table-column property="userName" label="记账人" width="100"></el-table-column>
+        <el-table-column property="belongUserName" label="归属人" width="100"></el-table-column>
+        <el-table-column property="totalMoney" label="原金额" width="140" sortable>
+          <template #default="scope">
+            <span>{{ scope.row.totalMoney.toFixed(2) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column property="money" label="金额" width="140" sortable>
+          <template #default="scope">
+            <span class="color-red">{{ scope.row.money.toFixed(2) }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column property="remark" label="备注"></el-table-column>
+      </el-table>
+    </el-dialog>
   </div>
 </template>
 
@@ -73,7 +91,7 @@ import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { belongCondition, belongUsers, getBalanceAndPieData } = useTypeChart({ colorOptions })
+const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal } = useTypeChart({ colorOptions })
 </script>
 <style lang="scss" scoped>
 .overview-module {

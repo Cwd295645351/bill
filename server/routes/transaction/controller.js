@@ -131,6 +131,93 @@ exports.addTransaction = async (data) => {
   }
 }
 
+// 批量新增交易信息
+exports.batchAddTransaction = async (list) => {
+  const billId = list[0].billId
+  const findBill = await Bill.findById(billId, { users: 1, costTypes: 1, incomesTypes: 1, payMethods: 1, budget: 1 })
+  if (!findBill) return ['未找到账本', null]
+
+  const insertList = []
+  let totalMoney = 0
+  const budgetMap = {}
+
+  for (const data of list) {
+    data.money = Number(data.money)
+    totalMoney += data.money
+    const params = {
+      billId: data.billId,
+      userId: data.userId,
+      date: data.date,
+      type: data.type,
+      remark: data.remark,
+      money: data.money,
+      belongUserId: '',
+      belongUserName: '全部',
+      isDel: false
+    }
+    if (params.type === 1) {
+      if (data.costTypeId) {
+        const costType = findBill.costTypes.find((item) => item.id === data.costTypeId)
+        if (costType) {
+          params.costTypeId = costType.id
+          params.costTypeName = costType.name
+        }
+      }
+      if (data.payMethodId) {
+        const payMethod = findBill.payMethods.find((item) => item.id === data.payMethodId)
+        if (payMethod) {
+          params.payMethodId = payMethod.id
+          params.payMethodName = payMethod.name
+        }
+      }
+      params.reimbursement = data.reimbursement || 0
+    }
+    if (data.belongUserId) {
+      const user = findBill.users.find((item) => item.id === data.belongUserId)
+      if (user) {
+        params.belongUserId = user.id
+        params.belongUserName = user.name
+      }
+    }
+    insertList.push(params)
+
+    const year = Number(dayjs(new Date(data.date)).format('YYYY'))
+    if (!budgetMap[year]) budgetMap[year] = { total: 0, costTypes: {} }
+    budgetMap[year].total += data.money
+    if (data.costTypeId) {
+      if (!budgetMap[year].costTypes[data.costTypeId]) budgetMap[year].costTypes[data.costTypeId] = 0
+      budgetMap[year].costTypes[data.costTypeId] += data.money
+    }
+  }
+
+  const res = await Transaction.insertMany(insertList)
+  if (!res) return ['批量新增失败', null]
+
+  const budget = findBill.budget
+  for (const [yearStr, yearData] of Object.entries(budgetMap)) {
+    const year = Number(yearStr)
+    const budgetItem = budget.find((item) => item.date === year)
+    if (budgetItem) {
+      budgetItem.currCost += yearData.total
+      for (const [costTypeId, money] of Object.entries(yearData.costTypes)) {
+        const budgetDetail = budgetItem.details.find((item) => item.costTypeId === costTypeId)
+        if (budgetDetail) budgetDetail.cost += money
+      }
+    } else {
+      budget.push({ date: year, totalBudget: 0, currCost: yearData.total, details: [] })
+    }
+  }
+
+  const userId = list[0].userId
+  const updateBillRes = await Bill.findByIdAndUpdate(billId, { budget: budget }, { new: true })
+  const updateUserRes = await User.findByIdAndUpdate(userId, { $inc: { expenses: totalMoney } })
+  if (updateUserRes && updateBillRes) {
+    return [null, { total: list.length, success: res.length }]
+  } else {
+    return ['批量新增失败', null]
+  }
+}
+
 // 编辑交易信息
 exports.editTransaction = async (data) => {
   data.money = Number(data.money)

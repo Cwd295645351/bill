@@ -66,6 +66,32 @@ router.post('/', async (ctx, next) => {
   }
 })
 
+// 批量新增交易
+router.post('/batch', async (ctx, next) => {
+  const { list } = ctx.request.body
+  const userId = ctx.header.userid
+  if (!userId) {
+    ctx.body = new ResModel(null, 'userId不能为空', 'error')
+    return
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    ctx.body = new ResModel(null, '批量数据不能为空', 'error')
+    return
+  }
+  const billId = list[0].billId
+  if (!billId) {
+    ctx.body = new ResModel(null, '账本id不能为空', 'error')
+    return
+  }
+  list.forEach((item) => {
+    item.userId = userId
+    xssData(item)
+  })
+  const [err, res] = await Transaction.batchAddTransaction(list)
+  if (res) ctx.body = new ResModel(res, '批量新增成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
 // 编辑交易
 router.put('/', async (ctx, next) => {
   const data = ctx.request.body

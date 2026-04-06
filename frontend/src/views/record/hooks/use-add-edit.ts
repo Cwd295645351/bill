@@ -1,7 +1,7 @@
 import { ref, Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { addTransaction, deleteTransaction, editTransaction } from '../api'
+import { addTransaction, batchAddTransaction, deleteTransaction, editTransaction } from '../api'
 import type { Information, InformationType } from '../type'
 import type { Bill } from '@/types/bill'
 
@@ -138,9 +138,39 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     showAdd.value = !showAdd.value
   }
 
+  /** 批量新增交易明细 */
+  const batchSaving = ref(false)
+  const batchAdd = async (list: Array<{ costTypeId: string; money: number; date: string; remark: string; belongUserId: string }>) => {
+    const billId = (bill.value as Bill)._id
+    const data = list.map((item) => ({
+      billId,
+      type: type.value,
+      date: item.date,
+      money: item.money,
+      belongUserId: item.belongUserId,
+      remark: item.remark,
+      costTypeId: item.costTypeId,
+      payMethodId: '',
+      reimbursement: 0,
+    }))
+    batchSaving.value = true
+    const [err, res] = await batchAddTransaction({ data: { list: data } })
+    batchSaving.value = false
+    if (err) return false
+    if (res.retCode === 0) {
+      ElMessage.success('批量新增成功')
+      search()
+      return true
+    } else {
+      ElMessage.error('批量新增失败')
+      return false
+    }
+  }
+
   return {
     showAdd,
     saveLoading,
+    batchSaving,
     deleteDialog,
     editDialog,
     btnLoading,
@@ -151,6 +181,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     submitDeleteTransaction,
     submitEditTransaction,
     addInfo,
+    batchAdd,
     changeAddContainer,
   }
 }

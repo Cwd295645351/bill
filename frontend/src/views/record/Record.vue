@@ -89,6 +89,7 @@
             <el-button @click="search">查询</el-button>
             <el-button @click="exportExcel">导出</el-button>
             <el-button v-show="!showAdd" @click="changeAddContainer">新增</el-button>
+            <el-button v-show="type === 1" @click="batchDialog = true">批量解析</el-button>
           </el-form-item>
         </el-form>
         <!-- 新增交易 -->
@@ -104,6 +105,7 @@
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="内容">
               <el-input v-model="addInformation.remark" clearable placeholder="请输入"></el-input>
+              <el-button type="primary" @click="parseRemark" size="small" :loading="loading">解析</el-button>
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="金额">
               <el-input v-model="addInformation.money" clearable placeholder="请输入"></el-input>
@@ -188,12 +190,61 @@
         </div>
       </template>
     </el-dialog>
+    <el-dialog title="批量解析" class="batch-parse-dialog" v-model="batchDialog" :close-on-click-modal="false">
+      <div class="batch-input-area">
+        <el-input v-model="batchText" type="textarea" :rows="6" placeholder="请输入内容，每行一条记录..." />
+        <el-button type="primary" @click="handleBatchParse" :loading="loading" style="margin-top: 10px">解析</el-button>
+      </div>
+      <el-table v-if="batchResults.length" :data="batchResults" style="margin-top: 15px" border>
+        <el-table-column label="内容" min-width="180">
+          <template #default="{ row }">
+            <el-input v-model="row.remark" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="支出类型" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.costTypeId" filterable size="small" placeholder="请选择">
+              <el-option v-for="item in costTypes" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="金额" width="110">
+          <template #default="{ row }">
+            <el-input v-model="row.money" size="small" />
+          </template>
+        </el-table-column>
+        <el-table-column label="日期" width="180">
+          <template #default="{ row }">
+            <el-date-picker v-model="row.date" type="date" size="small" placeholder="请选择" style="width: 100%" />
+          </template>
+        </el-table-column>
+        <el-table-column label="归属人" width="140">
+          <template #default="{ row }">
+            <el-select v-model="row.belongUserId" filterable size="small" placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" clearable>
+              <el-option label="全部" value="" />
+              <el-option v-for="item in users" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="70" align="center">
+          <template #default="{ $index }">
+            <el-button type="danger" link size="small" @click="batchResults.splice($index, 1)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <template #footer>
+        <el-button type="primary" @click="handleBatchSave" :loading="batchSaving" :disabled="batchResults.length === 0">批量保存</el-button>
+        <el-button @click="batchDialog = false">取消</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
+import { useParse } from './hooks/use-parse'
 
 const {
   loadingMore,
@@ -218,6 +269,7 @@ const {
 const {
   showAdd,
   saveLoading,
+  batchSaving,
   deleteDialog,
   editDialog,
   btnLoading,
@@ -228,8 +280,45 @@ const {
   submitDeleteTransaction,
   submitEditTransaction,
   addInfo,
+  batchAdd,
   changeAddContainer,
 } = useAddEdit({ search, type })
+
+const { parse, parseBatch, loading } = useParse(costTypes.value)
+
+const parseRemark = async () => {
+  const { info, error } = await parse(addInformation.value.remark)
+  if (error) {
+    ElMessage.error('解析失败')
+    return
+  }
+  addInformation.value.costTypeId = info.costTypeId
+  addInformation.value.money = info.money
+  addInformation.value.date = info.date
+}
+
+/** 批量解析相关 */
+const batchDialog = ref(false)
+const batchText = ref('')
+const batchResults = ref<Array<{ remark: string; costTypeId: string; money: number; date: string; belongUserId: string }>>([])
+
+const handleBatchParse = async () => {
+  if (!batchText.value.trim()) {
+    ElMessage.warning('请输入内容')
+    return
+  }
+  const results = await parseBatch(batchText.value)
+  batchResults.value = results
+}
+
+const handleBatchSave = async () => {
+  const success = await batchAdd(batchResults.value)
+  if (success) {
+    batchDialog.value = false
+    batchText.value = ''
+    batchResults.value = []
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -471,6 +560,16 @@ const {
     .el-input__wrapper {
       width: 310px;
     }
+  }
+}
+.batch-parse-dialog {
+  width: 960px;
+  .batch-input-area {
+    display: flex;
+    flex-direction: column;
+  }
+  .el-table {
+    font-size: 14px;
   }
 }
 </style>

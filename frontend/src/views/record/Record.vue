@@ -1,41 +1,43 @@
 <template>
   <div class="record">
-    <div class="timeline-container" v-infinite-scroll="load" infinite-scroll-distance="40" infinite-scroll-delay="300">
-      <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
-        <div class="decorate">
-          <div class="line"></div>
-          <div class="circle"></div>
-        </div>
-        <div class="date">{{ item.date }} {{ item.week }}</div>
-        <div class="date-overview">
-          <div class="types">
-            <div class="type-item" v-for="typeData in item.types" :key="typeData.name">
-              {{ typeData.name }}: <span>{{ typeData.money.toFixed(2) }}</span>
+    <div class="timeline-container">
+      <el-scrollbar view-class="list-container" @end-reached="load" height="100%">
+        <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
+          <div class="decorate">
+            <div class="line"></div>
+            <div class="circle"></div>
+          </div>
+          <div class="date">{{ item.date }} {{ item.week }}</div>
+          <div class="date-overview">
+            <div class="types">
+              <div class="type-item" v-for="typeData in item.types" :key="typeData.name">
+                {{ typeData.name }}: <span>{{ typeData.money.toFixed(2) }}</span>
+              </div>
             </div>
           </div>
-        </div>
-        <div class="detail">
-          <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
-            <div class="top">
-              <span>
-                <span class="belong-user">{{ detail.belongUserName }}</span>
-                <span class="tips">{{ detail[typeName] }}</span>
-                <span v-if="type === 1" class="tips">{{ detail.payMethodName }}</span>
-              </span>
-              <div class="money">{{ detail.money }}</div>
-            </div>
-            <div class="remark-container">
-              <div class="remark">{{ detail.remark }}</div>
-              <div class="operate" v-if="detail.userId === userInfo.userId">
-                <el-link type="info" @click="showEditDialog(detail)">编辑</el-link>
-                <el-link type="danger" @click="showDeleteDialog(detail)">删除</el-link>
+          <div class="detail">
+            <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
+              <div class="top">
+                <span>
+                  <span class="belong-user">{{ detail.belongUserName }}</span>
+                  <span class="tips">{{ detail[typeName] }}</span>
+                  <span v-if="type === 1" class="tips">{{ detail.payMethodName }}</span>
+                </span>
+                <div class="money">{{ detail.money }}</div>
+              </div>
+              <div class="remark-container">
+                <div class="remark">{{ detail.remark }}</div>
+                <div class="operate" v-if="detail.userId === userInfo.userId">
+                  <el-link type="info" @click="showEditDialog(detail)">编辑</el-link>
+                  <el-link type="danger" @click="showDeleteDialog(detail)">删除</el-link>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      <div v-show="loadingMore" class="tips-label">正在加载数据...</div>
-      <div v-show="noMore" class="tips-label">没有更多了</div>
+        <div v-show="loadingMore" class="tips-label">正在加载数据...</div>
+        <div v-show="noMore" class="tips-label">没有更多了</div>
+      </el-scrollbar>
     </div>
     <div class="header">
       <div class="type-box">
@@ -118,10 +120,10 @@
             </el-form-item>
             <el-form-item class="form-item" v-show="type === 1" size="large" label="报销进度">
               <el-radio-group v-model="addInformation.reimbursement">
-                <el-radio :label="0">无需报销</el-radio>
-                <el-radio :label="1">待报销</el-radio>
-                <el-radio :label="2">已提交</el-radio>
-                <el-radio :label="3">已报销</el-radio>
+                <el-radio :value="0">无需报销</el-radio>
+                <el-radio :value="1">待报销</el-radio>
+                <el-radio :value="2">已提交</el-radio>
+                <el-radio :value="3">已报销</el-radio>
               </el-radio-group>
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 2" size="large" label="收入类型">
@@ -167,10 +169,10 @@
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="报销进度">
           <el-radio-group v-model="operateData.reimbursement">
-            <el-radio :label="0">无需报销</el-radio>
-            <el-radio :label="1">待报销</el-radio>
-            <el-radio :label="2">已提交</el-radio>
-            <el-radio :label="3">已报销</el-radio>
+            <el-radio :value="0">无需报销</el-radio>
+            <el-radio :value="1">待报销</el-radio>
+            <el-radio :value="2">已提交</el-radio>
+            <el-radio :value="3">已报销</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 2" size="large" label="收入类型">
@@ -284,7 +286,7 @@ const {
   changeAddContainer,
 } = useAddEdit({ search, type })
 
-const { parse, parseBatch, loading } = useParse(costTypes.value)
+const { parse, parseBatch, loading } = useParse(costTypes)
 
 const parseRemark = async () => {
   const { info, error } = await parse(addInformation.value.remark)
@@ -337,11 +339,12 @@ const handleBatchSave = async () => {
     background-color: #fff;
     box-shadow: 1px 1px 5px #999;
     border-radius: 8px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    padding-top: 40px;
-    overflow: auto;
+    :deep(.list-container) {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      padding-top: 40px;
+    }
     .list-item {
       width: 50%;
       padding: 40px 20px 30px;

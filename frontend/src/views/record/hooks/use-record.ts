@@ -46,16 +46,16 @@ export const useRecord = () => {
     { name: '<', id: 'lt' },
   ])
 
-  /** 交易明细数据 */
+  /** 交易明细数据（禁止在 computed 内就地修改 dateMap，否则会触发递归更新） */
   const listData = computed(() => {
     const res = []
     for (const item of dateMap.value.values()) {
-      item.arr = item.arr.sort((a: any, b: any) => {
+      const sortedArr = [...item.arr].sort((a: any, b: any) => {
         if (a.costTypeId - b.costTypeId < 0) return -1
         else if (a.costTypeId - b.costTypeId > 0) return 1
         else return b.money - a.money
       })
-      res.push(item)
+      res.push({ ...item, arr: sortedArr })
     }
     return res
   })
@@ -89,6 +89,8 @@ export const useRecord = () => {
   const totalCount = ref(0)
   /** 当前加载总数 */
   const currentCount = ref(0)
+  /** 是否已完成至少一次列表请求（避免首次请求前 total/current 均为 0 误触「没有更多」） */
+  const listFetchedOnce = ref(false)
   /** 用户信息 */
   const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
 
@@ -115,6 +117,7 @@ export const useRecord = () => {
     loadingMore.value = false
     if (err) return
     if (res.retCode === 0) {
+      listFetchedOnce.value = true
       // 构造收支金额时间线
       totalCount.value = res.data.total
       const data = res.data.datas as RecordItem[]
@@ -138,6 +141,8 @@ export const useRecord = () => {
         }
         dateMap.value.set(item.date, dateMapItem)
       })
+      // 已加载条数，供触底加载判断是否还有更多
+      currentCount.value = [...dateMap.value.values()].reduce((sum, d) => sum + d.arr.length, 0)
     } else {
       ElMessage.error('查询交易明细失败，' + res.message)
     }
@@ -150,6 +155,9 @@ export const useRecord = () => {
     incomesTypes.value = bill.incomesTypes
     payMethods.value = bill.payMethods
     dateMap.value.clear()
+    noMore.value = false
+    currentCount.value = 0
+    listFetchedOnce.value = false
 
     await getList()
   }
@@ -201,7 +209,8 @@ export const useRecord = () => {
 
   /** 加载更多数据 */
   const load = async () => {
-    if (totalCount.value === currentCount.value) {
+    if (!listFetchedOnce.value || loadingMore.value || noMore.value) return
+    if (currentCount.value >= totalCount.value) {
       noMore.value = true
       return
     }
@@ -217,7 +226,10 @@ export const useRecord = () => {
   }
 
   const search = () => {
+    noMore.value = false
+    listFetchedOnce.value = false
     dateMap.value.clear()
+    currentCount.value = 0
     pageContent.value.pageIndex = 1
     pageContent.value.pageSize = 60
     getList()

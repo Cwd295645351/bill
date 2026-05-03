@@ -22,7 +22,7 @@ export default defineConfig({
     __VUE_OPTIONS_API__: false,
   },
   esbuild: {
-    drop: ['console', 'debugger'],
+    // drop: ['console', 'debugger'],
   },
   build: {
     outDir: 'dist', // 指定打包路径，默认为项目根目录下的 dist 目录
@@ -41,7 +41,7 @@ export default defineConfig({
     },
   },
   css: {
-    postcss: pathResolve('./postcss.config.js'),
+    // postcss: pathResolve('./postcss.config.js'),
   },
   base: './', // 设置公共基础路径
   server: {

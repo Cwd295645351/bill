@@ -19,7 +19,7 @@ export const useBill = () => {
   const dialogLoading = ref(false)
   const bills = ref<Bill[]>([])
   const form = ref({ name: '' })
-  const currentOperateBill = ref<Bill>({ id: '', _id: '', name: '', creator: '' })
+  const currentOperateBill = ref<Bill>({ id: '', name: '', creator: '' })
   const shareCode = ref('') // 分享码
   const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
 
@@ -38,10 +38,7 @@ export const useBill = () => {
     const [err, res] = await getBillList()
     if (err) return
     if (res.retCode === 0) {
-      bills.value = res.data.map((item: Bill) => {
-        item.id = item._id
-        return item
-      })
+      bills.value = res.data
     } else {
       ElMessage.error('获取账本列表失败，' + res.message)
     }
@@ -49,10 +46,9 @@ export const useBill = () => {
 
   /** 查看账本详情 */
   const showBillDetail = async (item: Bill) => {
-    sessionStorage.setItem('billId', item._id)
+    sessionStorage.setItem('billId', item.id)
     sessionStorage.setItem('tabValue', 'record')
-    sessionStorage.setItem('billId', item._id)
-    store.updateState({ key: 'billId', value: item._id })
+    store.updateState({ key: 'billId', value: item.id })
     router.push('/layout/record')
   }
 

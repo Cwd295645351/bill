@@ -4,6 +4,7 @@ import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
 import { getRecordList, exportData } from '../api'
 import dayjs from 'dayjs'
+import { formatDate, dayStartTs, dayEndTs } from '@/utils/dateUtil'
 
 import type { InformationType } from '../type'
 import type { UserInfo } from '@/types/user-info'
@@ -26,8 +27,8 @@ export const useRecord = () => {
 
   /** 查询条件 */
   const searchOptions = ref<any>({
-    beginDate: '', // 开始时间
-    endDate: '', // 结束时间
+    beginDate: '' as number | '', // 开始时间（时间戳）
+    endDate: '' as number | '', // 结束时间（时间戳）
     userId: '', // 记账人id
     belongUserId: '', // 归属人id
     costTypeId: null, // 支出类型
@@ -63,18 +64,16 @@ export const useRecord = () => {
   /** 记账开始日期限制条件 */
   const beginDateOptions = (time: Date) => {
     if (searchOptions.value.endDate) {
-      return time.getTime() > new Date(searchOptions.value.endDate).getTime()
-    } else {
-      return false
+      return time.getTime() > Number(searchOptions.value.endDate)
     }
+    return false
   }
   /** 记账结束日期限制条件 */
   const endDateOptions = (time: Date) => {
     if (searchOptions.value.beginDate) {
-      return time.getTime() < new Date(searchOptions.value.beginDate).getTime()
-    } else {
-      return false
+      return time.getTime() < Number(searchOptions.value.beginDate)
     }
+    return false
   }
   const pageContent = ref({ pageIndex: 1, pageSize: 60 })
   /** 记账人配置项 */
@@ -98,8 +97,8 @@ export const useRecord = () => {
   const getList = async () => {
     const options = searchOptions.value
     const params = {
-      beginDate: options.beginDate,
-      endDate: options.endDate,
+      beginDate: options.beginDate ? dayStartTs(options.beginDate) : '',
+      endDate: options.endDate ? dayEndTs(options.endDate) : '',
       userId: options.userId,
       belongUserId: options.belongUserId,
       pageIndex: pageContent.value.pageIndex,
@@ -111,9 +110,9 @@ export const useRecord = () => {
       condition: options.condition,
       rangeMoney: options.rangeMoney,
       remark: options.remark,
-      billId: (bill.value as Bill)._id,
+      billId: (bill.value as Bill).id,
     }
-    const [err, res] = await getRecordList({ params })
+    const [err, res] = await getRecordList({ data: params })
     loadingMore.value = false
     if (err) return
     if (res.retCode === 0) {
@@ -122,11 +121,12 @@ export const useRecord = () => {
       totalCount.value = res.data.total
       const data = res.data.datas as RecordItem[]
       data.forEach((item) => {
-        let dateMapItem = dateMap.value.get(item.date)
+        const dateKey = formatDate(item.date)
+        let dateMapItem = dateMap.value.get(dateKey)
         if (!dateMapItem) {
           dateMapItem = {
-            date: item.date,
-            week: weekMap[new Date(item.date).getDay()],
+            date: dateKey,
+            week: weekMap[dayjs(item.date).day()],
             arr: [],
             types: [] as { name: 'costTypeName' | 'incomesTypeName'; money: number }[],
           }
@@ -139,7 +139,7 @@ export const useRecord = () => {
         } else {
           dateMapItem.types.push({ name: itemTypeName, money: item.money })
         }
-        dateMap.value.set(item.date, dateMapItem)
+        dateMap.value.set(dateKey, dateMapItem)
       })
       // 已加载条数，供触底加载判断是否还有更多
       currentCount.value = [...dateMap.value.values()].reduce((sum, d) => sum + d.arr.length, 0)
@@ -179,8 +179,8 @@ export const useRecord = () => {
   const exportExcel = async () => {
     const options = searchOptions.value
     const data = {
-      beginDate: options.beginDate,
-      endDate: options.endDate,
+      beginDate: options.beginDate ? dayStartTs(options.beginDate) : '',
+      endDate: options.endDate ? dayEndTs(options.endDate) : '',
       userId: options.userId,
       belongUserId: options.belongUserId,
       type: type.value,
@@ -190,7 +190,7 @@ export const useRecord = () => {
       condition: options.condition,
       rangeMoney: options.rangeMoney,
       remark: options.remark,
-      billId: (bill.value as Bill)._id,
+      billId: (bill.value as Bill).id,
     }
     const [err, res] = await exportData({ data })
     if (err) return
@@ -241,10 +241,8 @@ export const useRecord = () => {
       searchOptions.value.costTypeId = costTypeId.value
       const currDate = new Date()
       /** 获取当前年度的开始日期和结束日期 */
-      const currentYear_firstDay = dayjs(currDate).startOf('year').format('YYYY-MM-DD')
-      const currentYear_lastDay = dayjs(currDate).endOf('year').format('YYYY-MM-DD')
-      searchOptions.value.beginDate = currentYear_firstDay
-      searchOptions.value.endDate = currentYear_lastDay
+      searchOptions.value.beginDate = dayjs(currDate).startOf('year').valueOf()
+      searchOptions.value.endDate = dayjs(currDate).endOf('year').valueOf()
       store.updateState({ key: 'costTypeId', value: 0 })
     }
   })

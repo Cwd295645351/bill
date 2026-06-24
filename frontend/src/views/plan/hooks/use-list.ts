@@ -20,7 +20,7 @@ export const useList = () => {
     if (res.retCode === 0) {
       const data = res.data
       data.details.forEach((item: PlanResponse) => {
-        const obj: PlanItem = { _id: item._id, context: item.context, title: item.title, priority: item.priority }
+        const obj: PlanItem = { id: item.id, context: item.context, title: item.title, priority: item.priority }
         // 优先级数组下标需要 -1
         const priority = item.priority - 1
         planList.value[priority].push(obj)

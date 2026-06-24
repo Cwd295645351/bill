@@ -1,5 +1,6 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
+import { formatDate, dayStartTs, dayEndTs } from '@/utils/dateUtil'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
@@ -149,7 +150,7 @@ export const useSearch = (pageSize: number) => {
 
   /** 日期选择器确认 */
   const onConfirmDatePicker = ({ selectedValues }) => {
-    const value = selectedValues.join('-')
+    const value = dayjs(selectedValues.join('-')).valueOf()
     if (datePickerType.value === 'beginDate') {
       searchOptions.value.beginDate = value
     } else {
@@ -169,8 +170,8 @@ export const useSearch = (pageSize: number) => {
     const options = searchOptions.value
     const { beginDate, endDate, userId, belongUserId, type, payMethodId, incomesTypeId, costTypeId, conditionId, rangeMoney, remark } = options
     const params = {
-      beginDate,
-      endDate,
+      beginDate: beginDate ? dayStartTs(beginDate) : '',
+      endDate: endDate ? dayEndTs(endDate) : '',
       userId,
       belongUserId,
       type,
@@ -185,18 +186,19 @@ export const useSearch = (pageSize: number) => {
       pageSize: pageSize,
     }
     loading.value = true
-    const [err, res] = await getRecordListApi({ params })
+    const [err, res] = await getRecordListApi({ data: params })
     loading.value = false
     showSearchCondition.value = false
     if (err) return
     if (res.retCode === 0) {
       const data = res.data.datas as RecordItem[]
       data.forEach((item) => {
-        let dateMapItem = dateMap.value.get(item.date)
+        const dateKey = formatDate(item.date)
+        let dateMapItem = dateMap.value.get(dateKey)
         if (!dateMapItem) {
           dateMapItem = {
             date: dayjs(item.date).format('YYYY年MM月DD日'),
-            week: weekMap[new Date(item.date).getDay()],
+            week: weekMap[dayjs(item.date).day()],
             arr: [],
             cost: 0,
             incomes: 0,
@@ -208,7 +210,7 @@ export const useSearch = (pageSize: number) => {
         } else {
           dateMapItem.incomes += item.money
         }
-        dateMap.value.set(item.date, dateMapItem)
+        dateMap.value.set(dateKey, dateMapItem)
       })
       loadedLength.value += data.length
       console.log(dateMap)

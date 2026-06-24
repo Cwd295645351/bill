@@ -16,10 +16,10 @@ export const useBudget = (emits: Emits) => {
   const $addForm = ref()
 
   const editDialog = ref(false)
-  const editBudgetObj = ref<BudgetDetail>({ costTypeId: '', costTypeName: '', budget: 0, cost: 0, _id: '' })
+  const editBudgetObj = ref<BudgetDetail>({ id: '', costTypeId: '', costTypeName: '', budget: 0, cost: 0 })
   const btnLoading = ref(false)
   const deleteDialog = ref(false)
-  const deleteObj = ref<BudgetDetail>({ costTypeId: '', costTypeName: '', budget: 0, cost: 0, _id: '' })
+  const deleteObj = ref<BudgetDetail>({ id: '', costTypeId: '', costTypeName: '', budget: 0, cost: 0 })
   /** 总预算 */
   const totalBudget = ref('0')
   /** 总支出 */
@@ -145,7 +145,7 @@ export const useBudget = (emits: Emits) => {
   const submitEditBudget = () => {
     $editForm.value.validate(async (valid: boolean) => {
       if (valid) {
-        const data = { date: year.value, billId: billId.value, id: editBudgetObj.value._id, money: editBudgetObj.value.budget }
+        const data = { date: year.value, billId: billId.value, id: editBudgetObj.value.id, money: editBudgetObj.value.budget }
         btnLoading.value = true
         const [err, res] = await budgetEdit({ data })
         btnLoading.value = false
@@ -172,7 +172,7 @@ export const useBudget = (emits: Emits) => {
 
   /** 删除预算 */
   const submitDeleteBudget = async () => {
-    const params = { date: year.value, billId: billId.value, id: deleteObj.value._id }
+    const params = { date: year.value, billId: billId.value, id: deleteObj.value.id }
     btnLoading.value = true
     const [err, res] = await budgetDelete({ params })
     btnLoading.value = false

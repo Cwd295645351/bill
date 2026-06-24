@@ -1,6 +1,5 @@
-const Asset = require('../../database/modules/Asset')
-const AssetRecord = require('../../database/modules/AssetRecord')
-const mongoose = require('../../database/index')
+const { Asset, AssetRecord } = require('../../database/index')
+const { Op } = require('sequelize')
 
 /** 添加资产记录
  * @param {string} assetId 资产id
@@ -14,21 +13,18 @@ exports.addAssetRecord = async ({ assetId, amount, date }) => {
   if (!date) return ['日期不能为空', null]
 
   const record = await AssetRecord.create({
-    assetId: mongoose.Types.ObjectId(assetId),
+    assetId,
     amount,
     date: date
   })
 
   if (!record) return ['盘点记录创建失败', null]
 
-  const updateRes = await Asset.findOneAndUpdate(
-    { _id: mongoose.Types.ObjectId(assetId), isDel: false },
-    {
-      latestAmount: amount,
-      lastUpdatedDate: date
-    },
-    { new: true }
+  const [affected] = await Asset.update(
+    { latestAmount: amount, lastUpdatedDate: date },
+    { where: { id: assetId, isDel: false } }
   )
+  const updateRes = affected ? await Asset.findByPk(assetId) : null
 
   if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
 
@@ -48,27 +44,21 @@ exports.editAssetRecord = async ({ id, assetId, amount, date }) => {
   if (amount === undefined || amount === null) return ['金额不能为空', null]
   if (!date) return ['日期不能为空', null]
 
-  const res = await AssetRecord.findOneAndUpdate(
-    { _id: mongoose.Types.ObjectId(id), isDel: false },
-    { amount, date },
-    { new: true }
-  )
+  const [affected] = await AssetRecord.update({ amount, date }, { where: { id, isDel: false } })
+  const res = affected ? await AssetRecord.findByPk(id) : null
   if (!res) return ['编辑资产记录失败，资产记录可能已被删除', null]
 
   const latestRecord = await AssetRecord.findOne({ 
-    assetId: mongoose.Types.ObjectId(assetId), 
-    isDel: false 
-  }).sort({ date: -1 })
+    where: { assetId, isDel: false },
+    order: [['date', 'DESC']]
+  })
 
   if (latestRecord) {
-    const updateRes = await Asset.findOneAndUpdate(
-      { _id: mongoose.Types.ObjectId(assetId), isDel: false },
-      { 
-        latestAmount: latestRecord.amount, 
-        lastUpdatedDate: latestRecord.date 
-      },
-      { new: true }
+    const [assetAffected] = await Asset.update(
+      { latestAmount: latestRecord.amount, lastUpdatedDate: latestRecord.date },
+      { where: { id: assetId, isDel: false } }
     )
+    const updateRes = assetAffected ? await Asset.findByPk(assetId) : null
     if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
   }
 
@@ -82,32 +72,25 @@ exports.editAssetRecord = async ({ id, assetId, amount, date }) => {
 exports.delAssetRecord = async ({ id }) => {
   if (!id) return ['资产记录id不能为空', null]
 
-  const record = await AssetRecord.findOne({ _id: mongoose.Types.ObjectId(id), isDel: false })
+  const record = await AssetRecord.findOne({ where: { id, isDel: false } })
   if (!record) return ['资产记录不存在', null]
 
   const assetId = record.assetId
 
-  const recordCount = await AssetRecord.countDocuments({ assetId: mongoose.Types.ObjectId(assetId), isDel: false })
+  const recordCount = await AssetRecord.count({ where: { assetId, isDel: false } })
   if (recordCount <= 1) return ['只剩一条记录时不能删除', null]
 
-  const res = await AssetRecord.findOneAndUpdate(
-    { _id: mongoose.Types.ObjectId(id), isDel: false },
-    { isDel: true },
-    { new: true }
-  )
-  if (!res) return ['删除资产记录失败，资产记录可能已被删除', null]
+  const [affected] = await AssetRecord.update({ isDel: true }, { where: { id, isDel: false } })
+  if (!affected) return ['删除资产记录失败，资产记录可能已被删除', null]
 
-  const latestRecord = await AssetRecord.findOne({ assetId: mongoose.Types.ObjectId(assetId), isDel: false }).sort({ date: -1 })
+  const latestRecord = await AssetRecord.findOne({ where: { assetId, isDel: false }, order: [['date', 'DESC']] })
   
   if (latestRecord) {
-    const updateRes = await Asset.findOneAndUpdate(
-      { _id: mongoose.Types.ObjectId(assetId), isDel: false },
-      { 
-        latestAmount: latestRecord.amount, 
-        lastUpdatedDate: latestRecord.date 
-      },
-      { new: true }
+    const [assetAffected] = await Asset.update(
+      { latestAmount: latestRecord.amount, lastUpdatedDate: latestRecord.date },
+      { where: { id: assetId, isDel: false } }
     )
+    const updateRes = assetAffected ? await Asset.findByPk(assetId) : null
     if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
   }
 
@@ -122,12 +105,12 @@ exports.delAssetRecord = async ({ id }) => {
  */
 exports.getAssetRecords = async ({ assetId, startDate, endDate }) => {
   if (!assetId) return ['资产id不能为空', null]
-  const query = { assetId: mongoose.Types.ObjectId(assetId), isDel: false }
+  const query = { assetId, isDel: false }
   if (startDate || endDate) {
     query.date = {}
-    if (startDate) query.date.$gte = startDate
-    if (endDate) query.date.$lte = endDate
+    if (startDate) query.date[Op.gte] = startDate
+    if (endDate) query.date[Op.lte] = endDate
   }
-  const res = await AssetRecord.find(query).sort({ date: -1 })
+  const res = await AssetRecord.findAll({ where: query, order: [['date', 'DESC']] })
   return [null, res]
 }

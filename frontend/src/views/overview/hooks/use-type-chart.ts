@@ -2,6 +2,7 @@ import { Ref, onMounted, ref, watch } from 'vue'
 import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import dayjs from 'dayjs'
+import { formatDate, dayStartTs, dayEndTs } from '@/utils/dateUtil'
 import * as echarts from 'echarts'
 
 import { getBalance } from '../api'
@@ -18,7 +19,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const users = ref<User[]>([])
 
-  const belongCondition = ref<BelongCondition>({ startDate: '', endDate: '', days: 0, refundMoney: 0 })
+  const belongCondition = ref<BelongCondition>({ startDate: '' as number | '', endDate: '' as number | '', days: 0, refundMoney: 0 })
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -80,9 +81,9 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
 
     const searchParams: any = {
-      beginDate: belongCondition.value.startDate,
-      endDate: belongCondition.value.endDate,
-      billId: (bill.value as Bill)._id,
+      beginDate: belongCondition.value.startDate ? dayStartTs(belongCondition.value.startDate) : '',
+      endDate: belongCondition.value.endDate ? dayEndTs(belongCondition.value.endDate) : '',
+      billId: (bill.value as Bill).id,
       type: 1, // 支出
       costTypeId: costType.id,
       pageIndex: 0,
@@ -100,7 +101,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       }
     }
 
-    const [err, res] = await getRecordList({ params: searchParams })
+    const [err, res] = await getRecordList({ data: searchParams })
     loading.value = false
     if (err) return
     if (res.retCode === 0) {
@@ -118,7 +119,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
         })
         .map((item: any) => {
           item.userName = users.value.find((u: any) => u.id === item.userId)?.name || '未知'
-          item.date = dayjs(item.date).format('YYYY-MM-DD')
+          item.date = formatDate(item.date)
           item.totalMoney = item.money // 保存原始总金额
 
           // 如果是专属饼图，且这条记录的归属人是"全部"，则按比例计算
@@ -245,7 +246,11 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   }
 
   const getBalanceAndPieData = async () => {
-    const params = { billId: billId.value, beginDate: belongCondition.value.startDate, endDate: belongCondition.value.endDate }
+    const params = {
+      billId: billId.value,
+      beginDate: dayStartTs(belongCondition.value.startDate),
+      endDate: dayEndTs(belongCondition.value.endDate),
+    }
     const [err, res] = await getBalance({ params })
     if (err) return
     if (res.retCode === 0) {
@@ -280,8 +285,8 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   }
 
   const initData = (bill: Bill) => {
-    belongCondition.value.startDate = dayjs().startOf('year').format('YYYY-MM-DD')
-    belongCondition.value.endDate = dayjs().format('YYYY-MM-DD')
+    belongCondition.value.startDate = dayjs().startOf('year').valueOf()
+    belongCondition.value.endDate = dayjs().valueOf()
     users.value = bill.users
     getBalanceAndPieData()
   }

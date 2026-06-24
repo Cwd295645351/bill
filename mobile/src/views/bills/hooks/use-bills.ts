@@ -48,7 +48,7 @@ export const useBills = () => {
 
   /** 账本点击，进入账本列表页 */
   const onBillClick = (item: Bill) => {
-    sessionStorage.setItem('billId', item._id)
+    sessionStorage.setItem('billId', item.id)
     router.push('/bill-detail')
   }
 

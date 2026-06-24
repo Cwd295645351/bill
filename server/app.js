@@ -2,7 +2,6 @@ const Koa = require('koa')
 const json = require('koa-json')
 const onerror = require('koa-onerror')
 const logger = require('koa-logger')
-const koaStatic = require('koa-static')
 
 // 第三方依赖
 const koaBody = require('koa-body') // 接口数据处理
@@ -15,6 +14,7 @@ const cors = require('koa2-cors') // 跨域处理
 const koajwt = require('koa-jwt') // jwt权限管理
 
 const CONF = require('./config/db')
+const { connectDB } = require('./database/index')
 
 const VERSION = require('./config/version')
 
@@ -26,18 +26,21 @@ const budget = require('./routes/budget/index')
 const overview = require('./routes/overview/index')
 const plan = require('./routes/plan/index')
 const asset = require('./routes/asset/index')
-const pages = require('./routes/pages/index')
 
 const app = new Koa()
 
 // error handler
 onerror(app)
 
+// 初始化数据库连接（失败则退出，避免服务在无数据库情况下运行）
+connectDB().catch((err) => {
+  console.error(err)
+  process.exit(1)
+})
+
 // middlewares
 app.use(json())
 app.use(logger())
-app.use(koaStatic(__dirname + '/public/pc'))
-app.use(koaStatic(__dirname + '/public/mobile'))
 
 // logger
 app.use(async (ctx, next) => {
@@ -125,7 +128,7 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/, /\/pc/, /\/mobile/]
+    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/]
   })
 )
 
@@ -137,12 +140,12 @@ app.use(
       maxFileSize: 200 * 1024 * 1024, // 设置上传文件大小最大限制，默认2M
       keepExtensions: true,
       maxFields: 2 * 1024 * 1024, // 文件上传大小
-      uploadDir: path.join(__dirname, 'public/upload/'),
+      uploadDir: path.join(__dirname, 'uploads/'),
       onFileBegin: (name, file) => {
         // 文件存储之前对文件进行重命名处理
         const fileFormat = file.originalFilename.split('.')
         let savePath = `${Date.now()}.${fileFormat[fileFormat.length - 1]}`
-        file.path = `public/upload/${savePath}`
+        file.path = `uploads/${savePath}`
       }
     }
   })
@@ -156,7 +159,6 @@ app.use(budget.routes(), budget.allowedMethods())
 app.use(overview.routes(), budget.allowedMethods())
 app.use(plan.routes(), plan.allowedMethods())
 app.use(asset.routes(), asset.allowedMethods())
-app.use(pages.routes(), pages.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

@@ -1,7 +1,7 @@
-const Asset = require('../../database/modules/Asset')
-const AssetRecord = require('../../database/modules/AssetRecord')
-const mongoose = require('../../database/index')
+const { Asset, AssetRecord } = require('../../database/index')
 const dayjs = require('dayjs')
+const { Op } = require('sequelize')
+const { getLatestSnapshotsBefore } = require('../../database/services/assetRecordService')
 
 /** 获取资产概览（首页顶部摘要 + 变化柱状图）
  * 返回当前资产汇总及与上月末相比的各类型变化数据
@@ -26,10 +26,10 @@ const dayjs = require('dayjs')
 exports.getAssetOverview = async ({ billId, memberId }) => {
   if (!billId) return ['账本id不能为空', null]
 
-  const query = { billId: mongoose.Types.ObjectId(billId), isDel: false }
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
+  const query = { billId, isDel: false }
+  if (memberId) query.memberId = memberId
 
-  const assets = await Asset.find(query)
+  const assets = await Asset.findAll({ where: query })
   if (!assets.length) {
     return [null, {
       netAmount: 0, assetAmount: 0, debtAmount: 0,
@@ -37,7 +37,7 @@ exports.getAssetOverview = async ({ billId, memberId }) => {
     }]
   }
 
-  const assetIds = assets.map(a => a._id)
+  const assetIds = assets.map(a => a.id)
 
   // 当前汇总
   let assetAmount = 0
@@ -71,15 +71,11 @@ exports.getAssetOverview = async ({ billId, memberId }) => {
   const refTimestamp = lastMonthEnd.valueOf()
 
   // 聚合查询：获取每个资产在上月末时的最新快照
-  const prevSnapshots = await AssetRecord.aggregate([
-    { $match: { assetId: { $in: assetIds }, date: { $lte: refTimestamp }, isDel: false } },
-    { $sort: { date: -1 } },
-    { $group: { _id: '$assetId', amount: { $first: '$amount' } } }
-  ])
+  const prevSnapshots = await getLatestSnapshotsBefore(assetIds, refTimestamp)
 
   const prevByType = {}
   prevSnapshots.forEach(snap => {
-    const asset = assets.find(a => a._id.toString() === snap._id.toString())
+    const asset = assets.find(a => a.id === snap.assetId)
     if (!asset) return
     if (!prevByType[asset.type]) prevByType[asset.type] = 0
     prevByType[asset.type] += Math.abs(snap.amount)
@@ -118,10 +114,10 @@ exports.getAssetOverview = async ({ billId, memberId }) => {
  */
 exports.getSankeyData = async ({ billId, memberId }) => {
   const query = { isDel: false }
-  if (billId) query.billId = mongoose.Types.ObjectId(billId)
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
+  if (billId) query.billId = billId
+  if (memberId) query.memberId = memberId
 
-  const assets = await Asset.find(query)
+  const assets = await Asset.findAll({ where: query })
 
   let totalAsset = 0
   let totalDebt = 0
@@ -179,10 +175,10 @@ exports.getSankeyData = async ({ billId, memberId }) => {
  */
 exports.getFourMoneySummary = async ({ billId, memberId }) => {
   const query = { isDel: false }
-  if (billId) query.billId = mongoose.Types.ObjectId(billId)
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
+  if (billId) query.billId = billId
+  if (memberId) query.memberId = memberId
 
-  const assets = await Asset.find(query)
+  const assets = await Asset.findAll({ where: query })
 
   const summary = {
     living: { name: '活钱', amount: 0, count: 0, assets: [] },
@@ -215,11 +211,11 @@ exports.getFourMoneySummary = async ({ billId, memberId }) => {
  */
 exports.getMonthlyReport = async ({ billId, year, memberId }) => {
   const query = { isDel: false }
-  if (billId) query.billId = mongoose.Types.ObjectId(billId)
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
+  if (billId) query.billId = billId
+  if (memberId) query.memberId = memberId
 
-  const assets = await Asset.find(query)
-  const assetIds = assets.map(a => a._id)
+  const assets = await Asset.findAll({ where: query })
+  const assetIds = assets.map(a => a.id)
 
   const result = {
     '流动资金': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
@@ -234,14 +230,10 @@ exports.getMonthlyReport = async ({ billId, year, memberId }) => {
   for (let m = 0; m < 12; m++) {
     const monthEnd = dayjs(`${year}-${m + 1}-01`).endOf('month').valueOf()
 
-    const snapshots = await AssetRecord.aggregate([
-      { $match: { assetId: { $in: assetIds }, date: { $lte: monthEnd }, isDel: false } },
-      { $sort: { date: -1 } },
-      { $group: { _id: '$assetId', amount: { $first: '$amount' }, lastDate: { $first: '$date' } } }
-    ])
+    const latest = await getLatestSnapshotsBefore(assetIds, monthEnd)
 
-    snapshots.forEach(snap => {
-      const asset = assets.find(a => a._id.toString() === snap._id.toString())
+    latest.forEach(snap => {
+      const asset = assets.find(a => a.id === snap.assetId)
       if (!asset) return
 
       const amt = snap.amount
@@ -255,7 +247,7 @@ exports.getMonthlyReport = async ({ billId, year, memberId }) => {
         result['总资产'].monthlyData[m] += amt
       }
 
-      const dateStr = dayjs(snap.lastDate).format('YYYY-MM-DD')
+      const dateStr = dayjs(snap.date).format('YYYY-MM-DD')
       if (result[type] && (!result[type].lastUpdate || dateStr > result[type].lastUpdate)) {
         result[type].lastUpdate = dateStr
       }

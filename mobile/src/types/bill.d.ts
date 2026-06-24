@@ -1,7 +1,6 @@
 /** 账本 */
 export interface Bill {
   id: string
-  _id: string
   /** 计划购入 */
   planBuy: PlanBuy
   /** 预算清单 */
@@ -82,7 +81,7 @@ export interface Budget {
 /** 预算明细 */
 export interface BudgetDetail {
   /** 预算明细id */
-  _id?: string
+  id: string
   /** 支出类型id */
   costTypeId: string
   /** 支出类型名称 */

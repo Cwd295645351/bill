@@ -5,14 +5,12 @@ export type InformationType = 1 | 2
 export interface Information {
   /** 明细id */
   id?: string
-  /** 明细id */
-  _id?: string
   /** 账本id */
   billId?: string
   /** 明细类型 */
   type?: InformationType
-  /** 日期 */
-  date: string
+  /** 日期（时间戳） */
+  date: number | string
   /** 支出类型（支出数据） */
   costTypeId?: string
   /** 支付方式（支出数据） */

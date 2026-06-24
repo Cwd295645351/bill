@@ -35,7 +35,7 @@
           <div class="context">{{ item.context }}</div>
           <div class="operate">
             <el-button size="small" type="primary" :icon="Edit" circle @click="showEdit(item)"></el-button>
-            <el-button size="small" type="danger" :icon="Delete" circle @click="showDelete(item._id)"></el-button>
+            <el-button size="small" type="danger" :icon="Delete" circle @click="showDelete(item.id)"></el-button>
           </div>
         </div>
       </div>

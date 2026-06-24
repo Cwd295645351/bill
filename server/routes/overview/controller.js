@@ -1,45 +1,50 @@
-const Transaction = require('../../database/modules/Transaction')
+const { Transaction } = require('../../database/index')
 const dayjs = require('dayjs')
+const { Op } = require('sequelize')
+
+/** 金额保留两位小数（返回 number） */
+const fixMoney = (n) => Number(Number(n).toFixed(2))
 
 // 查询收支和各归属人概况
 exports.getBlance = async (data, userId) => {
   const params = {
     billId: data.billId,
-    date: {
-      $gte: new Date(data.beginDate),
-      $lte: new Date(data.endDate)
-    },
+    date: { [Op.between]: [data.beginDate, data.endDate] },
     isDel: false
   }
-  const res = await Transaction.find(params, { type: 1, money: 1, belongUserId: 1, costTypeId: 1, costTypeName: 1, belongUserName: 1, userId: 1 })
+  const res = await Transaction.findAll({
+    where: params,
+    attributes: ['type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+  })
   let totalCost = 0,
     totalIncomes = 0,
     investCost = 0,
     belongUserCosts = [],
     costTypeRank = {}
   res.forEach((item) => {
+    const money = item.money
     if (item.type === 1) {
       // 支出
-      totalCost += item.money
+      totalCost += money
       if (item.costTypeId === '1015') {
         // 投资支出
-        investCost += item.money
+        investCost += money
       }
     } else {
       // 收入
-      totalIncomes += item.money
+      totalIncomes += money
     }
     // 统计各个归属人收支金额
     const user = belongUserCosts.find((ite) => ite.type === item.type && ite.belongUserId === item.belongUserId && ite.userId === item.userId)
     if (user) {
-      user.money += item.money
+      user.money += money
     } else {
       belongUserCosts.push({
         type: item.type,
         belongUserId: item.belongUserId,
         belongUserName: item.belongUserName,
         userId: item.userId,
-        money: item.money
+        money
       })
     }
 
@@ -49,26 +54,35 @@ exports.getBlance = async (data, userId) => {
         // 有对应归属人类型
         const costType = costTypeRank[item.belongUserName].find((ite) => ite.type === item.costTypeId)
         if (costType) {
-          costType.money += item.money
+          costType.money += money
         } else {
-          costTypeRank[item.belongUserName].push({ type: item.costTypeId, name: item.costTypeName, money: item.money })
+          costTypeRank[item.belongUserName].push({ type: item.costTypeId, name: item.costTypeName, money })
         }
       } else {
         costTypeRank[item.belongUserName] = [
           {
             type: item.costTypeId,
             name: item.costTypeName,
-            money: item.money
+            money
           }
         ]
       }
     }
   })
 
+  belongUserCosts.forEach((item) => {
+    item.money = fixMoney(item.money)
+  })
+  Object.keys(costTypeRank).forEach((key) => {
+    costTypeRank[key].forEach((item) => {
+      item.money = fixMoney(item.money)
+    })
+  })
+
   const result = {
-    totalCost: totalCost.toFixed(2),
-    totalIncomes: totalIncomes.toFixed(2),
-    investCost: investCost.toFixed(2),
+    totalCost: fixMoney(totalCost),
+    totalIncomes: fixMoney(totalIncomes),
+    investCost: fixMoney(investCost),
     belongUserCosts,
     costTypeRank
   }
@@ -84,38 +98,17 @@ exports.getCosts = async (billId) => {
   const twoYearBefore = dayjs(date).subtract(2, 'year')
   const threeYearBefore = dayjs(date).subtract(3, 'year')
 
-  const currDateRange = {
-    beginDate: lastYear.startOf('year').toDate(),
-    endDate: lastYear.endOf('year').toDate()
-  }
-  const lastDateRange = {
-    beginDate: twoYearBefore.startOf('year').toDate(),
-    endDate: twoYearBefore.endOf('year').toDate()
-  }
-  const twoYearBeforeRange = {
-    beginDate: threeYearBefore.startOf('year').toDate(),
-    endDate: threeYearBefore.endOf('year').toDate()
-  }
   const params = {
     billId: billId,
-    date: {
-      $gte: currDateRange.beginDate,
-      $lte: currDateRange.endDate
-    },
     type: 1,
     isDel: false
   }
-  const lastYearRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
-  params.date = {
-    $gte: lastDateRange.beginDate,
-    $lte: lastDateRange.endDate
-  }
-  const twoYearBeforeRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
-  params.date = {
-    $gte: twoYearBeforeRange.beginDate,
-    $lte: twoYearBeforeRange.endDate
-  }
-  const threeYearBeforeRes = await Transaction.find(params, { money: 1, costTypeId: 1, costTypeName: 1 })
+  params.date = { [Op.between]: [lastYear.startOf('year').valueOf(), lastYear.endOf('year').valueOf()] }
+  const lastYearRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
+  params.date = { [Op.between]: [twoYearBefore.startOf('year').valueOf(), twoYearBefore.endOf('year').valueOf()] }
+  const twoYearBeforeRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
+  params.date = { [Op.between]: [threeYearBefore.startOf('year').valueOf(), threeYearBefore.endOf('year').valueOf()] }
+  const threeYearBeforeRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
 
   const res = [
     { name: lastYear.format('YYYY'), datas: lastYearRes },
@@ -140,9 +133,10 @@ const batchDeal = (res) => {
       }
     })
     result.forEach((item) => {
-      item.value = item.value.toFixed(2)
+      item.value = fixMoney(item.value)
     })
     return result
+
   }
 
   // 补充剩余的支出类型
@@ -152,7 +146,7 @@ const batchDeal = (res) => {
         const noData = maxData.filter((ite) => !item.datas.find((it) => it.id === ite.id))
         noData.forEach((ite) => {
           const obj = Object.assign({}, ite)
-          obj.value = 0
+          obj.value = fixMoney(0)
           item.datas.push(obj)
         })
       }

@@ -24,10 +24,10 @@
       <div class="add-data-container">
         <el-form :model="belongCondition" ref="form" class="form-container" labelPosition="top">
           <el-form-item prop="startDate" required size="small" label="开始时间">
-            <el-date-picker style="width: 100%" v-model="belongCondition.startDate" value-format="YYYY-MM-DD" type="date" placeholder="开始时间"> </el-date-picker>
+            <el-date-picker style="width: 100%" v-model="belongCondition.startDate" value-format="x" type="date" placeholder="开始时间"> </el-date-picker>
           </el-form-item>
           <el-form-item prop="endDate" required size="small" label="结束时间">
-            <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="YYYY-MM-DD" type="date" placeholder="结束时间"> </el-date-picker>
+            <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="x" type="date" placeholder="结束时间"> </el-date-picker>
           </el-form-item>
           <el-form-item prop="days" required size="small" label="香港天数">
             <el-input v-model="belongCondition.days" placeholder="请输入香港天数"> </el-input>

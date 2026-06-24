@@ -1,24 +1,56 @@
-const mongoose = require('mongoose')
-const CONF = require('../config/db')
+const { Sequelize } = require('sequelize')
+const { MYSQL_CONF } = require('../config/db')
 
-const url = `mongodb://${CONF.MONGODB_CONF.host}:${CONF.MONGODB_CONF.port}`
-const dbName = CONF.MONGODB_CONF.dbName
+const sequelize = new Sequelize(
+  MYSQL_CONF.database,
+  MYSQL_CONF.username,
+  MYSQL_CONF.password,
+  {
+    host: MYSQL_CONF.host,
+    port: MYSQL_CONF.port,
+    dialect: MYSQL_CONF.dialect,
+    logging: MYSQL_CONF.logging,
+    pool: MYSQL_CONF.pool,
+    define: {
+      timestamps: false,
+      underscored: true
+    }
+  }
+)
 
+const initModels = require('./models')
 
-// 链接数据库
-mongoose.connect(`${url}/${dbName}`)
+const models = initModels(sequelize)
 
-//  获取连接对象
-const db = mongoose.connection
+/** 若数据库不存在则自动创建（适用于全新安装的 MySQL） */
+const ensureDatabase = async () => {
+  const bootstrap = new Sequelize('', MYSQL_CONF.username, MYSQL_CONF.password, {
+    host: MYSQL_CONF.host,
+    port: MYSQL_CONF.port,
+    dialect: MYSQL_CONF.dialect,
+    logging: false
+  })
+  const dbName = MYSQL_CONF.database
+  await bootstrap.query(
+    `CREATE DATABASE IF NOT EXISTS \`${dbName}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`
+  )
+  await bootstrap.close()
+}
 
-// 发生错误
-db.on('error', (err) => {
-  console.error(err)
-})
+const connectDB = async () => {
+  try {
+    await ensureDatabase()
+    await sequelize.authenticate()
+    await sequelize.sync()
+    console.log('MySQL connect success')
+  } catch (err) {
+    console.error('MySQL connect failed:', err)
+    throw err
+  }
+}
 
-// 连接成功
-db.once('open', () => {
-  console.log('mongoose connect success')
-})
-
-module.exports =  mongoose
+module.exports = {
+  sequelize,
+  connectDB,
+  ...models
+}

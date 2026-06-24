@@ -52,7 +52,7 @@ export const useLogin = () => {
         ...data.userInfo,
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
-        userId: data.userInfo._id,
+        userId: data.userInfo.id,
       }
       sessionStorage.setItem('expiresAt', expiresAt.toString())
       sessionStorage.setItem('userInfo', JSON.stringify(userInfo))

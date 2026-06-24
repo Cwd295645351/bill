@@ -1,34 +1,20 @@
 const koaRouter = require('koa-router')
+const dayjs = require('dayjs')
 const { ResModel } = require('../../model/resModel')
 const { xssData } = require('../../utils/xss')
-const dayjs = require('dayjs')
 const Transaction = require('./controller')
 const VERSION = require('../../config/version')
 
 const router = koaRouter({ prefix: `/api/${VERSION}/transaction` })
 
 // 交易明细(可根据周/月/年进行查询)
-router.get('/list', async (ctx, next) => {
-  const data = ctx.query
-  const { beginDate, endDate, pageIndex, pageSize, type, billId } = data
-  const dateReg = /^\d{4}-\d{2}-\d{2}$/gi
+router.post('/list', async (ctx, next) => {
+  const data = { ...ctx.request.body }
+  xssData(data)
+  const { pageIndex, pageSize, type, billId } = data
   if (!billId) {
     ctx.body = new ResModel(null, '账本id不能为空', 'error')
     return
-  }
-  if (beginDate) {
-    if (!beginDate.match(dateReg)) {
-      ctx.body = new ResModel(null, '开始时间不规范', 'error')
-      return
-    }
-    data.beginDate = new Date(beginDate + ' 00:00:00')
-  }
-  if (endDate) {
-    if (!endDate.match(dateReg)) {
-      ctx.body = new ErrorModel(null, '结束时间不规范', 'error')
-      return
-    }
-    data.endDate = new Date(endDate + ' 23:59:59')
   }
   // 页码小于1的统一按第一页开始，前端页码从1开始
   data.pageIndex = pageIndex < 1 ? 0 : pageIndex - 1
@@ -130,13 +116,13 @@ router.get('/currentMonthCost', async (ctx, next) => {
   const userId = ctx.header.userid
   const billId = ctx.query.billId
   const currentDate = new Date()
-  const beginDate = dayjs(currentDate).startOf('month').toDate()
+  const beginDate = dayjs(currentDate).startOf('month').valueOf()
   if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
   else if (!userId) ctx.body = new ResModel(null, 'userId不能为空', 'error')
   else {
     const params = {
-      beginDate: beginDate,
-      endDate: currentDate,
+      beginDate,
+      endDate: currentDate.getTime(),
       billId: billId,
       reimbursement: 0
     }

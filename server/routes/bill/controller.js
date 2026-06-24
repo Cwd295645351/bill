@@ -1,68 +1,73 @@
-const Bill = require('../../database/modules/Bills')
-const mongoose = require('../../database/index')
+const { Bill, BillUser, BillCostType, BillIncomeType, BillPayMethod } = require('../../database/index')
 const { encode, decode } = require('../../utils/cryp')
 const InitData = require('../../database/initDatas')
+const { findBillById, sequelize } = require('../../database/services/billService')
 
 // 查询账本列表
 exports.getBillList = async ({ userId, nickName }) => {
-  const params = { users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
-  const res = await Bill.find(params, { creator: 1, name: 1 })
+  const rows = await Bill.findAll({
+    where: { isDel: false },
+    include: [{ model: BillUser, as: 'billUsers', where: { userId, userName: nickName }, required: true }],
+    attributes: ['id', 'creator', 'name']
+  })
+  const res = rows.map((r) => ({ id: r.id, creator: r.creator, name: r.name }))
   return [null, res]
 }
 
 // 创建账本
 exports.createBill = async ({ userId, name, nickName }) => {
-  const findData = { name: name, creator: userId }
-  const findBill = await Bill.findOne(findData, {})
+  const findBill = await Bill.findOne({ where: { name: name, creator: userId } })
   if (findBill) {
     return ['该名称的账本已存在', null]
   }
-  const createData = {
-    name: name,
-    creator: userId,
-    users: [{ id: userId, name: nickName }],
-    costTypes: InitData.costTypes,
-    incomesTypes: InitData.incomesTypes,
-    payMethods: InitData.payMethods,
-    planBuy: { count: 0, totalCost: 0, details: [] },
-    budget: [],
-    isDel: false
+  const tx = await sequelize.transaction()
+  try {
+    const billRes = await Bill.create(
+      { name: name, creator: userId, planBuyCount: 0, isDel: false },
+      { transaction: tx }
+    )
+    await BillUser.create({ billId: billRes.id, userId, userName: nickName }, { transaction: tx })
+    await BillCostType.bulkCreate(
+      InitData.costTypes.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      { transaction: tx }
+    )
+    await BillIncomeType.bulkCreate(
+      InitData.incomesTypes.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      { transaction: tx }
+    )
+    await BillPayMethod.bulkCreate(
+      InitData.payMethods.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      { transaction: tx }
+    )
+    await tx.commit()
+    return [null, billRes.id]
+  } catch (e) {
+    await tx.rollback()
+    console.error(e)
+    return ['创建失败', null]
   }
-  const billRes = await Bill.create(createData)
-  if (!billRes) return ['创建失败', null]
-  return [null, billRes._id]
 }
 
 // 编辑账本名称
 exports.editBill = async ({ id, name }) => {
-  const params = { _id: mongoose.Types.ObjectId(id) }
-  const res = await Bill.findOneAndUpdate(params, { name: name }, { new: true })
-  if (res) return [null, true]
+  const [affected] = await Bill.update({ name: name }, { where: { id, isDel: false } })
+  if (affected) return [null, true]
   else return ['编辑失败', null]
 }
 
 // 删除账本
 exports.delBill = async ({ userId, id }) => {
-  const params = { _id: mongoose.Types.ObjectId(id), creator: userId, isDel: false }
-  const billRes = await Bill.findOneAndUpdate(params, { isDel: true }, { new: true })
-  if (!billRes) return ['找不到该账本或您非该账本的创建者', null]
+  const [affected] = await Bill.update({ isDel: true }, { where: { id, creator: userId, isDel: false } })
+  if (!affected) return ['找不到该账本或您非该账本的创建者', null]
   return [null, true]
 }
 
 // 查询账本详情
 exports.getBillDetail = async ({ userId, id, nickName }) => {
-  const params = { _id: mongoose.Types.ObjectId(id), users: { $in: [{ id: userId, name: nickName }] }, isDel: false }
-  const filterData = {
-    planBuy: 1,
-    budget: 1,
-    name: 1,
-    users: 1,
-    creator: 1,
-    costTypes: 1,
-    incomesTypes: 1,
-    payMethods: 1
-  }
-  const res = await Bill.findOne(params, filterData)
+  // 校验用户是否在账本内
+  const link = await BillUser.findOne({ where: { billId: id, userId, userName: nickName } })
+  if (!link) return ['找不到账本', null]
+  const res = await findBillById(id)
   if (res) return [null, res]
   return ['找不到账本', null]
 }
@@ -70,9 +75,8 @@ exports.getBillDetail = async ({ userId, id, nickName }) => {
 // 用公钥生成将id和有效时间生成密文
 exports.invite = async ({ userId, id }) => {
   // 查找该用户是否是账本的持有者
-  const billParams = { _id: mongoose.Types.ObjectId(id), creator: userId, isDel: false }
-  const billRes = await Bill.findOne(billParams, { users: 1 })
-  if (!billRes) return ['找不到该账本', null]
+  const billRes = await Bill.findOne({ where: { id, creator: userId, isDel: false } })
+  if (!billRes) return ['找不到账本', null]
 
   const date = Number(new Date().getTime()) + 30 * 60 * 1000 // 过期时间
   const key = `${id}&${date}`
@@ -101,13 +105,12 @@ exports.joinBill = async ({ userId, code, nickName }) => {
   }
   try {
     // 查找账本是否存在，并判断是否已加入该账本
-    const params = { _id: mongoose.Types.ObjectId(billId), isDel: false }
-    const findBill = await Bill.findOne(params, {})
+    const findBill = await Bill.findOne({ where: { id: billId, isDel: false } })
     if (!findBill) return ['该账本不存在', null]
-    if (findBill.users.find((item) => item.id === userId)) return ['已加入该账本', null]
-    findBill.users.push({ id: userId, name: nickName })
-    const billRes = await Bill.findOneAndUpdate(params, { users: findBill.users })
-    if (!billRes) return [('加入账本失败', null)]
+    const exist = await BillUser.findOne({ where: { billId, userId } })
+    if (exist) return ['已加入该账本', null]
+    const billRes = await BillUser.create({ billId, userId, userName: nickName })
+    if (!billRes) return ['加入账本失败', null]
     return [null, true]
   } catch (e) {
     console.log(e)
@@ -118,26 +121,21 @@ exports.joinBill = async ({ userId, code, nickName }) => {
 // 退出账本
 exports.quitBill = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则退出账本
-  const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
-
-  const billRes = await Bill.findOne(billParams, { users: 1, creator: 1 })
-  if (!billRes) return ['找不到该账本', null]
-  if (!billRes.users.find((item) => item.id === userId)) return ['您并未加入该账本', null]
+  const billRes = await Bill.findOne({ where: { id, isDel: false } })
+  if (!billRes) return ['找不到账本', null]
   if (billRes.creator === userId) return ['创建者不能退出账本', null]
-  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: { id: userId, name: nickName } } }, { new: true })
-  if (!billQuitRes) return ['退出账本失败', null]
+  const [affected] = await BillUser.destroy({ where: { billId: id, userId, userName: nickName } })
+  if (!affected) return ['您并未加入该账本', null]
   return [null, true]
 }
 
 // 将某个移出账本
 exports.removePerson = async ({ userId, id, nickName }) => {
   // 从该账本中查找是否存在该用户，若存在则移除
-  const billParams = { _id: mongoose.Types.ObjectId(id), isDel: false }
-
-  const billRes = await Bill.findOne(billParams, { users: 1 })
-  if (!billRes) return ['找不到该账本', null]
-  if (!billRes.users.find((item) => item.id === userId)) return ['该用户并未加入此账本', null]
-  const billQuitRes = await Bill.findOneAndUpdate(billParams, { $pull: { users: { id: userId, name: nickName } } }, { new: true })
-  if (!billQuitRes) return ['移除失败', null]
+  const billRes = await Bill.findOne({ where: { id, isDel: false } })
+  if (!billRes) return ['找不到账本', null]
+  const exist = await BillUser.findOne({ where: { billId: id, userId, userName: nickName } })
+  if (!exist) return ['该用户并未加入此账本', null]
+  await BillUser.destroy({ where: { billId: id, userId, userName: nickName } })
   return [null, true]
 }

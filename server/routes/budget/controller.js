@@ -1,11 +1,12 @@
-const Bill = require('../../database/modules/Bills')
-const Transaction = require('../../database/modules/Transaction')
+const { Transaction } = require('../../database/index')
+const { findBillById, saveBudget, sequelize } = require('../../database/services/billService')
 const dayjs = require('dayjs')
+const { Op } = require('sequelize')
 
 // 查询预算列表
 exports.getList = async (data) => {
   data.date = Number(data.date)
-  const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
+  const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
   console.log(data.userId)
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]
@@ -18,7 +19,7 @@ exports.getList = async (data) => {
 // 新增预算
 exports.addBudget = async (data) => {
   data.money = Number(data.money)
-  const findBill = await Bill.findById(data.billId, { users: 1, costTypes: 1, budget: 1 })
+  const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]
 
@@ -40,14 +41,13 @@ exports.addBudget = async (data) => {
       type: 1,
       costTypeId: data.costTypeId,
       date: {
-        $gte: dayjs(new Date()).startOf('year').toDate(),
-        $lte: dayjs(new Date()).endOf('year').toDate()
+        [Op.between]: [dayjs().startOf('year').valueOf(), dayjs().endOf('year').valueOf()]
       },
       isDel: false
     }
-    const res = await Transaction.find(params, { money: 1 })
+    const res = await Transaction.findAll({ where: params, attributes: ['money'], raw: true })
     budgetDetailItem.cost = res.reduce((prev, curr) => {
-      return prev + curr.money
+      return prev + Number(curr.money)
     }, 0)
     budget.details.push(budgetDetailItem)
   } else {
@@ -68,41 +68,62 @@ exports.addBudget = async (data) => {
       }
     ]
   }
-  const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
-  if (updateBillRes) return [null, true]
-  else return ['新增失败', null]
+  const tx = await sequelize.transaction()
+  try {
+    await saveBudget(data.billId, budget, tx)
+    await tx.commit()
+    return [null, true]
+  } catch (e) {
+    await tx.rollback()
+    console.error(e)
+    return ['新增失败', null]
+  }
 }
 
 // 修改预算
 exports.editBudget = async (data) => {
   data.money = Number(data.money)
-  const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
+  const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]
   let budget = findBill.budget.find((item) => item.date === data.date)
   if (!budget) return ['不存在该年度预算', null]
   // 查找预算明细
-  let budgetDetailItem = budget.details.find((item) => item._id.toString() === data.id)
+  let budgetDetailItem = budget.details.find((item) => item.id === data.id)
   if (!budgetDetailItem) return ['不存在相关预算', null]
   budget.totalBudget = budget.totalBudget - budgetDetailItem.budget + data.money // 计算总预算
   budgetDetailItem.budget = data.money // 设置分项预算
-  const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
-  if (updateBillRes) return [null, true]
-  else return ['编辑失败', null]
+  const tx = await sequelize.transaction()
+  try {
+    await saveBudget(data.billId, findBill.budget, tx)
+    await tx.commit()
+    return [null, true]
+  } catch (e) {
+    await tx.rollback()
+    console.error(e)
+    return ['编辑失败', null]
+  }
 }
 
 exports.deleteBudget = async (data) => {
-  const findBill = await Bill.findById(data.billId, { users: 1, budget: 1 })
+  const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]
   let budget = findBill.budget.find((item) => item.date === data.date)
   if (!budget) return ['不存在该年度预算', null]
   // 查找预算明细
-  const budgetDetailItem = budget.details.find((item) => item._id.toString() === data.id)
+  const budgetDetailItem = budget.details.find((item) => item.id === data.id)
   if (!budgetDetailItem) return ['不存在相关预算', null]
   budget.totalBudget -= budgetDetailItem.budget
-  budget.details = budget.details.filter((item) => item._id.toString() !== data.id)
-  const updateBillRes = await Bill.findByIdAndUpdate(data.billId, { budget: budget }, { new: true })
-  if (updateBillRes) return [null, true]
-  else return ['删除失败', null]
+  budget.details = budget.details.filter((item) => item.id !== data.id)
+  const tx = await sequelize.transaction()
+  try {
+    await saveBudget(data.billId, findBill.budget, tx)
+    await tx.commit()
+    return [null, true]
+  } catch (e) {
+    await tx.rollback()
+    console.error(e)
+    return ['删除失败', null]
+  }
 }

@@ -1,7 +1,7 @@
 <template>
   <van-pull-refresh class="bills-list-container" v-model="billListLoading" @refresh="getBillList">
     <div v-for="item in billList" class="bill-item">
-      <van-swipe-cell :name="item._id" :before-close="billEvent">
+      <van-swipe-cell :name="item.id" :before-close="billEvent">
         <template #left>
           <van-button square type="primary" text="分享" />
         </template>

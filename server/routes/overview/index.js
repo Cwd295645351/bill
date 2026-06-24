@@ -2,6 +2,7 @@ const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
 
 const Overview = require('./controller')
+const { toTimestamp } = require('../../utils/dateUtil')
 const VERSION = require('../../config/version')
 
 const router = koaRouter({ prefix: `/api/${VERSION}/overview` })
@@ -16,7 +17,7 @@ router.get('/balance', async (ctx, next) => {
   else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
   else {
-    const params = { billId, beginDate: new Date(beginDate + ' 00:00:00'), endDate: new Date(endDate + ' 23:59:59') }
+    const params = { billId, beginDate: toTimestamp(beginDate), endDate: toTimestamp(endDate) }
     const [err, res] = await Overview.getBlance(params)
     if (res) ctx.body = new ResModel(res, '查询成功')
     else ctx.body = new ResModel(null, err, 'error')

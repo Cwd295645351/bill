@@ -3,7 +3,7 @@ export type Priority = 1 | 2 | 3
 
 /** 计划列表接口返回数据 */
 export interface PlanResponse {
-  _id: string
+  id: string
   /** 标题 */
   title: string
   /** 内容 */
@@ -15,7 +15,7 @@ export interface PlanResponse {
 }
 
 export interface PlanItem {
-  _id: string
+  id: string
   /** 标题 */
   title: string
   /** 内容 */

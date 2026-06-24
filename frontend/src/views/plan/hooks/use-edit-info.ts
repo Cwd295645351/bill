@@ -24,7 +24,7 @@ export const useEditInfo = (getList: Function) => {
     editDialog.value = true
     nextTick(() => {
       editInfo.value = {
-        id: item._id,
+        id: item.id,
         billId: billId.value as string,
         context: item.context,
         title: item.title,

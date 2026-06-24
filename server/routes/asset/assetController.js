@@ -1,6 +1,6 @@
-const Asset = require('../../database/modules/Asset')
-const AssetRecord = require('../../database/modules/AssetRecord')
-const mongoose = require('../../database/index')
+const { Asset, AssetRecord, Member } = require('../../database/index')
+const { Op } = require('sequelize')
+const { getRecentRecordsGrouped } = require('../../database/services/assetRecordService')
 
 /** 获取资产列表
  * @param {string} billId 账本id
@@ -12,12 +12,16 @@ const mongoose = require('../../database/index')
 exports.getAssetList = async ({ billId, memberId, type, fourMoneyType }) => {
   if (!billId) return ['账本id不能为空', null]
   const query = { isDel: false }
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
-  if (billId) query.billId = mongoose.Types.ObjectId(billId)
+  if (memberId) query.memberId = memberId
+  if (billId) query.billId = billId
   if (type) query.type = type
   if (fourMoneyType) query.fourMoneyType = fourMoneyType
 
-  const res = await Asset.find(query).sort({ _id: -1 }).populate('memberId')
+  const res = await Asset.findAll({
+    where: query,
+    order: [['id', 'DESC']],
+    include: [{ model: Member, as: 'member' }]
+  })
   return [null, res]
 }
 
@@ -41,8 +45,8 @@ exports.addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestA
   if (!latestAmount) return ['最新金额不能为空', null]
   const res = await Asset.create({
     name,
-    billId: mongoose.Types.ObjectId(billId),
-    memberId: mongoose.Types.ObjectId(memberId),
+    billId,
+    memberId,
     type,
     fourMoneyType,
     latestAmount,
@@ -51,7 +55,7 @@ exports.addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestA
   })
   if (res) {
     await AssetRecord.create({
-      assetId: res._id,
+      assetId: res.id,
       amount: latestAmount,
       date: Date.now()
     })
@@ -78,14 +82,14 @@ exports.editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmou
   if (!type) return ['资产类型不能为空', null]
   if (!fourMoneyType) return ['四笔钱类型不能为空', null]
   if (!latestAmount) return ['最新金额不能为空', null]
-  const res = await Asset.findOneAndUpdate(
-    { _id: mongoose.Types.ObjectId(id), isDel: false },
-    { name, memberId: mongoose.Types.ObjectId(memberId), type, fourMoneyType, latestAmount, insuranceCategory, annualPremium },
-    { new: true }
+  const [affected] = await Asset.update(
+    { name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium },
+    { where: { id, isDel: false } }
   )
+  const res = affected ? await Asset.findByPk(id) : null
   if (!res) return ['编辑资产失败，资产可能已被删除', null]
   const recordRes = await AssetRecord.create({
-    assetId: res._id,
+    assetId: res.id,
     amount: latestAmount,
     date: Date.now()
   })
@@ -111,7 +115,7 @@ exports.editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmou
  *     changeRate: number|null,         // 合计变化百分比
  *     percent:    number,              // 占资产总额百分比
  *     assets: [{                       // 具体资产
- *       _id, name, memberId, memberName,
+ *       id, name, memberId, memberName,
  *       fourMoneyType, latestAmount,
  *       prevAmount,                    // 上一次盘点金额
  *       change,                        // 变化金额
@@ -127,29 +131,23 @@ exports.editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmou
 exports.getAssetListWithStats = async ({ billId, memberId }) => {
   if (!billId) return ['账本id不能为空', null]
 
-  const query = { billId: mongoose.Types.ObjectId(billId), isDel: false }
-  if (memberId) query.memberId = mongoose.Types.ObjectId(memberId)
+  const query = { billId, isDel: false }
+  if (memberId) query.memberId = memberId
 
-  const allAssets = await Asset.find(query).sort({ type: 1, _id: -1 }).populate('memberId')
+  const allAssets = await Asset.findAll({
+    where: query,
+    order: [['type', 'ASC'], ['id', 'DESC']],
+    include: [{ model: Member, as: 'member' }]
+  })
   if (!allAssets.length) return [null, { assetAmount: 0, debtAmount: 0, netAmount: 0, assetGroups: [], debtGroups: [] }]
 
-  const assetIds = allAssets.map(a => a._id)
-
-  // 批量查询每项资产最近两条记录（用于计算变化）
-  const recentRecords = await AssetRecord.aggregate([
-    { $match: { assetId: { $in: assetIds }, isDel: false } },
-    { $sort: { date: -1 } },
-    { $group: {
-      _id: '$assetId',
-      records: { $push: { amount: '$amount', date: '$date' } }
-    }}
-  ])
-
+  const assetIds = allAssets.map((a) => a.id)
+  const recentMap = await getRecentRecordsGrouped(assetIds, 2)
   const prevMap = {}
-  for (const r of recentRecords) {
-    const sorted = r.records.sort((a, b) => b.date - a.date)
-    prevMap[r._id.toString()] = sorted.length >= 2 ? sorted[1].amount : null
-  }
+  Object.keys(recentMap).forEach((assetId) => {
+    const list = recentMap[assetId] || []
+    prevMap[assetId] = list.length >= 2 ? list[1].amount : null
+  })
 
   // 拆分资产与负债
   const assetItems = allAssets.filter(a => !a.isDebt)
@@ -175,7 +173,7 @@ exports.getAssetListWithStats = async ({ billId, memberId }) => {
       if (!groupMap[key]) {
         groupMap[key] = { type: key, typeName: typeNameMap[key] || key, amount: 0, prevAmount: 0, hasPrev: true, assets: [] }
       }
-      const prev = prevMap[asset._id.toString()]
+      const prev = prevMap[asset.id]
       const current = Math.abs(asset.latestAmount)
       const change = prev !== null ? current - Math.abs(prev) : 0
       const changeRate = prev !== null && prev !== 0 ? change / Math.abs(prev) : null
@@ -188,10 +186,10 @@ exports.getAssetListWithStats = async ({ billId, memberId }) => {
       }
 
       groupMap[key].assets.push({
-        _id: asset._id,
+        id: asset.id,
         name: asset.name,
         memberId: asset.memberId,
-        memberName: asset.memberId?.name || '',
+        memberName: asset.member?.name || '',
         type: asset.type,
         fourMoneyType: asset.fourMoneyType,
         latestAmount: asset.latestAmount,
@@ -232,18 +230,11 @@ exports.getAssetListWithStats = async ({ billId, memberId }) => {
  */
 exports.delAsset = async ({ id }) => {
   if (!id) return ['资产id不能为空', null]
-  const res = await Asset.findOneAndUpdate(
-    { _id: mongoose.Types.ObjectId(id), isDel: false },
-    { isDel: true },
-    { new: true }
-  )
+  const [affected] = await Asset.update({ isDel: true }, { where: { id, isDel: false } })
+  const res = affected ? await Asset.findByPk(id) : null
 
   if (!res) return ['删除资产失败，资产可能已被删除', null]
   // 软删除关联的资产记录
-  const recordRes = await AssetRecord.updateMany(
-    { assetId: mongoose.Types.ObjectId(id), isDel: false },
-    { isDel: true }
-  )
-  if (!recordRes) return ['删除资产记录失败', null]
+  await AssetRecord.update({ isDel: true }, { where: { assetId: id, isDel: false } })
   return [null, true]
 }

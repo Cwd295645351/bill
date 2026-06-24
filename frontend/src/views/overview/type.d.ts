@@ -13,10 +13,10 @@ export interface BelongUser {
 
 /** 比例 */
 export interface BelongCondition {
-  /** 开始时间 */
-  startDate: string
-  /** 结束时间 */
-  endDate: string
+  /** 开始时间（时间戳） */
+  startDate: number | ''
+  /** 结束时间（时间戳） */
+  endDate: number | ''
   /** 香港天数 */
   days: number
   /** 退款金额 */

@@ -60,7 +60,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
 
   /** 删除交易明细 */
   const submitDeleteTransaction = async () => {
-    const params = { id: operateData.value._id }
+    const params = { id: operateData.value.id }
     btnLoading.value = true
     const [err, res] = await deleteTransaction({ params })
     btnLoading.value = false
@@ -78,8 +78,8 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
   const addInfo = async () => {
     const information = addInformation.value
     const data: Information = {
-      billId: (bill.value as Bill)._id,
-      date: information.date,
+      billId: (bill.value as Bill).id,
+      date: Number(information.date),
       money: information.money,
       type: type.value,
       belongUserId: information.belongUserId,
@@ -110,7 +110,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     const data = {
       id: currOperateData.id,
       billId: currOperateData.billId,
-      date: currOperateData.date,
+      date: Number(currOperateData.date),
       money: currOperateData.money,
       type: currOperateData.type,
       remark: currOperateData.remark,
@@ -141,11 +141,11 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
   /** 批量新增交易明细 */
   const batchSaving = ref(false)
   const batchAdd = async (list: Array<{ costTypeId: string; money: number; date: string; remark: string; belongUserId: string }>) => {
-    const billId = (bill.value as Bill)._id
+    const billId = (bill.value as Bill).id
     const data = list.map((item) => ({
       billId,
       type: type.value,
-      date: item.date,
+      date: Number(item.date),
       money: item.money,
       belongUserId: item.belongUserId,
       remark: item.remark,

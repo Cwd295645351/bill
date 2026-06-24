@@ -29,5 +29,4 @@ export interface RecordItem {
     remark: string
     /** 收支类型：1-支出；2收入 */
     type: number
-    _id: string
 }

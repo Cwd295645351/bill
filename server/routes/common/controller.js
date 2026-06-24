@@ -1,15 +1,15 @@
 const crypto = require('crypto')
+const { KEYUTIL, KJUR, b64tohex } = require('jsrsasign')
 const { xssData } = require('../../utils/xss')
 const jwt = require('jsonwebtoken')
-const Encryption = require('../../database/modules/Encryption')
-const User = require('../../database/modules/User')
+const { Encryption, User } = require('../../database/index')
 
 const { genPassword } = require('../../utils/cryp')
 
 // 获取登录配置
 const getLoginConfig = async () => {
   try {
-    const res = await Encryption.find({}, { publicKey: 1, _id: 0 })
+    const res = await Encryption.findAll({ attributes: ['publicKey'], limit: 1 })
     return [null, res[0]]
   } catch (err) {
     console.error(err)
@@ -31,18 +31,13 @@ const updateEncryptionKey = async () => {
     }
   })
   try {
-    const res = await Encryption.findOneAndUpdate(
-      {},
-      {
-        publicKey,
-        privateKey
-      }
-    )
-    if (res) {
-      return [null, true]
+    const exist = await Encryption.findOne()
+    if (exist) {
+      await Encryption.update({ publicKey, privateKey }, { where: { id: exist.id } })
     } else {
-      return ['更新失败', null]
+      await Encryption.create({ publicKey, privateKey })
     }
+    return [null, true]
   } catch (err) {
     console.error(err)
     return [err, null]
@@ -51,30 +46,19 @@ const updateEncryptionKey = async () => {
 
 const login = async (username, password) => {
   try {
-    const keys = await Encryption.find({}, { privateKey: 1, _id: 0 })
-    const decryptoPassword = crypto
-      .privateDecrypt(
-        {
-          key: keys[0].privateKey,
-          padding: crypto.constants.RSA_PKCS1_PADDING
-        },
-        Buffer.from(password.toString('base64'), 'base64')
-      )
-      .toString()
+    const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+    if (!keys.length || !keys[0]?.privateKey) {
+      return ['登录密钥未初始化，请联系管理员', null]
+    }
+    // Node.js 22+ 已禁用 crypto.privateDecrypt 的 RSA_PKCS1_PADDING，改用 jsrsasign 与前端保持一致
+    const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+    const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
     username = xssData(username)
     password = xssData(genPassword(decryptoPassword)) // 对密码进行加密
-    const res = await User.findOne(
-      {
-        username: username,
-        password: password
-      },
-      {
-        nickName: 1,
-        avatarUrl: 1,
-        incomes: 1,
-        expenses: 1
-      }
-    )
+    const res = await User.findOne({
+      where: { username: username, password: password },
+      attributes: ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
+    })
     if (res) {
       return [null, res]
     } else {
@@ -82,7 +66,7 @@ const login = async (username, password) => {
     }
   } catch (err) {
     console.error(err)
-    return [err, null]
+    return [err?.message || '登录失败', null]
   }
 }
 

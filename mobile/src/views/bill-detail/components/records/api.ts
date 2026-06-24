@@ -7,7 +7,7 @@ export const getBudgetListApi = BUDGET.get('/list')
 export const getCurrentMonthCostApi = TRANSACTION.get('/currentMonthCost')
 
 /** 获取收支列表 */
-export const getRecordListApi = TRANSACTION.get('/list')
+export const getRecordListApi = TRANSACTION.post('/list')
 
 /** 新增交易明细 */
 export const addTransactionApi = TRANSACTION.post('')

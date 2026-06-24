@@ -23,16 +23,34 @@ pnpm run install_all
 npm run dev
 ```
 
-## 四、打包
+## 四、生产部署
 
-`frontend` 和 `mobile` 项目打包后需要把打包文件放置到 server 项目的 `public` 文件夹下的 `pc` 和 `mobile` 目录，然后运行 `npm run dev` 命令即可
+1. 构建前端
 
+```bash
+cd frontend && pnpm build   # 产物在 frontend/dist
+cd mobile && pnpm build     # 产物在 mobile/dist
 ```
 
+2. 将构建产物部署到服务器（路径与 `deploy/nginx.conf` 中一致，可按需调整）：
+
+| 来源 | 部署目录（示例） |
+|------|------------------|
+| `frontend/dist/*` | `/var/www/bill/pc/` |
+| `mobile/dist/*` | `/var/www/bill/mobile/` |
+
+3. 启动后端 API（默认端口 3000）：
+
+```bash
+cd server && npm run prd
 ```
+
+4. 使用 Nginx 托管静态资源并反向代理 `/api`：
+   - **Windows**：见 [deploy/README.md](deploy/README.md)，配置复制到 `nginx/conf/bill.conf`，静态文件放到 `nginx/html/bill/`。
+   - **Linux**：见 [deploy/nginx-linux.conf](deploy/nginx-linux.conf)。
+
+前端生产环境 `VITE_BASEURL` 为空字符串时，浏览器与 Nginx 同源访问 `/api`，无需再经 Koa 提供静态页面。
 
 ## node版本
 
-`server` 服务端使用 `node14.15.1` 版本，使用 `npm` 进行安装
-
-`frontend` 和 `mobile` 前端使用 `node18` 版本，使用 `pnpm` 进行安装
+使用 `node18` 以上版本，使用 `pnpm` 进行安装

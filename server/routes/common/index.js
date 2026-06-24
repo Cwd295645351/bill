@@ -16,21 +16,23 @@ router.post('/login', async (ctx, next) => {
     ctx.body = new ResModel(null, '用户名不符合规范', 'error')
     return
   }
-  if (password === null || password === undefined || !character_reg.test(password)) {
+  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
     ctx.body = new ResModel(null, '密码不符合规范', 'error')
     return
   }
   const [err, res] = await login(username, password)
   if (res) {
+    const userId = res.id
+    const userInfo = res.toJSON()
     // jwt生成token
-    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId: res._id })
-    ctx.session.bill_userId = res._id
+    const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId })
+    ctx.session.bill_userId = userId
     ctx.session.bill_refreshToken = refreshToken
     const retData = {
       accessToken: accessToken,
       refreshToken: refreshToken,
       expiresIn: EXPIRES_TIME,
-      userInfo: res
+      userInfo
     }
     ctx.body = new ResModel(retData, '登录成功')
   } else ctx.body = new ResModel(null, err, 'error')

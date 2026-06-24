@@ -16,7 +16,7 @@
             </div>
           </div>
           <div class="detail">
-            <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail._id">
+            <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail.id">
               <div class="top">
                 <span>
                   <span class="belong-user">{{ detail.belongUserName }}</span>
@@ -52,10 +52,10 @@
         <!-- 查询交易 -->
         <el-form v-show="!showAdd" labelPosition="top">
           <el-form-item class="form-item width-300" size="large" label="开始日期">
-            <el-date-picker v-model="searchOptions.beginDate" :disabled-date="beginDateOptions" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
+            <el-date-picker v-model="searchOptions.beginDate" :disabled-date="beginDateOptions" value-format="x" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="结束日期">
-            <el-date-picker v-model="searchOptions.endDate" :disabled-date="endDateOptions" value-format="YYYY-MM-DD" type="date" placeholder="请选择" clearable></el-date-picker>
+            <el-date-picker v-model="searchOptions.endDate" :disabled-date="endDateOptions" value-format="x" type="date" placeholder="请选择" clearable></el-date-picker>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="记账人">
             <el-select v-model="searchOptions.userId" filterable placeholder="请选择" automatic-dropdown clearable>
@@ -98,7 +98,7 @@
         <div class="add-data" v-show="showAdd">
           <el-form class="form-container" labelPosition="top">
             <el-form-item class="form-item width-300" size="large" label="日期">
-              <el-date-picker v-model="addInformation.date" type="date" placeholder="请选择" clearable></el-date-picker>
+              <el-date-picker v-model="addInformation.date" value-format="x" type="date" placeholder="请选择" clearable></el-date-picker>
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支出类型">
               <el-select filterable v-model="addInformation.costTypeId" placeholder="请选择" automatic-dropdown clearable>
@@ -151,7 +151,7 @@
     <el-dialog title="编辑明细" class="edit-transaction-dialog" v-model="editDialog">
       <el-form v-if="editDialog" class="form-container">
         <el-form-item class="form-item" size="large" label="日期">
-          <el-date-picker v-model="operateData.date" type="date" placeholder="请选择" style="width: 100%" clearable></el-date-picker>
+          <el-date-picker v-model="operateData.date" value-format="x" type="date" placeholder="请选择" style="width: 100%" clearable></el-date-picker>
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="支出类型">
           <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
@@ -217,7 +217,7 @@
         </el-table-column>
         <el-table-column label="日期" width="180">
           <template #default="{ row }">
-            <el-date-picker v-model="row.date" type="date" size="small" placeholder="请选择" style="width: 100%" />
+            <el-date-picker v-model="row.date" value-format="x" type="date" size="small" placeholder="请选择" style="width: 100%" />
           </template>
         </el-table-column>
         <el-table-column label="归属人" width="140">
@@ -244,6 +244,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import dayjs from 'dayjs'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
 import { useParse } from './hooks/use-parse'
@@ -296,7 +297,7 @@ const parseRemark = async () => {
   }
   addInformation.value.costTypeId = info.costTypeId
   addInformation.value.money = info.money
-  addInformation.value.date = info.date
+  addInformation.value.date = info.date ? dayjs(info.date).startOf('day').valueOf() : ''
 }
 
 /** 批量解析相关 */

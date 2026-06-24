@@ -63,7 +63,7 @@ const { searchOptions, showSelectPicker, currentPickerValue, showDatePicker, cur
 const submitForm = async () => {
   const information = searchOptions.value
   const data: any = {
-    id: information._id,
+    id: information.id,
     billId: billId.value,
     date: information.beginDate,
     money: Number(information.rangeMoney),
@@ -100,7 +100,7 @@ const onClickRight = async () => {
     message: '删除后该数据无法恢复，请谨慎操作',
   })
     .then(async () => {
-      const params = { id: searchOptions.value._id }
+      const params = { id: searchOptions.value.id }
       showLoadingToast({ message: '删除中...', forbidClick: true })
       const [err, res] = await deleteTransactionApi({ params })
       if (err) return showFailToast('删除失败，' + res.message)

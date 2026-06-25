@@ -15,7 +15,7 @@ nginx/                          ← 例如 D:\tools\nginx
 │   └── bill/
 │       ├── pc/                 ← frontend/dist 全部文件
 │       └── mobile/             ← mobile/dist 全部文件
-├── html/uploads/               ← 可选，上传文件对外访问目录
+├── ssl/                        ← ssl 证书文件
 ├── logs/
 └── nginx.exe
 ```

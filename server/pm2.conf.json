@@ -6,7 +6,6 @@
     "instances": 1,
     "cwd": "./",
     "ignore_watch": [
-      "uploads",
       "logs"
     ],
     "autorestart": true,

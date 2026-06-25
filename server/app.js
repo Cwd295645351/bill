@@ -133,24 +133,7 @@ app.use(
   })
 )
 
-// 文件上传处理
-app.use(
-  koaBody({
-    multipart: true,
-    formidable: {
-      maxFileSize: 200 * 1024 * 1024, // 设置上传文件大小最大限制，默认2M
-      keepExtensions: true,
-      maxFields: 2 * 1024 * 1024, // 文件上传大小
-      uploadDir: path.join(__dirname, 'uploads/'),
-      onFileBegin: (name, file) => {
-        // 文件存储之前对文件进行重命名处理
-        const fileFormat = file.originalFilename.split('.')
-        let savePath = `${Date.now()}.${fileFormat[fileFormat.length - 1]}`
-        file.path = `uploads/${savePath}`
-      }
-    }
-  })
-)
+app.use(koaBody())
 
 // routes
 app.use(common.routes(), common.allowedMethods())

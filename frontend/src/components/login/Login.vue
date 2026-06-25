@@ -9,17 +9,25 @@
       <div class="title">{{ title }}</div>
       <el-form :model="formInfo" :rules="rules" ref="$loginForm">
         <el-form-item prop="username">
-          <el-input :prefix-icon="UserFilled" v-model="formInfo.username" @keyup.enter.native="login" placeholder="请输入用户名"></el-input>
+          <el-input :prefix-icon="UserFilled" v-model="formInfo.username" :placeholder="status === 'register' ? '请输入用户名（英文数字）' : '请输入用户名'"></el-input>
+        </el-form-item>
+        <el-form-item prop="nickName" v-if="status === 'register'">
+          <el-input :prefix-icon="UserFilled" v-model="formInfo.nickName" placeholder="请输入昵称（选填）"></el-input>
         </el-form-item>
         <el-form-item prop="password">
-          <el-input :prefix-icon="Lock" @keyup.enter.native="login" type="password" show-password v-model="formInfo.password" placeholder="请输入密码"></el-input>
+          <el-input :prefix-icon="Lock" type="password" show-password v-model="formInfo.password" placeholder="请输入密码"></el-input>
         </el-form-item>
         <div class="operation">
-          <el-link :disabled="operationDisabled" type="primary" @click="registerUser">注册账号</el-link>
-          <el-link :disabled="operationDisabled" type="primary" @click="forgetPassword">忘记密码?</el-link>
+          <template v-if="status === 'register'">
+            <el-link type="primary" @click="backToLogin">返回登录</el-link>
+          </template>
+          <template v-else>
+            <el-link :disabled="operationDisabled" type="primary" @click="registerUser">注册账号</el-link>
+            <!-- <el-link :disabled="operationDisabled" type="primary" @click="forgetPassword">忘记密码?</el-link> -->
+          </template>
         </div>
         <el-form-item>
-          <el-button class="login-btn" size="large" type="primary" @click="login">登录</el-button>
+          <el-button class="login-btn" size="large" type="primary" @click="status === 'register' ? register() : login()">{{ status === 'register' ? '注册' : '登录' }}</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -30,7 +38,6 @@
 import { UserFilled, Lock } from '@element-plus/icons-vue'
 import { useLogin } from './hooks/use-login'
 
-const title = '账号登录'
 const rules = {
   username: [
     {
@@ -54,18 +61,31 @@ const rules = {
         if (!value) {
           return callback(new Error('请输入密码'))
         }
-        const reg = /^[A-Za-z_\d]*$/
-        if (reg.test(value)) {
+        // 登录模式使用宽松校验，兼容旧密码
+        if (status.value === 'login') {
           callback()
-        } else {
-          callback(new Error('密码只能包含英文、数字和下划线'))
+          return
         }
+        // 注册模式：强密码校验
+        if (value.length < 8) {
+          return callback(new Error('密码至少8位'))
+        }
+        if (!/[a-z]/.test(value)) {
+          return callback(new Error('密码必须包含小写字母'))
+        }
+        if (!/[A-Z]/.test(value)) {
+          return callback(new Error('密码必须包含大写字母'))
+        }
+        if (!/\d/.test(value)) {
+          return callback(new Error('密码必须包含数字'))
+        }
+        callback()
       },
       trigger: 'blur',
     },
   ],
 }
-const { operationDisabled, $loginForm, formInfo, registerUser, forgetPassword, login } = useLogin()
+const { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login } = useLogin()
 </script>
 
 <style scoped lang="scss">

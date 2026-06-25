@@ -82,4 +82,50 @@ const createJwt = (data) => {
   return { accessToken, refreshToken, EXPIRES_TIME }
 }
 
-module.exports = { getLoginConfig, updateEncryptionKey, login, createJwt }
+/** 注册 */
+const register = async (username, password, nickName) => {
+  try {
+    const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+    if (!keys.length || !keys[0]?.privateKey) {
+      return ['登录密钥未初始化，请联系管理员', null]
+    }
+    const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+    const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
+
+    username = xssData(username)
+    nickName = xssData(nickName || username)
+
+    // 密码强度校验（解密后的明文校验）
+    if (decryptoPassword.length < 8) {
+      return ['密码至少需要8位', null]
+    }
+    if (!/[a-z]/.test(decryptoPassword)) {
+      return ['密码必须包含小写字母', null]
+    }
+    if (!/[A-Z]/.test(decryptoPassword)) {
+      return ['密码必须包含大写字母', null]
+    }
+    if (!/\d/.test(decryptoPassword)) {
+      return ['密码必须包含数字', null]
+    }
+
+    // 检查用户名是否已存在
+    const exist = await User.findOne({ where: { username } })
+    if (exist) {
+      return ['用户名已存在', null]
+    }
+
+    const hashedPassword = xssData(genPassword(decryptoPassword))
+    const res = await User.create({
+      username,
+      password: hashedPassword,
+      nickName
+    })
+    return [null, { id: res.id, username: res.username, nickName: res.nickName }]
+  } catch (err) {
+    console.error(err)
+    return [err?.message || '注册失败', null]
+  }
+}
+
+module.exports = { getLoginConfig, updateEncryptionKey, login, register, createJwt }

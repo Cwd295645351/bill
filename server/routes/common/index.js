@@ -1,6 +1,6 @@
 const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
-const { getLoginConfig, updateEncryptionKey, login, createJwt } = require('./controller')
+const { getLoginConfig, updateEncryptionKey, login, createJwt, register } = require('./controller')
 
 const VERSION = require('../../config/version')
 
@@ -67,6 +67,30 @@ router.put('/refreshToken', async (ctx, next) => {
     ctx.body = new ResModel(retData, '刷新成功')
   } else {
     ctx.body = new ResModel(null, '无效参数refreshToken', 'error')
+  }
+})
+
+// 注册
+router.post('/register', async (ctx, next) => {
+  const character_reg = /^\w{3,20}/
+  const data = ctx.request.body
+  const username = data.username
+  const password = data.password
+  const nickName = data.nickName || ''
+  if (username === null || username === undefined || !character_reg.test(username)) {
+    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+    return
+  }
+  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
+    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+    return
+  }
+  // 注册密码需要校验强度（明文强度校验在controller中解密后进行）
+  const [err, res] = await register(username, password, nickName)
+  if (res) {
+    ctx.body = new ResModel(res, '注册成功')
+  } else {
+    ctx.body = new ResModel(null, err, 'error')
   }
 })
 

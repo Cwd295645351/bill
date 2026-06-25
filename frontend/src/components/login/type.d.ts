@@ -7,4 +7,6 @@ export interface FormInfo {
   username: string
   /** 密码 */
   password: string
+  /** 昵称（注册时使用） */
+  nickName?: string
 }

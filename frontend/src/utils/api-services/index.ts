@@ -10,3 +10,4 @@ export const TRANSACTION = generator(`/api/${version}/transaction`) // 交易明
 export const BUDGET = generator(`/api/${version}/budget`) // 预算网关
 export const OVERVIEW = generator(`/api/${version}/overview`) // 概览网关
 export const PLAN = generator(`/api/${version}/plan`) // 计划网关
+export const BILLTYPE = generator(`/api/${version}/billtype`) // 类型管理网关

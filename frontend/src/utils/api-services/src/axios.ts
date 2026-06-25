@@ -5,7 +5,7 @@ import { refreshToken } from '@/apis'
 
 const instance = axios.create()
 
-const EXCLUDE_URL = ['/login_config', '/login'] // 无需进行请求拦截的接口
+const EXCLUDE_URL = ['/login_config', '/login', '/register'] // 无需进行请求拦截的接口
 let REFRESHING_TOKEN = false // 正在刷新token
 const refreshTokenTime = ref(0) // 新token更新时间
 

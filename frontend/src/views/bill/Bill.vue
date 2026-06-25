@@ -4,6 +4,7 @@
       <div class="modal">
         <el-icon class="item" @click="showBillDetail(item)"><View /></el-icon>
         <el-icon class="item" v-if="item.creator === userInfo.userId" @click="createShareBillCode(item)"><Share /></el-icon>
+        <el-icon class="item" v-if="item.creator === userInfo.userId" @click="showTypeManager(item)"><Setting /></el-icon>
         <el-icon class="item" v-if="item.creator === userInfo.userId" @click="showDeleteDialog(item)"><Delete /></el-icon>
       </div>
       {{ item.name }}
@@ -31,6 +32,7 @@
         </div>
       </template>
     </el-dialog>
+    <TypeManager v-model:visible="typeManagerVisible" :bill-id="currentTypeBill" />
     <el-dialog title="分享码已生成，时长为30分钟" class="delete-bill-dialog" v-model="shareBillDialog">
       <div style="color: #999; word-wrap: break-word">分享码：{{ shareCode }}</div>
       <template #footer>
@@ -43,14 +45,17 @@
 </template>
 
 <script setup lang="ts">
-import { Share, View, Delete } from '@element-plus/icons-vue'
+import { Share, View, Delete, Setting } from '@element-plus/icons-vue'
 import { useBill } from './hooks/use-bill'
+import TypeManager from '../billtype/TypeManager.vue'
 
 const {
   $addForm,
   addBillDialog,
   deleteBillDialog,
   shareBillDialog,
+  typeManagerVisible,
+  currentTypeBill,
   dialogLoading,
   bills,
   form,
@@ -59,6 +64,7 @@ const {
   showBillDetail,
   showBillDialog,
   showDeleteDialog,
+  showTypeManager,
   addBill,
   delBill,
   createShareBillCode,

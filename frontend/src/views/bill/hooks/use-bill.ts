@@ -21,6 +21,8 @@ export const useBill = () => {
   const form = ref({ name: '' })
   const currentOperateBill = ref<Bill>({ id: '', name: '', creator: '' })
   const shareCode = ref('') // 分享码
+  const typeManagerVisible = ref(false) // 类型管理弹窗
+  const currentTypeBill = ref('') // 当前正在管理类型的账本ID
   const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
 
   watch(updateBill, (val) => {
@@ -56,6 +58,12 @@ export const useBill = () => {
   const showBillDialog = () => {
     form.value.name = ''
     addBillDialog.value = true
+  }
+
+  /** 显示类型管理弹窗 */
+  const showTypeManager = (item: Bill) => {
+    currentTypeBill.value = item.id
+    typeManagerVisible.value = true
   }
 
   /** 显示删除账本弹窗 */
@@ -121,6 +129,8 @@ export const useBill = () => {
     addBillDialog,
     deleteBillDialog,
     shareBillDialog,
+    typeManagerVisible,
+    currentTypeBill,
     dialogLoading,
     bills,
     form,
@@ -128,6 +138,7 @@ export const useBill = () => {
     userInfo,
     showBillDetail,
     showBillDialog,
+    showTypeManager,
     showDeleteDialog,
     addBill,
     delBill,

@@ -172,10 +172,10 @@ const migrateBills = async (db, tx, idMaps) => {
       })
     })
     asArray(d.costTypes).forEach((c) => {
-      costTypes.push({ id: toStr(c.id), billId: newBillId, name: toStr(c.name), isDel: toBool(c.isDel) })
+      costTypes.push({ id: toStr(c.id), billId: newBillId, name: toStr(c.name), isDel: toBool(c.isDel), hidden: false })
     })
     asArray(d.incomesTypes).forEach((c) => {
-      incomesTypes.push({ id: toStr(c.id), billId: newBillId, name: toStr(c.name), isDel: toBool(c.isDel) })
+      incomesTypes.push({ id: toStr(c.id), billId: newBillId, name: toStr(c.name), isDel: toBool(c.isDel), hidden: false })
     })
     asArray(d.payMethods).forEach((c) => {
       payMethods.push({ id: toStr(c.id), billId: newBillId, name: toStr(c.name), isDel: toBool(c.isDel) })

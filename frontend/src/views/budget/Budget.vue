@@ -13,7 +13,9 @@
         <el-form :model="addInformation" ref="$addForm" :rules="rules" class="form-container" labelPosition="top">
           <el-form-item prop="costTypeId" required size="small" label="支出类型">
             <el-select style="width: 100%" v-model="addInformation.costTypeId" filterable placeholder="请选择" clearable>
-              <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <template v-for="(item, index) in costTypes" :key="item + '_' + index">
+                <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+              </template>
             </el-select>
           </el-form-item>
           <el-form-item prop="money" required size="small" label="金额">
@@ -50,7 +52,9 @@
         <el-form :model="editBudgetObj" ref="$editForm" :rules="rules" class="form-container" labelPosition="top">
           <el-form-item prop="costTypeId" required size="small" label="支出类型">
             <el-select style="width: 100%" disabled v-model="editBudgetObj.costTypeId" filterable placeholder="请选择" clearable>
-              <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <template v-for="(item, index) in costTypes" :key="item + '_' + index">
+                <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+              </template>
             </el-select>
           </el-form-item>
           <el-form-item prop="budget" required size="small" label="金额">

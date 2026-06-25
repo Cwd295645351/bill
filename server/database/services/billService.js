@@ -26,12 +26,14 @@ const formatBillDetail = (bill, relations) => {
     costTypes: (relations.costTypes || []).map((c) => ({
       id: c.id,
       name: c.name,
-      isDel: c.isDel
+      isDel: c.isDel,
+      hidden: c.hidden
     })),
     incomesTypes: (relations.incomesTypes || []).map((c) => ({
       id: c.id,
       name: c.name,
-      isDel: c.isDel
+      isDel: c.isDel,
+      hidden: c.hidden
     })),
     payMethods: (relations.payMethods || []).map((c) => ({
       id: c.id,

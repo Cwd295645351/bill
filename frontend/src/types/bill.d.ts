@@ -26,12 +26,16 @@ export interface User {
 export interface CostType {
   id: string
   name: string
+  isDel?: boolean
+  hidden?: boolean
 }
 
 /** 账本收入消费类型 */
 export interface IncomesType {
   id: string
   name: string
+  isDel?: boolean
+  hidden?: boolean
 }
 
 /** 支付类型 */

@@ -78,7 +78,8 @@ function initModels(sequelize) {
       id: { type: DataTypes.STRING(32), primaryKey: true },
       billId: { type: DataTypes.CHAR(36), primaryKey: true, allowNull: false, field: 'bill_id' },
       name: { type: DataTypes.STRING(64), allowNull: false },
-      isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' }
+      isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' },
+      hidden: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }
     },
     { tableName: 'bill_cost_types' }
   )
@@ -89,7 +90,8 @@ function initModels(sequelize) {
       id: { type: DataTypes.STRING(32), primaryKey: true },
       billId: { type: DataTypes.CHAR(36), primaryKey: true, allowNull: false, field: 'bill_id' },
       name: { type: DataTypes.STRING(64), allowNull: false },
-      isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' }
+      isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' },
+      hidden: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false }
     },
     { tableName: 'bill_income_types' }
   )

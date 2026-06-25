@@ -71,7 +71,7 @@ export const useBudget = (emits: Emits) => {
     bill,
     (val) => {
       if (!val) return
-      costTypes.value = val.costTypes
+      costTypes.value = val.costTypes || []
     },
     { immediate: true },
   )

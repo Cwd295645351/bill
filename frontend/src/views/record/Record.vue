@@ -64,7 +64,9 @@
           </el-form-item>
           <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支出类型">
             <el-select v-model="searchOptions.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
-              <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <template v-for="(item, index) in costTypes" :key="item + '_' + index">
+                <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+              </template>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="归属人">
@@ -75,7 +77,9 @@
           </el-form-item>
           <el-form-item class="form-item width-300" v-show="type === 2" size="large" label="收入类型">
             <el-select v-model="searchOptions.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
-              <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <template v-for="(item, index) in incomesTypes" :key="item + '_' + index">
+                <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+              </template>
             </el-select>
           </el-form-item>
           <el-form-item class="form-item width-300" size="large" label="内容">
@@ -102,7 +106,9 @@
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 1" size="large" label="支出类型">
               <el-select filterable v-model="addInformation.costTypeId" placeholder="请选择" automatic-dropdown clearable>
-                <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+                <template v-for="(item, index) in costTypes" :key="item + '_' + index">
+                  <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+                </template>
               </el-select>
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="内容">
@@ -128,7 +134,9 @@
             </el-form-item>
             <el-form-item class="form-item width-300" v-show="type === 2" size="large" label="收入类型">
               <el-select v-model="addInformation.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
-                <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+                <template v-for="(item, index) in incomesTypes" :key="item + '_' + index">
+                  <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+                </template>
               </el-select>
             </el-form-item>
             <el-form-item class="form-item" size="large">
@@ -155,7 +163,9 @@
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 1" size="large" label="支出类型">
           <el-select v-model="operateData.costTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
-            <el-option v-for="(item, index) in costTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+            <template v-for="(item, index) in costTypes" :key="item + '_' + index">
+              <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+            </template>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="归属人">
@@ -177,7 +187,9 @@
         </el-form-item>
         <el-form-item class="form-item" v-show="type === 2" size="large" label="收入类型">
           <el-select v-model="operateData.incomesTypeId" filterable placeholder="请选择" automatic-dropdown clearable>
-            <el-option v-for="(item, index) in incomesTypes" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+            <template v-for="(item, index) in incomesTypes" :key="item + '_' + index">
+              <el-option v-if="!item?.hidden" :label="item.name" :value="item.id"></el-option>
+            </template>
           </el-select>
         </el-form-item>
 
@@ -206,7 +218,9 @@
         <el-table-column label="支出类型" width="150">
           <template #default="{ row }">
             <el-select v-model="row.costTypeId" filterable size="small" placeholder="请选择">
-              <el-option v-for="item in costTypes" :key="item.id" :label="item.name" :value="item.id" />
+              <template v-for="item in costTypes" :key="item.id">
+                <el-option v-if="!item?.hidden" :label="item.name" :value="item.id" />
+              </template>
             </el-select>
           </template>
         </el-table-column>

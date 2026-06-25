@@ -26,6 +26,7 @@ const budget = require('./routes/budget/index')
 const overview = require('./routes/overview/index')
 const plan = require('./routes/plan/index')
 const asset = require('./routes/asset/index')
+const billtype = require('./routes/billtype/index')
 
 const app = new Koa()
 
@@ -128,7 +129,7 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\api\/v1\/common\/login_config/]
+    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\/api\/v1\/common\/login_config/, /\/api\/v1\/common\/register/]
   })
 )
 
@@ -159,6 +160,7 @@ app.use(budget.routes(), budget.allowedMethods())
 app.use(overview.routes(), budget.allowedMethods())
 app.use(plan.routes(), plan.allowedMethods())
 app.use(asset.routes(), asset.allowedMethods())
+app.use(billtype.routes(), billtype.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

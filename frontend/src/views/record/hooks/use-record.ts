@@ -151,9 +151,9 @@ export const useRecord = () => {
   /** 初始化 */
   const initData = async (bill: Bill) => {
     users.value = bill.users
-    costTypes.value = bill.costTypes
-    incomesTypes.value = bill.incomesTypes
-    payMethods.value = bill.payMethods
+    costTypes.value = bill.costTypes || []
+    incomesTypes.value = bill.incomesTypes || []
+    payMethods.value = bill.payMethods || []
     dateMap.value.clear()
     noMore.value = false
     currentCount.value = 0

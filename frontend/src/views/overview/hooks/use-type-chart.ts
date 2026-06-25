@@ -1,4 +1,4 @@
-import { Ref, onMounted, ref, watch } from 'vue'
+import { Ref, onMounted, ref, watch, computed } from 'vue'
 import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import dayjs from 'dayjs'
@@ -53,16 +53,18 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       },
     ],
   })
-  const belongTypeChart1 = ref<any>(null)
-  const belongTypeChart2 = ref<any>(null)
-  const belongTypeChart3 = ref<any>(null)
+  /** 图表实例数组: [0]="全部", [1]=user0, [2]=user1 */
+  const belongTypeCharts = ref<any[]>([])
+  /** 图表数量：用户 ≥ 2 时显示全部 + 各用户；仅1个用户时只显示全部 */
+  const chartCount = computed(() => users.value.length >= 2 ? users.value.length + 1 : 1)
 
   const dialogVisible = ref(false)
   const detailList = ref<any[]>([])
   const loading = ref(false)
   const currentCategory = ref('')
   const currentCategoryTotal = ref(0)
-  const currentProportion = ref({ yi: 0.5, dong: 0.5 })
+  /** 比例映射: { [userName]: ratio } */
+  const currentProportion = ref<Record<string, number>>({})
 
   /** 点击饼图处理 */
   const handleChartClick = async (params: any, belongUserName: string) => {
@@ -108,7 +110,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       const datas = res.data.datas as any[]
       detailList.value = datas
         .filter((item: any) => {
-          // 如果是专属饼图，额外确保只包含该归属人或“全部”归属的数据
+          // 如果是专属饼图，额外确保只包含该归属人或"全部"归属的数据
           // 防止后端在处理数组查询时返回不符合预期的数据
           if (belongUserName !== '全部') {
             const belongUser = bill.value?.users.find((u: any) => u.name === belongUserName)
@@ -124,7 +126,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
           // 如果是专属饼图，且这条记录的归属人是"全部"，则按比例计算
           if (belongUserName !== '全部' && (item.belongUserId === '' || !item.belongUserId)) {
-            const ratio = belongUserName === '宜' ? currentProportion.value.yi : currentProportion.value.dong
+            const ratio = currentProportion.value[belongUserName] ?? 0.5
             item.money = Number((item.totalMoney * ratio).toFixed(2))
           }
           return item
@@ -136,19 +138,23 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const setTypeData = (costTypeRank: any, proportion: string) => {
     const proportionArray = proportion.split(':')
     const total = Number(proportionArray[0]) + Number(proportionArray[1])
-    const proportion1 = total ? Number(proportionArray[0]) / total : 0.5 // 宜比例
-    const proportion2 = total ? Number(proportionArray[1]) / total : 0.5 // 栋比例
-    currentProportion.value = { yi: proportion1, dong: proportion2 }
-    console.log(proportion1, proportion2, 'proportion1, proportion2')
-    const data: any = {
-      全部: [],
-      宜: [],
-      栋: [],
-    }
+
+    const userNames = users.value.map(u => u.name)
+    const userName0 = userNames[0] || ''
+    const userName1 = userNames[1] || ''
+
+    const proportion0 = total ? Number(proportionArray[0]) / total : 0.5
+    const proportion1 = total ? Number(proportionArray[1]) / total : 0.5
+
+    currentProportion.value = { [userName0]: proportion0, [userName1]: proportion1 }
+    console.log('用户比例:', currentProportion.value)
+
+    const data: Record<string, any[]> = { '全部': [] }
+    userNames.forEach(name => { data[name] = [] })
+
     const allRank = costTypeRank['全部'] || []
-    const rank1 = costTypeRank['宜'] || [] // 宜
-    const rank2 = costTypeRank['栋'] || [] // 栋
-    // 全部类型数据处理
+
+    // 全部类型数据处理：汇总到"全部"
     const totalTypeDataHandle = (item: any) => {
       const allTypeDataIndex = data['全部'].findIndex((ite: any) => ite.type === item.type)
       if (allTypeDataIndex !== -1) {
@@ -156,27 +162,33 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
         data['全部'][allTypeDataIndex] = { ...obj, money: obj.money + item.money }
       } else data['全部'].push(item)
     }
+
+    // "全部"归属数据的成本按比例分配到各用户
     allRank.forEach((item: any) => {
       data['全部'].push(item)
-      data['宜'].push({ ...item, money: item.money * proportion1 })
-      data['栋'].push({ ...item, money: item.money * proportion2 })
+      // 仅当存在两个用户时才按比例分摊
+      if (userName1) {
+        data[userName0].push({ ...item, money: item.money * proportion0 })
+        data[userName1].push({ ...item, money: item.money * proportion1 })
+      } else {
+        // 只有1个用户时，"全部"数据直接归给该用户
+        data[userName0].push({ ...item, money: item.money })
+      }
     })
-    rank1.forEach((item: any) => {
-      const index = data['宜'].findIndex((ite: any) => ite.type === item.type)
-      if (index !== -1) {
-        const obj = data['宜'][index]
-        data['宜'][index] = { ...obj, money: obj.money + item.money }
-      } else data['宜'].push(item)
 
-      totalTypeDataHandle(item)
-    })
-    rank2.forEach((item: any) => {
-      const index = data['栋'].findIndex((ite: any) => ite.type === item.type)
-      if (index !== -1) {
-        const obj = data['栋'][index]
-        data['栋'][index] = { ...obj, money: obj.money + item.money }
-      } else data['栋'].push(item)
-      totalTypeDataHandle(item)
+    // 各用户的专属数据合并
+    userNames.forEach(userName => {
+      const rank = costTypeRank[userName] || []
+      rank.forEach((item: any) => {
+        const index = data[userName].findIndex((ite: any) => ite.type === item.type)
+        if (index !== -1) {
+          const obj = data[userName][index]
+          data[userName][index] = { ...obj, money: obj.money + item.money }
+        } else {
+          data[userName].push(item)
+        }
+        totalTypeDataHandle(item)
+      })
     })
 
     const sortData = (data: any) => {
@@ -189,9 +201,9 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
 
     // 对数据进行排序
-    data['全部'] = sortData(data['全部'])
-    data['栋'] = sortData(data['栋'])
-    data['宜'] = sortData(data['宜'])
+    Object.keys(data).forEach(key => {
+      data[key] = sortData(data[key])
+    })
 
     belongTypeDatas.value = data
     console.log(belongTypeDatas.value, 111)
@@ -212,9 +224,20 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
     belongOptions.value.legend.data = belongTypeDatas.value.type
 
-    setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['全部'], belongTypeChart1.value, '全部')
-    setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['宜'], belongTypeChart2.value, '宜')
-    setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['栋'], belongTypeChart3.value, '栋')
+    // 只有1个用户时，只渲染"全部"饼图（index 0）
+    if (users.value.length < 2) {
+      if (belongTypeDatas.value['全部'] && belongTypeCharts.value[0]) {
+        setSeriesData(belongOptions.value.series[0], belongTypeDatas.value['全部'], belongTypeCharts.value[0], '全部')
+      }
+      return
+    }
+
+    const labels = ['全部', ...users.value.map(u => u.name)]
+    labels.forEach((label, i) => {
+      if (belongTypeDatas.value[label] && belongTypeCharts.value[i]) {
+        setSeriesData(belongOptions.value.series[0], belongTypeDatas.value[label], belongTypeCharts.value[i], label)
+      }
+    })
   }
 
   /** 合计退款 */
@@ -223,21 +246,24 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     const proportionArray = proportion.split(':')
     const proportion0 = Number(proportionArray[0])
     const proportion1 = Number(proportionArray[1])
-    console.log(proportion0, proportion1, 'proportion0, proportion1')
     const total = proportion0 + proportion1
-    console.log(total, 'total')
+
+    const userNames = users.value.map(u => u.name)
+    const userName0 = userNames[0] || ''
+    const userName1 = userNames[1] || ''
+
     let money = 0
     costs.forEach((item) => {
-      if (item.userName === '宜') {
+      if (item.userName === userName0) {
         if (item.belongUserId === '') {
           money += item.money * (proportion1 / total)
-        } else if (item.belongUserName === '栋') {
+        } else if (item.belongUserName === userName1) {
           money += item.money
         }
-      } else if (item.userName === '栋') {
+      } else if (item.userName === userName1) {
         if (item.belongUserId === '') {
           money -= item.money * (proportion0 / total)
-        } else if (item.belongUserName === '宜') {
+        } else if (item.belongUserName === userName0) {
           money -= item.money
         }
       }
@@ -263,19 +289,24 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
         return item
       })
 
-      // 获取宜收入
-      let yiIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '宜')?.money ?? 0
+      const userNames = users.value.map(u => u.name)
+      const userName0 = userNames[0] || ''
+      const userName1 = userNames[1] || ''
+
+      // 获取用户收入（减去香港天数、社保等）
+      let user0Incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName0)?.money ?? 0
       // 需要减去香港天数，一天 200 元
-      yiIncomes -= belongCondition.value.days * 200
-      // 减去宜缴纳社保金额
-      yiIncomes -= res.data.costTypeRank['宜'].find((item: any) => item.type === '1020')?.money ?? 0
-      // 获取栋收入
-      let dongIncomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === '栋')?.money ?? 0
-      // 减去栋缴纳社保金额
-      dongIncomes -= res.data.costTypeRank['栋'].find((item: any) => item.type === '1020')?.money ?? 0
-      const proportion = `${yiIncomes.toFixed(2)}:${dongIncomes.toFixed(2)}`
+      user0Incomes -= belongCondition.value.days * 200
+      // 减去用户缴纳社保金额
+      user0Incomes -= res.data.costTypeRank[userName0]?.find((item: any) => item.type === '1020')?.money ?? 0
+
+      let user1Incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName1)?.money ?? 0
+      // 减去用户缴纳社保金额
+      user1Incomes -= res.data.costTypeRank[userName1]?.find((item: any) => item.type === '1020')?.money ?? 0
+
+      const proportion = `${user0Incomes.toFixed(2)}:${user1Incomes.toFixed(2)}`
       console.log(proportion, 'proportion')
-      
+
       calculateMoney(proportion)
       setTypeData(res.data.costTypeRank, proportion)
       setPieData()
@@ -292,14 +323,20 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   }
 
   const initChart = () => {
-    belongTypeChart1.value = echarts.init(document.getElementById('belongTypeChart1') as HTMLElement)
-    belongTypeChart2.value = echarts.init(document.getElementById('belongTypeChart2') as HTMLElement)
-    belongTypeChart3.value = echarts.init(document.getElementById('belongTypeChart3') as HTMLElement)
     belongOptions.value.color = colorOptions
+    const userNames = users.value.map(u => u.name)
 
-    belongTypeChart1.value.on('click', (params: any) => handleChartClick(params, '全部'))
-    belongTypeChart2.value.on('click', (params: any) => handleChartClick(params, '宜'))
-    belongTypeChart3.value.on('click', (params: any) => handleChartClick(params, '栋'))
+    // "全部" 图表 (index 0)
+    belongTypeCharts.value[0] = echarts.init(document.getElementById('belongTypeChart0') as HTMLElement)
+    belongTypeCharts.value[0].on('click', (params: any) => handleChartClick(params, '全部'))
+
+    // 用户图表（仅当用户 ≥ 2 时才渲染各用户饼图）
+    if (userNames.length >= 2) {
+      userNames.forEach((name, i) => {
+        belongTypeCharts.value[i + 1] = echarts.init(document.getElementById(`belongTypeChart${i + 1}`) as HTMLElement)
+        belongTypeCharts.value[i + 1].on('click', (params: any) => handleChartClick(params, name))
+      })
+    }
   }
 
   watch(
@@ -315,5 +352,5 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     initChart()
   })
 
-  return { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal }
+  return { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount }
 }

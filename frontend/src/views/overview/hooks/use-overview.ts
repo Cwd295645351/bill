@@ -63,8 +63,9 @@ export const useOverview = (options: { colorOptions: string[] }) => {
       console.log(fundIndex, 'fundIndex')
       data.datas.forEach((item: any) => {
         item.total = item.datas.reduce((prev: string, curr: string) => Number(prev) + Number(curr), 0)
-        // 总消费需要剔除到基金
-        item.consumption = item.total - item.datas[fundIndex]
+        // 总消费需要剔除到基金（如无基金类型或没有数据，则消费 = 总支出）
+        const fundMoney = fundIndex !== -1 && item.datas[fundIndex] !== undefined ? Number(item.datas[fundIndex]) : 0
+        item.consumption = item.total - fundMoney
       })
       console.log(perYearCostDatas.value, 'perYearCostDatas')
       setYearLineChartData()

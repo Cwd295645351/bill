@@ -54,15 +54,13 @@
             <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
               {{ ite }}
             </div>
-            <div class="line-item total">{{ item.consumption.toFixed(2) }}</div>
-            <div class="line-item total">{{ item.total.toFixed(2) }}</div>
+            <div class="line-item total">{{ item.consumption ? item.consumption.toFixed(2) : '0.00' }}</div>
+            <div class="line-item total">{{ item.total ? item.total.toFixed(2) : '0.00' }}</div>
           </div>
         </div>
       </div>
       <div class="belong-type-container">
-        <div class="belong-type-chart" id="belongTypeChart1"></div>
-        <div class="belong-type-chart" id="belongTypeChart2"></div>
-        <div class="belong-type-chart" id="belongTypeChart3"></div>
+        <div class="belong-type-chart" v-for="i in chartCount" :key="i" :id="'belongTypeChart' + (i - 1)"></div>
       </div>
     </div>
     <el-dialog v-model="dialogVisible" :title="`${currentCategory} - 消费明细 (共 ${currentCategoryTotal} 元)`" width="70%">
@@ -91,7 +89,7 @@ import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal } = useTypeChart({ colorOptions })
+const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount } = useTypeChart({ colorOptions })
 </script>
 <style lang="scss" scoped>
 .overview-module {

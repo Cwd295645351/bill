@@ -209,7 +209,7 @@
         <el-input v-model="batchText" type="textarea" :rows="6" placeholder="请输入内容，每行一条记录..." />
         <el-button type="primary" @click="handleBatchParse" :loading="loading" style="margin-top: 10px">解析</el-button>
       </div>
-      <el-table v-if="batchResults.length" :data="batchResults" style="margin-top: 15px" border>
+      <el-table v-if="batchResults.length" :data="batchResults" max-height="600" style="margin-top: 15px" border>
         <el-table-column label="内容" min-width="180">
           <template #default="{ row }">
             <el-input v-model="row.remark" size="small" />

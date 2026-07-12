@@ -215,7 +215,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detai
       height: calc(50% - 20px);
       display: flex;
       align-items: center;
-      justify-content: space-around;
+      justify-content: space-between;
       .belong-type-chart {
         width: 32%;
         height: 100%;

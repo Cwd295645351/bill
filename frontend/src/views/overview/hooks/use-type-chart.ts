@@ -1,4 +1,4 @@
-import { Ref, onMounted, ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import dayjs from 'dayjs'
@@ -56,7 +56,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   /** 图表实例数组: [0]="全部", [1]=user0, [2]=user1 */
   const belongTypeCharts = ref<any[]>([])
   /** 图表数量：用户 ≥ 2 时显示全部 + 各用户；仅1个用户时只显示全部 */
-  const chartCount = computed(() => users.value.length >= 2 ? users.value.length + 1 : 1)
+  const chartCount = computed(() => (users.value.length >= 2 ? users.value.length + 1 : 1))
 
   const dialogVisible = ref(false)
   const detailList = ref<any[]>([])
@@ -139,7 +139,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     const proportionArray = proportion.split(':')
     const total = Number(proportionArray[0]) + Number(proportionArray[1])
 
-    const userNames = users.value.map(u => u.name)
+    const userNames = users.value.map((u) => u.name)
     const userName0 = userNames[0] || ''
     const userName1 = userNames[1] || ''
 
@@ -149,8 +149,10 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     currentProportion.value = { [userName0]: proportion0, [userName1]: proportion1 }
     console.log('用户比例:', currentProportion.value)
 
-    const data: Record<string, any[]> = { '全部': [] }
-    userNames.forEach(name => { data[name] = [] })
+    const data: Record<string, any[]> = { 全部: [] }
+    userNames.forEach((name) => {
+      data[name] = []
+    })
 
     const allRank = costTypeRank['全部'] || []
 
@@ -177,7 +179,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     })
 
     // 各用户的专属数据合并
-    userNames.forEach(userName => {
+    userNames.forEach((userName) => {
       const rank = costTypeRank[userName] || []
       rank.forEach((item: any) => {
         const index = data[userName].findIndex((ite: any) => ite.type === item.type)
@@ -201,7 +203,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
 
     // 对数据进行排序
-    Object.keys(data).forEach(key => {
+    Object.keys(data).forEach((key) => {
       data[key] = sortData(data[key])
     })
 
@@ -232,7 +234,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       return
     }
 
-    const labels = ['全部', ...users.value.map(u => u.name)]
+    const labels = ['全部', ...users.value.map((u) => u.name)]
     labels.forEach((label, i) => {
       if (belongTypeDatas.value[label] && belongTypeCharts.value[i]) {
         setSeriesData(belongOptions.value.series[0], belongTypeDatas.value[label], belongTypeCharts.value[i], label)
@@ -248,7 +250,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     const proportion1 = Number(proportionArray[1])
     const total = proportion0 + proportion1
 
-    const userNames = users.value.map(u => u.name)
+    const userNames = users.value.map((u) => u.name)
     const userName0 = userNames[0] || ''
     const userName1 = userNames[1] || ''
 
@@ -289,7 +291,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
         return item
       })
 
-      const userNames = users.value.map(u => u.name)
+      const userNames = users.value.map((u) => u.name)
       const userName0 = userNames[0] || ''
       const userName1 = userNames[1] || ''
 
@@ -315,28 +317,46 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
   }
 
-  const initData = (bill: Bill) => {
-    belongCondition.value.startDate = dayjs().startOf('year').valueOf()
-    belongCondition.value.endDate = dayjs().valueOf()
-    users.value = bill.users
-    getBalanceAndPieData()
+  /** 销毁已有图表实例，避免重复 init 泄漏 */
+  const disposeCharts = () => {
+    belongTypeCharts.value.forEach((chart) => {
+      chart?.dispose()
+    })
+    belongTypeCharts.value = []
   }
 
+  /** 按当前用户列表初始化饼图 DOM（需在 chartCount 对应节点渲染后调用） */
   const initChart = () => {
+    disposeCharts()
     belongOptions.value.color = colorOptions
-    const userNames = users.value.map(u => u.name)
+    const userNames = users.value.map((u) => u.name)
+
+    const allEl = document.getElementById('belongTypeChart0')
+    if (!allEl) return
 
     // "全部" 图表 (index 0)
-    belongTypeCharts.value[0] = echarts.init(document.getElementById('belongTypeChart0') as HTMLElement)
+    belongTypeCharts.value[0] = echarts.init(allEl)
     belongTypeCharts.value[0].on('click', (params: any) => handleChartClick(params, '全部'))
 
     // 用户图表（仅当用户 ≥ 2 时才渲染各用户饼图）
     if (userNames.length >= 2) {
       userNames.forEach((name, i) => {
-        belongTypeCharts.value[i + 1] = echarts.init(document.getElementById(`belongTypeChart${i + 1}`) as HTMLElement)
+        const el = document.getElementById(`belongTypeChart${i + 1}`)
+        if (!el) return
+        belongTypeCharts.value[i + 1] = echarts.init(el)
         belongTypeCharts.value[i + 1].on('click', (params: any) => handleChartClick(params, name))
       })
     }
+  }
+
+  const initData = async (billData: Bill) => {
+    belongCondition.value.startDate = dayjs().startOf('year').valueOf()
+    belongCondition.value.endDate = dayjs().valueOf()
+    users.value = billData.users
+    // 等 chartCount 更新后的 DOM 节点就绪，再初始化图表（修复刷新后 users 晚于 onMounted 导致只剩「全部」）
+    await nextTick()
+    initChart()
+    getBalanceAndPieData()
   }
 
   watch(
@@ -347,10 +367,6 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     },
     { immediate: true },
   )
-
-  onMounted(() => {
-    initChart()
-  })
 
   return { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount }
 }

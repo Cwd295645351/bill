@@ -140,12 +140,12 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
 
   /** 批量新增交易明细 */
   const batchSaving = ref(false)
-  const batchAdd = async (list: Array<{ costTypeId: string; money: number; date: string; remark: string; belongUserId: string }>) => {
+  const batchAdd = async (list: Array<{ costTypeId: string; money: number; date: number; remark: string; belongUserId: string }>) => {
     const billId = (bill.value as Bill).id
     const data = list.map((item) => ({
       billId,
       type: type.value,
-      date: Number(item.date),
+      date: item.date,
       money: item.money,
       belongUserId: item.belongUserId,
       remark: item.remark,

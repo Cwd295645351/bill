@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 import type { CostType, IncomesType } from '@/types/bill'
 import { ref, type Ref } from 'vue'
+import dayjs from 'dayjs'
 
 /** AI 请求地址 */
 const AI_BASE_URL = 'https://api.siliconflow.cn/v1'
@@ -32,7 +33,7 @@ export const useParse = (costTypes: Ref<CostType[]>) => {
     2. 支出类型id 和 支出类型名称 根据内容从costTypes 中找到最符合的支出类型，costTypes 内容如下：
     ${JSON.stringify(costTypes.value)}
     3. 金额 从 value 中获取
-    4. 日期应使用 Date 格式，时区为东八区，如果日期不完整（如缺少年份或月份），则补充为2026年和月份
+    4. 日期使用 YYYY-MM-DD 格式，时区为东八区；如果日期不完整（如缺少年份或月份），则补充为2026年和当前月份
     ---
     请直接输出JSON结构化信息，不要添加解释性内容。
     `
@@ -100,7 +101,7 @@ ${numberedLines}
 2. 【costTypeId】从costTypes中找到最符合的支出类型，costTypes的内容如下：
 ${JSON.stringify(costTypes.value)}
 3. 金额从每行文本末尾中获取。
-4. 日期从每行开头获取，应使用 Date 格式，时区为东八区，如果日期不完整（如缺少年份或月份），则补充为2026年和月份。
+4. 日期从每行开头获取，使用 YYYY-MM-DD 格式，时区为东八区；如果日期不完整（如缺少年份或月份），则补充为2026年和当前月份。
 ---
 请直接输出JSON数组，不要添加解释性内容。
 `
@@ -131,6 +132,7 @@ ${JSON.stringify(costTypes.value)}
       const parsed: Array<{ index: number; costTypeId: string; money: number; date: string }> = JSON.parse(responseText.replace('```json', '').replace('```', ''))
       const parsedMap = new Map(parsed.map((item) => [item.index, item]))
 
+      const todayTs = dayjs().startOf('day').valueOf()
       return lines.map((line, i) => {
         const info = parsedMap.get(i + 1)
         if (info) {
@@ -138,19 +140,21 @@ ${JSON.stringify(costTypes.value)}
             remark: line,
             costTypeId: info.costTypeId || '',
             money: info.money || 0,
-            date: info.date || '',
+            // 转为毫秒时间戳，与 el-date-picker value-format="x" 及后端接口对齐
+            date: info.date ? dayjs(info.date).startOf('day').valueOf() : todayTs,
             belongUserId: '',
           }
         }
-        return { remark: line, costTypeId: '', money: 0, date: '', belongUserId: '' }
+        return { remark: line, costTypeId: '', money: 0, date: todayTs, belongUserId: '' }
       })
     } catch (error) {
       console.log('批量解析失败', error)
+      const todayTs = dayjs().startOf('day').valueOf()
       return lines.map((line) => ({
         remark: line,
         costTypeId: '',
         money: 0,
-        date: '',
+        date: todayTs,
         belongUserId: '',
       }))
     }

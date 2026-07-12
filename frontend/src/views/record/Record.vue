@@ -317,7 +317,7 @@ const parseRemark = async () => {
 /** 批量解析相关 */
 const batchDialog = ref(false)
 const batchText = ref('')
-const batchResults = ref<Array<{ remark: string; costTypeId: string; money: number; date: string; belongUserId: string }>>([])
+const batchResults = ref<Array<{ remark: string; costTypeId: string; money: number; date: number; belongUserId: string }>>([])
 
 const handleBatchParse = async () => {
   if (!batchText.value.trim()) {

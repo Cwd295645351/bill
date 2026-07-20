@@ -10,6 +10,12 @@ const fs = require('fs')
 /** 金额保留两位小数（返回 number） */
 const fixMoney = (n) => Number(Number(n).toFixed(2))
 
+/** 将单个 id 或 id 数组统一为数组，避免 Op.in 收到字符串时按字符拆分 */
+const toIdList = (value) => {
+  if (value == null || value === '') return null
+  return Array.isArray(value) ? value : [value]
+}
+
 // 查询列表
 exports.getList = async (data) => {
   const pageIndex = data.pageIndex
@@ -40,8 +46,10 @@ exports.getList = async (data) => {
   if (data.costTypeId) params.costTypeId = data.costTypeId
   if (data.payMethodId) params.payMethodId = data.payMethodId
   if (data.incomesTypeId) params.incomesTypeId = data.incomesTypeId
-  if (data.userId) params.userId = { [Op.in]: data.userId }
-  if (data.belongUserId) params.belongUserId = { [Op.in]: data.belongUserId }
+  const userIds = toIdList(data.userId)
+  if (userIds) params.userId = { [Op.in]: userIds }
+  const belongUserIds = toIdList(data.belongUserId)
+  if (belongUserIds) params.belongUserId = { [Op.in]: belongUserIds }
 
   const res = await Transaction.findAll({
     where: params,
@@ -423,8 +431,10 @@ exports.exportData = async (data) => {
   if (data.costTypeId) exportParams.costTypeId = data.costTypeId
   if (data.payMethodId) exportParams.payMethodId = data.payMethodId
   if (data.incomesTypeId) exportParams.incomesTypeId = data.incomesTypeId
-  if (data.userId) exportParams.userId = { [Op.in]: data.userId }
-  if (data.belongUserId) exportParams.belongUserId = { [Op.in]: data.belongUserId }
+  const exportUserIds = toIdList(data.userId)
+  if (exportUserIds) exportParams.userId = { [Op.in]: exportUserIds }
+  const exportBelongUserIds = toIdList(data.belongUserId)
+  if (exportBelongUserIds) exportParams.belongUserId = { [Op.in]: exportBelongUserIds }
   
   const res = await Transaction.findAll({
     where: exportParams,

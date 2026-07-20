@@ -43,6 +43,7 @@ export const useRecord = () => {
   const conditionOptions = ref([
     { name: '>=', id: 'gte' },
     { name: '>', id: 'gt' },
+    { name: '=', id: 'eq' },
     { name: '<=', id: 'lte' },
     { name: '<', id: 'lt' },
   ])

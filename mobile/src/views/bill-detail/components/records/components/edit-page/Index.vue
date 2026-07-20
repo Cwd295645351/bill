@@ -43,6 +43,7 @@ import dayjs from 'dayjs'
 import { showFailToast, showLoadingToast, showConfirmDialog, showSuccessToast } from 'vant'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
+import { dayStartTs } from '@/utils/dateUtil'
 import { useSearch } from '../../hooks/use-search'
 import { editTransactionApi, deleteTransactionApi } from '../../api'
 import { RecordItem } from '../../type'
@@ -65,7 +66,7 @@ const submitForm = async () => {
   const data: any = {
     id: information.id,
     billId: billId.value,
-    date: information.beginDate,
+    date: dayStartTs(information.beginDate),
     money: Number(information.rangeMoney),
     type: type.value,
     belongUserId: information.belongUserId,

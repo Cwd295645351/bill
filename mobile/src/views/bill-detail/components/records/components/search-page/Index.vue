@@ -93,7 +93,7 @@
       <van-picker :columns="currentPickerOptions.options" :columns-field-names="{ text: 'name', value: 'id' }" @confirm="onConfirmPicker" @cancel="showSelectPicker = false" />
     </van-popup>
     <van-popup v-model:show="showDatePicker" position="bottom">
-      <van-date-picker @confirm="onConfirmDatePicker" @cancel="showDatePicker = false" />
+      <van-date-picker v-model="datePickerValue" @confirm="onConfirmDatePicker" @cancel="showDatePicker = false" />
     </van-popup>
   </van-popup>
 </template>
@@ -109,6 +109,7 @@ const {
   searchOptions,
   showSelectPicker,
   showDatePicker,
+  datePickerValue,
   currentPickerOptions,
   showPickerAction,
   onConfirmPicker,

@@ -107,6 +107,7 @@ export const useSearch = (pageSize: number) => {
     condition: [
       { name: '大于等于', id: 'gte' },
       { name: '大于', id: 'gt' },
+      { name: '等于', id: 'eq' },
       { name: '小于等于', id: 'lte' },
       { name: '小于', id: 'lt' },
     ],
@@ -148,9 +149,9 @@ export const useSearch = (pageSize: number) => {
     datePickerValue.value = searchOptions.value[type].split('-')
   }
 
-  /** 日期选择器确认 */
+  /** 日期选择器确认：直接使用组件返回的 ['YYYY','MM','DD'] 拼成展示字符串 */
   const onConfirmDatePicker = ({ selectedValues }) => {
-    const value = dayjs(selectedValues.join('-')).valueOf()
+    const value = selectedValues.join('-')
     if (datePickerType.value === 'beginDate') {
       searchOptions.value.beginDate = value
     } else {

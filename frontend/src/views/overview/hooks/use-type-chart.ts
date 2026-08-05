@@ -19,7 +19,13 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const users = ref<User[]>([])
 
-  const belongCondition = ref<BelongCondition>({ startDate: '' as number | '', endDate: '' as number | '', days: 0, refundMoney: 0 })
+  const belongCondition = ref<BelongCondition>({
+    startDate: '' as number | '',
+    endDate: '' as number | '',
+    days: 0,
+    daysUserId: '',
+    refundMoney: 0,
+  })
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -273,6 +279,17 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     belongCondition.value.refundMoney = Number(money.toFixed(2))
   }
 
+  /** 应退文案：正数=user1 退给 user0；负数=user0 退给 user1 */
+  const refundText = computed(() => {
+    const userName0 = users.value[0]?.name || ''
+    const userName1 = users.value[1]?.name || ''
+    const money = belongCondition.value.refundMoney
+    if (!userName0 || !userName1) return `应退金额：${money}`
+    if (money === 0) return '应退金额：双方结清，无需转账'
+    if (money > 0) return `应退金额：${userName1} → ${userName0} 转 ${money} 元`
+    return `应退金额：${userName0} → ${userName1} 转 ${Math.abs(money)} 元`
+  })
+
   const getBalanceAndPieData = async () => {
     const params = {
       billId: billId.value,
@@ -294,17 +311,21 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       const userNames = users.value.map((u) => u.name)
       const userName0 = userNames[0] || ''
       const userName1 = userNames[1] || ''
+      const hkDeduction = belongCondition.value.days * 200
+      const daysUserId = belongCondition.value.daysUserId
 
-      // 获取用户收入（减去香港天数、社保等）
-      let user0Incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName0)?.money ?? 0
-      // 需要减去香港天数，一天 200 元
-      user0Incomes -= belongCondition.value.days * 200
-      // 减去用户缴纳社保金额
-      user0Incomes -= res.data.costTypeRank[userName0]?.find((item: any) => item.type === '1020')?.money ?? 0
+      // 按用户计算有效收入：扣社保；香港天数仅扣归属人
+      const calcIncomes = (userName: string, userId: string) => {
+        let incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName)?.money ?? 0
+        if (userId && userId === daysUserId) {
+          incomes -= hkDeduction
+        }
+        incomes -= res.data.costTypeRank[userName]?.find((item: any) => item.type === '1020')?.money ?? 0
+        return incomes
+      }
 
-      let user1Incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName1)?.money ?? 0
-      // 减去用户缴纳社保金额
-      user1Incomes -= res.data.costTypeRank[userName1]?.find((item: any) => item.type === '1020')?.money ?? 0
+      const user0Incomes = calcIncomes(userName0, users.value[0]?.id ?? '')
+      const user1Incomes = calcIncomes(userName1, users.value[1]?.id ?? '')
 
       const proportion = `${user0Incomes.toFixed(2)}:${user1Incomes.toFixed(2)}`
       console.log(proportion, 'proportion')
@@ -353,6 +374,10 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     belongCondition.value.startDate = dayjs().startOf('year').valueOf()
     belongCondition.value.endDate = dayjs().valueOf()
     users.value = billData.users
+    // 默认归属第一个用户，可在表单中切换
+    if (!belongCondition.value.daysUserId && billData.users[0]) {
+      belongCondition.value.daysUserId = billData.users[0].id
+    }
     // 等 chartCount 更新后的 DOM 节点就绪，再初始化图表（修复刷新后 users 晚于 onMounted 导致只剩「全部」）
     await nextTick()
     initChart()
@@ -368,5 +393,17 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     { immediate: true },
   )
 
-  return { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount }
+  return {
+    users,
+    belongCondition,
+    belongUsers,
+    getBalanceAndPieData,
+    dialogVisible,
+    detailList,
+    loading,
+    currentCategory,
+    currentCategoryTotal,
+    chartCount,
+    refundText,
+  }
 }

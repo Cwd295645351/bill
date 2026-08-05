@@ -19,6 +19,8 @@ export interface BelongCondition {
   endDate: number | ''
   /** 香港天数 */
   days: number
+  /** 香港天数归属用户 id */
+  daysUserId: string
   /** 退款金额 */
   refundMoney: number
 }

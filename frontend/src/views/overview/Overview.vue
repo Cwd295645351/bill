@@ -32,10 +32,15 @@
           <el-form-item prop="days" required size="small" label="香港天数">
             <el-input v-model="belongCondition.days" placeholder="请输入香港天数"> </el-input>
           </el-form-item>
+          <el-form-item prop="daysUserId" required size="small" label="香港天数归属">
+            <el-select style="width: 100%" v-model="belongCondition.daysUserId" placeholder="选择归属人">
+              <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+            </el-select>
+          </el-form-item>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
-          <el-form-item requed size="small" :label="'应退金额：' + belongCondition.refundMoney"> </el-form-item>
+          <el-form-item size="small" :label="refundText"> </el-form-item>
         </el-form>
       </div>
     </div>
@@ -89,7 +94,7 @@ import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount } = useTypeChart({ colorOptions })
+const { users, belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount, refundText } = useTypeChart({ colorOptions })
 </script>
 <style lang="scss" scoped>
 .overview-module {
@@ -145,7 +150,7 @@ const { belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detai
     }
     .add-data-container {
       width: 100%;
-      height: 240px;
+      height: 300px;
       border-top: 1px solid #ddd;
       :deep(.el-form-item) {
         margin-bottom: 10px;

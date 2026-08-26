@@ -19,6 +19,7 @@ const sequelize = new Sequelize(
 )
 
 const initModels = require('./models')
+const { ensureEncryptionKey } = require('./ensureEncryption')
 
 const models = initModels(sequelize)
 
@@ -42,6 +43,7 @@ const connectDB = async () => {
     await ensureDatabase()
     await sequelize.authenticate()
     await sequelize.sync()
+    await ensureEncryptionKey(models.Encryption)
     console.log('MySQL connect success')
   } catch (err) {
     console.error('MySQL connect failed:', err)

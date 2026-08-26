@@ -1,16 +1,16 @@
-const crypto = require('crypto')
 const { KEYUTIL, KJUR, b64tohex } = require('jsrsasign')
 const { xssData } = require('../../utils/xss')
 const jwt = require('jsonwebtoken')
 const { Encryption, User } = require('../../database/index')
+const { generateRsaKeyPair, ensureEncryptionKey } = require('../../database/ensureEncryption')
 
 const { genPassword } = require('../../utils/cryp')
 
-// 获取登录配置
+// 获取登录配置（表为空时自动生成密钥，避免全新部署无法登录）
 const getLoginConfig = async () => {
   try {
-    const res = await Encryption.findAll({ attributes: ['publicKey'], limit: 1 })
-    return [null, res[0]]
+    const res = await ensureEncryptionKey(Encryption)
+    return [null, res]
   } catch (err) {
     console.error(err)
     return [err, null]
@@ -19,17 +19,7 @@ const getLoginConfig = async () => {
 
 // 更新密钥
 const updateEncryptionKey = async () => {
-  const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
-    modulusLength: 512,
-    publicKeyEncoding: {
-      type: 'spki',
-      format: 'pem'
-    },
-    privateKeyEncoding: {
-      type: 'pkcs1',
-      format: 'pem'
-    }
-  })
+  const { publicKey, privateKey } = generateRsaKeyPair()
   try {
     const exist = await Encryption.findOne()
     if (exist) {

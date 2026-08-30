@@ -113,7 +113,6 @@
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="内容">
               <el-input v-model="addInformation.remark" clearable placeholder="请输入"></el-input>
-              <el-button type="primary" @click="parseRemark" size="small" :loading="loading">解析</el-button>
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="金额">
               <el-input v-model="addInformation.money" clearable placeholder="请输入"></el-input>
@@ -258,7 +257,6 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import dayjs from 'dayjs'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
 import { useParse } from './hooks/use-parse'
@@ -301,18 +299,7 @@ const {
   changeAddContainer,
 } = useAddEdit({ search, type })
 
-const { parse, parseBatch, loading } = useParse(costTypes)
-
-const parseRemark = async () => {
-  const { info, error } = await parse(addInformation.value.remark)
-  if (error) {
-    ElMessage.error('解析失败')
-    return
-  }
-  addInformation.value.costTypeId = info.costTypeId
-  addInformation.value.money = info.money
-  addInformation.value.date = info.date ? dayjs(info.date).startOf('day').valueOf() : ''
-}
+const { parseBatch, loading } = useParse(costTypes)
 
 /** 批量解析相关 */
 const batchDialog = ref(false)

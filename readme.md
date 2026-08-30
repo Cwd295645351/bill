@@ -23,7 +23,22 @@ pnpm run install_all
 npm run dev
 ```
 
-## 四、生产部署
+## 四、AI 批量解析配置
+
+后端支持 OpenAI Chat Completions 兼容接口，默认使用硅基流动。首次使用时复制示例配置，并填写 API Key：
+
+```bash
+cd server
+cp .env.example .env
+```
+
+```dotenv
+AI_API_KEY=替换为新密钥
+```
+
+`server/.env` 已被 Git 忽略，禁止把真实密钥写入源码或提交到仓库。生产环境也可以直接通过进程环境变量注入 `AI_API_KEY`。如需切换其他兼容服务，可设置 `AI_BASE_URL` 和 `AI_MODEL`；不设置时默认使用硅基流动及 DeepSeek V3.2。
+
+## 五、生产部署
 
 完整步骤见 [deploy/README.md](deploy/README.md)。摘要如下：
 
@@ -41,7 +56,7 @@ cd mobile && pnpm build     # 产物在 mobile/dist
 | `frontend/dist/*` | `/var/www/bill/pc/` |
 | `mobile/dist/*` | `/var/www/bill/mobile/` |
 
-3. 填写 `~/bill/server/config/db.js` 的 MySQL / Redis，启动后端（默认端口 3000，进程名 `bill-manage`）：
+3. 填写 `~/bill/server/config/db.js` 的 MySQL / Redis，并在 `~/bill/server/.env` 或进程环境变量中配置 `AI_API_KEY`，再启动后端（默认端口 3000，进程名 `bill-manage`）：
 
 ```bash
 cd ~/bill/server && pnpm run prd

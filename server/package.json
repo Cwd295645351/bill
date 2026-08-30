@@ -13,6 +13,7 @@
   "dependencies": {
     "dayjs": "^1.11.5",
     "debug": "^4.1.1",
+    "dotenv": "^17.4.2",
     "jsonwebtoken": "^8.5.1",
     "jsrsasign": "^10.8.6",
     "koa": "^2.7.0",

@@ -1,3 +1,6 @@
+const path = require('path')
+require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true })
+
 const Koa = require('koa')
 const json = require('koa-json')
 const onerror = require('koa-onerror')
@@ -5,7 +8,6 @@ const logger = require('koa-logger')
 
 // 第三方依赖
 const koaBody = require('koa-body') // 接口数据处理
-const path = require('path')
 const fs = require('fs')
 const morgan = require('koa-morgan') // 日志处理
 const session = require('koa-generic-session') // session
@@ -27,6 +29,7 @@ const overview = require('./routes/overview/index')
 const plan = require('./routes/plan/index')
 const asset = require('./routes/asset/index')
 const billtype = require('./routes/billtype/index')
+const ai = require('./routes/ai/index')
 
 const app = new Koa()
 
@@ -144,6 +147,7 @@ app.use(overview.routes(), budget.allowedMethods())
 app.use(plan.routes(), plan.allowedMethods())
 app.use(asset.routes(), asset.allowedMethods())
 app.use(billtype.routes(), billtype.allowedMethods())
+app.use(ai.routes(), ai.allowedMethods())
 
 // error-handling
 app.on('error', (err, ctx) => {

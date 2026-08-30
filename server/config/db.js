@@ -1,8 +1,8 @@
 const MYSQL_CONF = {
   host: '127.0.0.1',
   port: 3306,
-  username: '',
-  password: '',
+  username: 'root',
+  password: '123456',
   database: 'bill',
   dialect: 'mysql',
   logging: false,

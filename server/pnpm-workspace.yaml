@@ -1,0 +1,4 @@
+# pnpm 11/12 在此读取构建脚本策略（不再读 package.json#pnpm 和 .npmrc）。
+# nodemon 仅开发用，明确禁止其 install 脚本，避免 ERR_PNPM_IGNORED_BUILDS。
+allowBuilds:
+  nodemon: false

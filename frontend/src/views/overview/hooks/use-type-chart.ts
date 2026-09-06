@@ -9,6 +9,7 @@ import { getBalance } from '../api'
 import { getRecordList } from '../../record/api'
 
 import { Bill, User } from '@/types/bill'
+import type { OverviewRule } from '@/types/bill'
 import type { BelongCondition, BelongUser } from '../type'
 
 export const useTypeChart = (options: { colorOptions: string[] }) => {
@@ -22,10 +23,13 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const belongCondition = ref<BelongCondition>({
     startDate: '' as number | '',
     endDate: '' as number | '',
-    days: 0,
-    daysUserId: '',
+    quantityInputs: {},
     refundMoney: 0,
   })
+  /** 已启用的数量型规则，用于动态渲染查询表单 */
+  const quantityRules = computed(() =>
+    (bill.value?.overviewRules || []).filter((rule) => rule.enabled && rule.ruleType === 'quantity'),
+  )
   const belongUsers = ref<BelongUser>({ totalCost: 0, totalIncomes: 0, investCost: 0, consumptionCost: 0, details: [] })
   /** 各归属人不同类型支出数据 */
   const belongTypeDatas = ref<Record<string, any>>({})
@@ -260,6 +264,11 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     const userName0 = userNames[0] || ''
     const userName1 = userNames[1] || ''
 
+    if (!total) {
+      belongCondition.value.refundMoney = 0
+      return
+    }
+
     let money = 0
     costs.forEach((item) => {
       if (item.userName === userName0) {
@@ -311,23 +320,29 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       const userNames = users.value.map((u) => u.name)
       const userName0 = userNames[0] || ''
       const userName1 = userNames[1] || ''
-      const hkDeduction = belongCondition.value.days * 200
-      const daysUserId = belongCondition.value.daysUserId
+      const enabledRules = (bill.value?.overviewRules || []).filter((rule) => rule.enabled)
 
-      // 按用户计算有效收入：扣社保；香港天数仅扣归属人
+      // 按启用规则计算有效收入：数量规则仅扣归属人，支出类型规则扣对应类型金额
       const calcIncomes = (userName: string, userId: string) => {
         let incomes = res.data.belongUserCosts.find((item: any) => item.type === 2 && item.belongUserName === userName)?.money ?? 0
-        if (userId && userId === daysUserId) {
-          incomes -= hkDeduction
-        }
-        incomes -= res.data.costTypeRank[userName]?.find((item: any) => item.type === '1020')?.money ?? 0
+        enabledRules.forEach((rule: OverviewRule) => {
+          if (rule.ruleType === 'quantity') {
+            const input = belongCondition.value.quantityInputs[rule.id]
+            if (userId && input && userId === input.belongUserId) {
+              incomes -= Number(input.quantity || 0) * Number(rule.unitPrice || 0)
+            }
+          } else if (rule.ruleType === 'cost_type' && rule.costTypeId) {
+            incomes -= res.data.costTypeRank[userName]?.find((item: any) => item.type === rule.costTypeId)?.money ?? 0
+          }
+        })
         return incomes
       }
 
       const user0Incomes = calcIncomes(userName0, users.value[0]?.id ?? '')
       const user1Incomes = calcIncomes(userName1, users.value[1]?.id ?? '')
-
-      const proportion = `${user0Incomes.toFixed(2)}:${user1Incomes.toFixed(2)}`
+      const incomeTotal = user0Incomes + user1Incomes
+      // 有效收入总和为 0 时回退均分，避免比例出现 NaN
+      const proportion = !Number.isFinite(incomeTotal) || incomeTotal === 0 ? '1:1' : `${user0Incomes.toFixed(2)}:${user1Incomes.toFixed(2)}`
       console.log(proportion, 'proportion')
 
       calculateMoney(proportion)
@@ -370,14 +385,30 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
   }
 
+  /** 按当前启用的数量规则同步查询输入，保留已填数量 */
+  const syncQuantityInputs = (billData: Bill) => {
+    const rules = (billData.overviewRules || []).filter((rule) => rule.enabled && rule.ruleType === 'quantity')
+    const next = { ...belongCondition.value.quantityInputs }
+    const validIds = new Set(rules.map((rule) => rule.id))
+    const defaultUserId = billData.users[0]?.id || ''
+    rules.forEach((rule) => {
+      if (!next[rule.id]) {
+        next[rule.id] = { quantity: 0, belongUserId: defaultUserId }
+      } else if (!next[rule.id].belongUserId && defaultUserId) {
+        next[rule.id].belongUserId = defaultUserId
+      }
+    })
+    Object.keys(next).forEach((id) => {
+      if (!validIds.has(id)) delete next[id]
+    })
+    belongCondition.value.quantityInputs = next
+  }
+
   const initData = async (billData: Bill) => {
     belongCondition.value.startDate = dayjs().startOf('year').valueOf()
     belongCondition.value.endDate = dayjs().valueOf()
     users.value = billData.users
-    // 默认归属第一个用户，可在表单中切换
-    if (!belongCondition.value.daysUserId && billData.users[0]) {
-      belongCondition.value.daysUserId = billData.users[0].id
-    }
+    syncQuantityInputs(billData)
     // 等 chartCount 更新后的 DOM 节点就绪，再初始化图表（修复刷新后 users 晚于 onMounted 导致只剩「全部」）
     await nextTick()
     initChart()
@@ -393,8 +424,13 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     { immediate: true },
   )
 
+  watch(quantityRules, () => {
+    if (bill.value) syncQuantityInputs(bill.value)
+  })
+
   return {
     users,
+    quantityRules,
     belongCondition,
     belongUsers,
     getBalanceAndPieData,

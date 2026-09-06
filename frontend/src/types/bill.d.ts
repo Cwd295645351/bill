@@ -14,6 +14,23 @@ export interface Bill {
   costTypes: CostType[]
   incomesTypes: IncomesType[]
   payMethods: PayMethod[]
+  /** 概览收入调整规则 */
+  overviewRules?: OverviewRule[]
+}
+
+/** 概览规则类型：数量×单价 / 指定支出类型 */
+export type OverviewRuleType = 'quantity' | 'cost_type'
+
+/** 账本概览收入调整规则 */
+export interface OverviewRule {
+  id: string
+  name: string
+  ruleType: OverviewRuleType
+  enabled: boolean
+  unitName?: string
+  unitPrice?: number
+  costTypeId?: string
+  sort: number
 }
 
 /** 用户信息 */

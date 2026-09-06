@@ -107,6 +107,26 @@ function initModels(sequelize) {
     { tableName: 'bill_pay_methods' }
   )
 
+  /** 账本概览收入调整规则：数量×单价扣减 / 指定支出类型扣减 */
+  const BillOverviewRule = sequelize.define(
+    'bill_overview_rules',
+    {
+      id: defineId,
+      billId: { type: DataTypes.CHAR(36), allowNull: false, field: 'bill_id' },
+      name: { type: DataTypes.STRING(64), allowNull: false },
+      /** quantity=数量×单价；cost_type=指定支出类型 */
+      ruleType: { type: DataTypes.STRING(32), allowNull: false, field: 'rule_type' },
+      enabled: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      unitName: { type: DataTypes.STRING(32), allowNull: true, field: 'unit_name' },
+      unitPrice: decimalMoney('unitPrice', { allowNull: true, defaultValue: 0, field: 'unit_price' }),
+      costTypeId: { type: DataTypes.STRING(32), allowNull: true, field: 'cost_type_id' },
+      sort: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      isBuiltin: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_builtin' },
+      builtinKey: { type: DataTypes.STRING(64), allowNull: true, field: 'builtin_key' }
+    },
+    { tableName: 'bill_overview_rules' }
+  )
+
   const BillPlanBuy = sequelize.define(
     'bill_plan_buys',
     {
@@ -230,6 +250,7 @@ function initModels(sequelize) {
   Bill.hasMany(BillCostType, { foreignKey: 'billId', as: 'costTypes' })
   Bill.hasMany(BillIncomeType, { foreignKey: 'billId', as: 'incomesTypes' })
   Bill.hasMany(BillPayMethod, { foreignKey: 'billId', as: 'payMethods' })
+  Bill.hasMany(BillOverviewRule, { foreignKey: 'billId', as: 'overviewRules' })
   Bill.hasMany(BillPlanBuy, { foreignKey: 'billId', as: 'planBuyDetails' })
   Bill.hasMany(BillBudget, { foreignKey: 'billId', as: 'budgets' })
   BillBudget.hasMany(BillBudgetDetail, { foreignKey: 'budgetId', as: 'details' })
@@ -245,6 +266,7 @@ function initModels(sequelize) {
     BillCostType,
     BillIncomeType,
     BillPayMethod,
+    BillOverviewRule,
     BillPlanBuy,
     BillBudget,
     BillBudgetDetail,

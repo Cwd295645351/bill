@@ -29,14 +29,18 @@
           <el-form-item prop="endDate" required size="small" label="结束时间">
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="x" type="date" placeholder="结束时间"> </el-date-picker>
           </el-form-item>
-          <el-form-item prop="days" required size="small" label="香港天数">
-            <el-input v-model="belongCondition.days" placeholder="请输入香港天数"> </el-input>
-          </el-form-item>
-          <el-form-item prop="daysUserId" required size="small" label="香港天数归属">
-            <el-select style="width: 100%" v-model="belongCondition.daysUserId" placeholder="选择归属人">
-              <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-            </el-select>
-          </el-form-item>
+          <template v-for="rule in quantityRules" :key="rule.id">
+            <template v-if="belongCondition.quantityInputs[rule.id]">
+              <el-form-item size="small" :label="rule.name">
+                <el-input v-model="belongCondition.quantityInputs[rule.id].quantity" :placeholder="`请输入${rule.name}`" />
+              </el-form-item>
+              <el-form-item size="small" :label="`${rule.name}归属`">
+                <el-select style="width: 100%" v-model="belongCondition.quantityInputs[rule.id].belongUserId" placeholder="选择归属人">
+                  <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+                </el-select>
+              </el-form-item>
+            </template>
+          </template>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
@@ -94,7 +98,7 @@ import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { users, belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount, refundText } = useTypeChart({ colorOptions })
+const { users, quantityRules, belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount, refundText } = useTypeChart({ colorOptions })
 </script>
 <style lang="scss" scoped>
 .overview-module {
@@ -150,7 +154,6 @@ const { users, belongCondition, belongUsers, getBalanceAndPieData, dialogVisible
     }
     .add-data-container {
       width: 100%;
-      height: 300px;
       border-top: 1px solid #ddd;
       :deep(.el-form-item) {
         margin-bottom: 10px;

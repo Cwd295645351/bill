@@ -2,7 +2,8 @@ const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
 const {
   createCostType, editCostType, deleteCostType, toggleCostTypeShow,
-  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow
+  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow,
+  createOverviewRule, editOverviewRule, toggleOverviewRule, deleteOverviewRule
 } = require('./controller')
 
 const VERSION = require('../../config/version')
@@ -86,6 +87,43 @@ router.post('/incomeType/toggle', async (ctx) => {
   if (!id || !billId) { ctx.body = new ResModel(null, '参数不完整', 'error'); return }
   const [err, res] = await toggleIncomeTypeShow({ id, billId, userId })
   if (res) ctx.body = new ResModel(res, '切换成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+// 概览调整规则
+router.post('/overviewRule/create', async (ctx) => {
+  const { billId, name, ruleType, unitName, unitPrice, costTypeId } = ctx.request.body
+  const userId = ctx.header.userid
+  if (!billId) { ctx.body = new ResModel(null, '缺少账本ID', 'error'); return }
+  const [err, res] = await createOverviewRule({ billId, name, ruleType, unitName, unitPrice, costTypeId, userId })
+  if (res) ctx.body = new ResModel(res, '新增成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.put('/overviewRule/edit', async (ctx) => {
+  const { id, billId, name, ruleType, unitName, unitPrice, costTypeId } = ctx.request.body
+  const userId = ctx.header.userid
+  if (!id || !billId) { ctx.body = new ResModel(null, '参数不完整', 'error'); return }
+  const [err, res] = await editOverviewRule({ id, billId, name, ruleType, unitName, unitPrice, costTypeId, userId })
+  if (res) ctx.body = new ResModel(res, '编辑成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.post('/overviewRule/toggle', async (ctx) => {
+  const { id, billId } = ctx.request.body
+  const userId = ctx.header.userid
+  if (!id || !billId) { ctx.body = new ResModel(null, '参数不完整', 'error'); return }
+  const [err, res] = await toggleOverviewRule({ id, billId, userId })
+  if (res) ctx.body = new ResModel(res, '切换成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.post('/overviewRule/delete', async (ctx) => {
+  const { id, billId } = ctx.request.body
+  const userId = ctx.header.userid
+  if (!id || !billId) { ctx.body = new ResModel(null, '参数不完整', 'error'); return }
+  const [err, res] = await deleteOverviewRule({ id, billId, userId })
+  if (res) ctx.body = new ResModel(res, '删除成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
 

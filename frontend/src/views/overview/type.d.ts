@@ -11,16 +11,22 @@ export interface BelongUser {
   details: any[]
 }
 
+/** 数量型规则在概览查询中的输入 */
+export interface QuantityRuleInput {
+  /** 数量 */
+  quantity: number | string
+  /** 归属用户 id */
+  belongUserId: string
+}
+
 /** 比例 */
 export interface BelongCondition {
   /** 开始时间（时间戳） */
   startDate: number | ''
   /** 结束时间（时间戳） */
   endDate: number | ''
-  /** 香港天数 */
-  days: number
-  /** 香港天数归属用户 id */
-  daysUserId: string
+  /** 数量型规则查询值，按规则 ID 索引 */
+  quantityInputs: Record<string, QuantityRuleInput>
   /** 退款金额 */
   refundMoney: number
 }

@@ -10,3 +10,8 @@ export const deleteIncomeType = BILLTYPE.post('/incomeType/delete')
 
 export const toggleCostTypeShow = BILLTYPE.post('/costType/toggle')
 export const toggleIncomeTypeShow = BILLTYPE.post('/incomeType/toggle')
+
+export const createOverviewRule = BILLTYPE.post('/overviewRule/create')
+export const editOverviewRule = BILLTYPE.put('/overviewRule/edit')
+export const toggleOverviewRule = BILLTYPE.post('/overviewRule/toggle')
+export const deleteOverviewRule = BILLTYPE.post('/overviewRule/delete')

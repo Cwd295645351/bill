@@ -67,7 +67,64 @@
           </div>
         </div>
       </el-tab-pane>
+      <el-tab-pane label="概览规则" name="overviewRule">
+        <div class="type-list">
+          <div class="type-item" v-for="item in overviewRules" :key="item.id">
+            <el-switch
+              :model-value="item.enabled"
+              active-text="启用"
+              inactive-text="停用"
+              inline-prompt
+              size="small"
+              style="margin-right: 8px"
+              :loading="togglingId === item.id"
+              @change="handleToggleRule(item)"
+            />
+            <span class="type-name">
+              {{ item.name }}
+              <span class="rule-meta">{{ formatRuleMeta(item) }}</span>
+            </span>
+            <div class="type-actions">
+              <el-button type="primary" link size="small" @click="openRuleDialog(item)">编辑</el-button>
+              <el-button type="danger" link size="small" @click="handleDeleteRule(item)">删除</el-button>
+            </div>
+          </div>
+          <div class="type-item add-row">
+            <el-button type="primary" size="small" @click="openRuleDialog()">添加规则</el-button>
+          </div>
+        </div>
+      </el-tab-pane>
     </el-tabs>
+    <el-dialog v-model="ruleDialogVisible" :title="ruleForm.id ? '编辑概览规则' : '新增概览规则'" width="460px" append-to-body>
+      <el-form :model="ruleForm" label-width="100px">
+        <el-form-item label="规则名称" required>
+          <el-input v-model="ruleForm.name" placeholder="如：香港天数、社保" />
+        </el-form-item>
+        <el-form-item label="规则类型" required>
+          <el-select v-model="ruleForm.ruleType" style="width: 100%">
+            <el-option label="数量 × 单价扣减" value="quantity" />
+            <el-option label="指定支出类型扣减" value="cost_type" />
+          </el-select>
+        </el-form-item>
+        <template v-if="ruleForm.ruleType === 'quantity'">
+          <el-form-item label="单位名称" required>
+            <el-input v-model="ruleForm.unitName" placeholder="如：天" />
+          </el-form-item>
+          <el-form-item label="单价" required>
+            <el-input-number v-model="ruleForm.unitPrice" :min="0.01" :precision="2" :step="1" style="width: 100%" />
+          </el-form-item>
+        </template>
+        <el-form-item v-else label="支出类型" required>
+          <el-select v-model="ruleForm.costTypeId" style="width: 100%" placeholder="选择要扣减的支出类型">
+            <el-option v-for="t in costTypes" :key="t.id" :label="t.name" :value="t.id" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button size="small" @click="ruleDialogVisible = false">取消</el-button>
+        <el-button size="small" type="primary" :loading="ruleSaving" @click="saveRule">确定</el-button>
+      </template>
+    </el-dialog>
   </el-dialog>
 </template>
 
@@ -77,9 +134,11 @@ import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import {
   createCostType, editCostType, deleteCostType, toggleCostTypeShow,
-  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow
+  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow,
+  createOverviewRule, editOverviewRule, toggleOverviewRule, deleteOverviewRule
 } from './api'
 import { getBillDetail } from '../../views/bill/api'
+import type { OverviewRule, OverviewRuleType } from '@/types/bill'
 
 const props = withDefaults(defineProps<{ visible: boolean; billId: string }>(), { visible: false, billId: '' })
 const emit = defineEmits<{ 'update:visible': [value: boolean] }>()
@@ -91,6 +150,7 @@ const activeTab = ref('costType')
 
 const costTypes = computed(() => (bill.value?.costTypes || []).filter((t: any) => !t.isDel))
 const incomeTypes = computed(() => (bill.value?.incomesTypes || []).filter((t: any) => !t.isDel))
+const overviewRules = computed(() => bill.value?.overviewRules || [])
 
 const editingId = ref<string | null>(null)
 const editingName = ref('')
@@ -225,6 +285,121 @@ const handleDelete = async (item: any, type: 'costType' | 'incomeType') => {
 const handleClose = () => {
   emit('update:visible', false)
 }
+
+// ===== 概览规则 =====
+
+const ruleDialogVisible = ref(false)
+const ruleSaving = ref(false)
+const emptyRuleForm = () => ({
+  id: '',
+  name: '',
+  ruleType: 'quantity' as OverviewRuleType,
+  unitName: '',
+  unitPrice: 200,
+  costTypeId: '',
+})
+const ruleForm = ref(emptyRuleForm())
+
+/** 规则摘要：单价或关联支出类型 */
+const formatRuleMeta = (item: OverviewRule) => {
+  if (item.ruleType === 'quantity') {
+    const unit = item.unitName || '单位'
+    return `数量×单价 · ${Number(item.unitPrice || 0).toFixed(2)} 元/${unit}`
+  }
+  const typeName = costTypes.value.find((t: any) => t.id === item.costTypeId)?.name || item.costTypeId || '未选择'
+  return `支出类型 · ${typeName}`
+}
+
+const openRuleDialog = (item?: OverviewRule) => {
+  if (item) {
+    ruleForm.value = {
+      id: item.id,
+      name: item.name,
+      ruleType: item.ruleType,
+      unitName: item.unitName || '',
+      unitPrice: Number(item.unitPrice || 0) || 200,
+      costTypeId: item.costTypeId || '',
+    }
+  } else {
+    ruleForm.value = emptyRuleForm()
+  }
+  ruleDialogVisible.value = true
+}
+
+const saveRule = async () => {
+  const form = ruleForm.value
+  if (!form.name.trim()) {
+    ElMessage.warning('请输入规则名称')
+    return
+  }
+  if (form.ruleType === 'quantity') {
+    if (!form.unitName.trim()) {
+      ElMessage.warning('请输入单位名称')
+      return
+    }
+    if (!form.unitPrice || form.unitPrice <= 0) {
+      ElMessage.warning('单价必须为正数')
+      return
+    }
+  } else if (!form.costTypeId) {
+    ElMessage.warning('请选择支出类型')
+    return
+  }
+
+  ruleSaving.value = true
+  const payload = {
+    billId: props.billId,
+    name: form.name.trim(),
+    ruleType: form.ruleType,
+    unitName: form.unitName.trim(),
+    unitPrice: form.unitPrice,
+    costTypeId: form.costTypeId,
+  }
+  const api = form.id ? editOverviewRule : createOverviewRule
+  const data = form.id ? { ...payload, id: form.id } : payload
+  const [err, res] = await api({ data })
+  ruleSaving.value = false
+  if (err) return
+  if (res.retCode === 0) {
+    ruleDialogVisible.value = false
+    ElMessage.success(form.id ? '编辑成功' : '添加成功')
+    await refreshBill()
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+const handleToggleRule = async (item: OverviewRule) => {
+  togglingId.value = item.id
+  const [err, res] = await toggleOverviewRule({ data: { id: item.id, billId: props.billId } })
+  togglingId.value = null
+  if (err) return
+  if (res.retCode === 0) {
+    await refreshBill()
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+const handleDeleteRule = async (item: OverviewRule) => {
+  try {
+    await ElMessageBox.confirm(`确定删除规则「${item.name}」？删除后概览将不再应用该扣减。`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    const [err, res] = await deleteOverviewRule({ data: { id: item.id, billId: props.billId } })
+    if (err) return
+    if (res.retCode === 0) {
+      ElMessage.success('删除成功')
+      await refreshBill()
+    } else {
+      ElMessage.error(res.message)
+    }
+  } catch {
+    // 取消删除
+  }
+}
 </script>
 
 <style scoped lang="scss">
@@ -244,6 +419,11 @@ const handleClose = () => {
   .type-name {
     flex: 1;
     font-size: 14px;
+    .rule-meta {
+      margin-left: 8px;
+      color: #999;
+      font-size: 12px;
+    }
   }
   .type-actions {
     flex-shrink: 0;

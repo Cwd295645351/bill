@@ -4,12 +4,18 @@ const {
   BillCostType,
   BillIncomeType,
   BillPayMethod,
+  BillOverviewRule,
   BillPlanBuy,
   BillBudget,
   BillBudgetDetail,
   sequelize
 } = require('../index')
 const { Op } = require('sequelize')
+
+/** 数量 × 单价扣减 */
+const RULE_TYPE_QUANTITY = 'quantity'
+/** 指定支出类型扣减 */
+const RULE_TYPE_COST_TYPE = 'cost_type'
 
 /** 将 Sequelize 实例转为普通对象 */
 const toPlain = (row) => (row && row.get ? row.get({ plain: true }) : row)
@@ -40,6 +46,7 @@ const formatBillDetail = (bill, relations) => {
       name: c.name,
       isDel: c.isDel
     })),
+    overviewRules: (relations.overviewRules || []).map(formatOverviewRule),
     planBuy: {
       count: plain.planBuyCount || 0,
       details: (relations.planBuyDetails || []).map((p) => ({
@@ -67,6 +74,21 @@ const formatBillDetail = (bill, relations) => {
   }
 }
 
+/** 将规则行格式化为前端可用结构 */
+const formatOverviewRule = (row) => {
+  const plain = toPlain(row)
+  return {
+    id: plain.id,
+    name: plain.name,
+    ruleType: plain.ruleType,
+    enabled: !!plain.enabled,
+    unitName: plain.unitName || '',
+    unitPrice: Number(plain.unitPrice || 0),
+    costTypeId: plain.costTypeId || '',
+    sort: Number(plain.sort || 0)
+  }
+}
+
 /** 按 id 查询账本并组装嵌套结构 */
 const findBillById = async (billId, options = {}) => {
   const { transaction } = options
@@ -81,6 +103,15 @@ const findBillById = async (billId, options = {}) => {
     BillPlanBuy.findAll({ where: { billId }, transaction }),
     BillBudget.findAll({ where: { billId }, transaction })
   ])
+
+  const overviewRules = await BillOverviewRule.findAll({
+    where: { billId },
+    order: [
+      ['sort', 'ASC'],
+      ['name', 'ASC']
+    ],
+    transaction
+  })
 
   const budgetIds = budgets.map((b) => b.id)
   let budgetDetails = []
@@ -102,6 +133,7 @@ const findBillById = async (billId, options = {}) => {
     costTypes: costTypes.map(toPlain),
     incomesTypes: incomesTypes.map(toPlain),
     payMethods: payMethods.map(toPlain),
+    overviewRules: overviewRules.map(toPlain),
     planBuyDetails: planBuyDetails.map(toPlain),
     budgets: budgetsWithDetails
   })
@@ -166,7 +198,10 @@ const savePlanBuy = async (billId, planBuy, transaction) => {
 module.exports = {
   toPlain,
   formatBillDetail,
+  formatOverviewRule,
   findBillById,
+  RULE_TYPE_QUANTITY,
+  RULE_TYPE_COST_TYPE,
   saveBudget,
   savePlanBuy,
   sequelize

@@ -1,4 +1,7 @@
-const { BillCostType, BillIncomeType, Bill, Transaction, BillBudget, BillBudgetDetail } = require('../../database/index')
+const { BillCostType, BillIncomeType, Bill, BillOverviewRule, Transaction, BillBudget, BillBudgetDetail } = require('../../database/index')
+const { formatOverviewRule, RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE } = require('../../database/services/billService')
+
+const RULE_TYPES = [RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE]
 
 /** 检查用户是否为账本创建者 */
 const checkBillCreator = async (billId, userId) => {
@@ -158,7 +161,134 @@ const toggleIncomeTypeShow = async ({ id, billId, userId }) => {
   }
 }
 
+// ==================== 概览调整规则 ====================
+
+/** 校验规则字段，通过则返回规范化后的 payload */
+const validateOverviewRulePayload = async ({ billId, name, ruleType, unitName, unitPrice, costTypeId, excludeId }) => {
+  const trimmedName = (name || '').trim()
+  if (!trimmedName) return ['规则名称不能为空', null]
+  if (!RULE_TYPES.includes(ruleType)) return ['不支持的规则类型', null]
+
+  const payload = {
+    name: trimmedName,
+    ruleType,
+    unitName: null,
+    unitPrice: 0,
+    costTypeId: null
+  }
+
+  if (ruleType === RULE_TYPE_QUANTITY) {
+    const trimmedUnit = (unitName || '').trim()
+    const price = Number(unitPrice)
+    if (!trimmedUnit) return ['单位名称不能为空', null]
+    if (!Number.isFinite(price) || price <= 0) return ['单价必须为正数', null]
+    payload.unitName = trimmedUnit
+    payload.unitPrice = price
+    return [null, payload]
+  }
+
+  const typeId = (costTypeId || '').trim()
+  if (!typeId) return ['请选择支出类型', null]
+  const costType = await BillCostType.findOne({ where: { id: typeId, billId, isDel: false } })
+  if (!costType) return ['支出类型不存在或不属于该账本', null]
+
+  const where = { billId, ruleType: RULE_TYPE_COST_TYPE, costTypeId: typeId }
+  const duplicated = await BillOverviewRule.findOne({ where })
+  if (duplicated && duplicated.id !== excludeId) {
+    return ['该支出类型已关联调整规则', null]
+  }
+
+  payload.costTypeId = typeId
+  payload.name = trimmedName || costType.name
+  return [null, payload]
+}
+
+/** 新增概览规则 */
+const createOverviewRule = async ({ billId, name, ruleType, unitName, unitPrice, costTypeId, userId }) => {
+  try {
+    if (!(await checkBillCreator(billId, userId))) {
+      return ['只有账本创建者才能管理概览规则', null]
+    }
+    const [err, payload] = await validateOverviewRulePayload({ billId, name, ruleType, unitName, unitPrice, costTypeId })
+    if (err) return [err, null]
+
+    const maxSort = await BillOverviewRule.max('sort', { where: { billId } })
+    const res = await BillOverviewRule.create({
+      ...payload,
+      billId,
+      enabled: true,
+      sort: Number.isFinite(maxSort) ? maxSort + 1 : 0
+    })
+    return [null, formatOverviewRule(res)]
+  } catch (err) {
+    console.error(err)
+    return [err?.message || '新增概览规则失败', null]
+  }
+}
+
+/** 编辑概览规则 */
+const editOverviewRule = async ({ id, billId, name, ruleType, unitName, unitPrice, costTypeId, userId }) => {
+  try {
+    if (!(await checkBillCreator(billId, userId))) {
+      return ['只有账本创建者才能管理概览规则', null]
+    }
+    const rule = await BillOverviewRule.findOne({ where: { id, billId } })
+    if (!rule) return ['找不到该规则', null]
+
+    const [err, payload] = await validateOverviewRulePayload({
+      billId,
+      name,
+      ruleType,
+      unitName,
+      unitPrice,
+      costTypeId,
+      excludeId: id
+    })
+    if (err) return [err, null]
+
+    await BillOverviewRule.update(payload, { where: { id, billId } })
+    const updated = await BillOverviewRule.findOne({ where: { id, billId } })
+    return [null, formatOverviewRule(updated)]
+  } catch (err) {
+    console.error(err)
+    return [err?.message || '编辑概览规则失败', null]
+  }
+}
+
+/** 切换概览规则启停 */
+const toggleOverviewRule = async ({ id, billId, userId }) => {
+  try {
+    if (!(await checkBillCreator(billId, userId))) {
+      return ['只有账本创建者才能管理概览规则', null]
+    }
+    const rule = await BillOverviewRule.findOne({ where: { id, billId } })
+    if (!rule) return ['找不到该规则', null]
+    await BillOverviewRule.update({ enabled: !rule.enabled }, { where: { id, billId } })
+    return [null, { enabled: !rule.enabled }]
+  } catch (err) {
+    console.error(err)
+    return [err?.message || '切换失败', null]
+  }
+}
+
+/** 删除概览规则 */
+const deleteOverviewRule = async ({ id, billId, userId }) => {
+  try {
+    if (!(await checkBillCreator(billId, userId))) {
+      return ['只有账本创建者才能管理概览规则', null]
+    }
+    const rule = await BillOverviewRule.findOne({ where: { id, billId } })
+    if (!rule) return ['找不到该规则', null]
+    await BillOverviewRule.destroy({ where: { id, billId } })
+    return [null, true]
+  } catch (err) {
+    console.error(err)
+    return [err?.message || '删除概览规则失败', null]
+  }
+}
+
 module.exports = {
   createCostType, editCostType, deleteCostType, toggleCostTypeShow,
-  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow
+  createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow,
+  createOverviewRule, editOverviewRule, toggleOverviewRule, deleteOverviewRule
 }

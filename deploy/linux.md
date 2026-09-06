@@ -69,7 +69,6 @@
 
 - **MySQL**：业务数据（库名默认 `bill`，启动时会自动建库并 `sync` 表结构）
 - **Redis**：Session 存储（`~/bill/server/app.js` 通过 `koa-redis` 连接）
-- **MongoDB**：仅一次性迁移脚本 `~/bill/server` 的 `pnpm run migrate` 使用，新部署不需要
 
 Node 版本：**18 及以上**，包管理器：**pnpm**。
 
@@ -213,8 +212,6 @@ const REDIS_CONF = {
 }
 ```
 
-`MONGODB_CONF` 仅迁移脚本使用，新部署可忽略。
-
 首次启动时 `~/bill/server/database/index.js` 会：
 
 1. `CREATE DATABASE IF NOT EXISTS bill`
@@ -222,13 +219,6 @@ const REDIS_CONF = {
 3. `sequelize.sync()` 建表
 
 若 MySQL 连不上，进程会直接退出。
-
-从旧 MongoDB 迁数据时再执行：
-
-```bash
-cd ~/bill/server
-pnpm run migrate
-```
 
 ## 9. 本地构建并推送前端
 

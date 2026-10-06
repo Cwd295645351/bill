@@ -1,6 +1,7 @@
 const AI_CONFIG = require('../../config/ai')
 
-const REQUEST_TIMEOUT = 60 * 1000
+/** 批量解析可能含多行文本，与 Nginx proxy_read_timeout 对齐为 5 分钟 */
+const REQUEST_TIMEOUT = 5 * 60 * 1000
 
 /** 获取东八区当前日期 */
 const getCurrentDate = () => {
@@ -118,7 +119,8 @@ const parseBatch = async (lines, costTypes) => {
     })
 
     if (!response.ok) {
-      console.error(`AI 服务请求失败，HTTP 状态码：${response.status}`)
+      const errorBody = await response.text().catch(() => '')
+      console.error(`AI 服务请求失败，HTTP 状态码：${response.status}`, errorBody.slice(0, 300))
       return [`AI 服务请求失败（${response.status}）`, null]
     }
 
@@ -128,6 +130,7 @@ const parseBatch = async (lines, costTypes) => {
     return [null, normalizeParsedResults(parsed, lines, costTypes)]
   } catch (err) {
     if (err?.name === 'AbortError') {
+      console.error(`AI 服务请求超时（${REQUEST_TIMEOUT / 1000}s）`)
       return ['AI 服务请求超时，请稍后重试', null]
     }
     console.error('批量 AI 解析失败：', err?.message || err)

@@ -16,54 +16,174 @@ const toIdList = (value) => {
   return Array.isArray(value) ? value : [value]
 }
 
-// 查询列表
-exports.getList = async (data) => {
-  const pageIndex = data.pageIndex
-  const pageSize = data.pageSize
-  const params = {
+const ORDER_DESC = [
+  ['date', 'DESC'],
+  ['id', 'DESC']
+]
+const ORDER_ASC = [
+  ['date', 'ASC'],
+  ['id', 'ASC']
+]
+
+/** 组装明细筛选条件。日期范围单独放入 andList，便于再叠加游标条件 */
+const buildFilter = (data) => {
+  const where = {
     billId: data.billId,
     type: data.type,
     isDel: false,
     money: {}
   }
-  // money 区间
   const moneyOpMap = { gt: Op.gt, gte: Op.gte, lt: Op.lt, lte: Op.lte, eq: Op.eq }
   const moneyOp = moneyOpMap[data.condition] || Op.gte
-  params.money = { [moneyOp]: data.rangeMoney }
+  where.money = { [moneyOp]: data.rangeMoney }
 
-  // date 区间（毫秒时间戳）
+  const andList = []
   const beginTs = toTimestamp(data.beginDate)
   const endTs = toTimestamp(data.endDate)
   if (beginTs != null && endTs != null) {
-    params.date = { [Op.between]: [beginTs, endTs] }
+    andList.push({ date: { [Op.between]: [beginTs, endTs] } })
   } else if (beginTs != null) {
-    params.date = { [Op.gte]: beginTs }
+    andList.push({ date: { [Op.gte]: beginTs } })
   } else if (endTs != null) {
-    params.date = { [Op.lte]: endTs }
+    andList.push({ date: { [Op.lte]: endTs } })
   }
 
-  if (data.remark) params.remark = { [Op.like]: `%${data.remark}%` }
-  if (data.costTypeId) params.costTypeId = data.costTypeId
-  if (data.payMethodId) params.payMethodId = data.payMethodId
-  if (data.incomesTypeId) params.incomesTypeId = data.incomesTypeId
+  if (data.remark) where.remark = { [Op.like]: `%${data.remark}%` }
+  if (data.costTypeId) where.costTypeId = data.costTypeId
+  if (data.payMethodId) where.payMethodId = data.payMethodId
+  if (data.incomesTypeId) where.incomesTypeId = data.incomesTypeId
   const userIds = toIdList(data.userId)
-  if (userIds) params.userId = { [Op.in]: userIds }
+  if (userIds) where.userId = { [Op.in]: userIds }
   const belongUserIds = toIdList(data.belongUserId)
-  if (belongUserIds) params.belongUserId = { [Op.in]: belongUserIds }
+  if (belongUserIds) where.belongUserId = { [Op.in]: belongUserIds }
 
-  const res = await Transaction.findAll({
-    where: params,
-    order: [['date', 'DESC']],
-    offset: pageIndex * pageSize,
-    limit: pageSize
-  })
-  const length = await Transaction.count({ where: params })
-  const retData = {
-    total: length,
-    datas: res
+  return { where, andList }
+}
+
+/** 把日期范围与游标条件一并并入 where */
+const withAnd = (where, andList, extra) => {
+  const list = extra ? [...andList, extra] : [...andList]
+  if (!list.length) return where
+  return { ...where, [Op.and]: list }
+}
+
+/** 比游标更早：日期更小，或同一天且 id 更小（与 date DESC, id DESC 一致） */
+const olderThanCursor = (cursorDate, cursorId) => {
+  if (!cursorId) return { date: { [Op.lt]: cursorDate } }
+  return {
+    [Op.or]: [
+      { date: { [Op.lt]: cursorDate } },
+      { [Op.and]: [{ date: cursorDate }, { id: { [Op.lt]: cursorId } }] }
+    ]
   }
-  if (res) return [null, retData]
-  else return ['查询失败', res]
+}
+
+/** 比游标更新：日期更大，或同一天且 id 更大 */
+const newerThanCursor = (cursorDate, cursorId) => {
+  if (!cursorId) return { date: { [Op.gt]: cursorDate } }
+  return {
+    [Op.or]: [
+      { date: { [Op.gt]: cursorDate } },
+      { [Op.and]: [{ date: cursorDate }, { id: { [Op.gt]: cursorId } }] }
+    ]
+  }
+}
+
+/** 多取 1 条判断是否还有下一页，返回给前端的数据不含这 1 条 */
+const queryPage = async (where, order, pageSize) => {
+  const rows = await Transaction.findAll({
+    where,
+    order,
+    limit: pageSize + 1
+  })
+  const hasMore = rows.length > pageSize
+  return { rows: hasMore ? rows.slice(0, pageSize) : rows, hasMore }
+}
+
+/** 按筛选条件聚合各月笔数与金额，归月使用 dayjs，避免数据库时区与前端不一致 */
+const loadMonthSummaries = async (where) => {
+  const rows = await Transaction.findAll({
+    where,
+    attributes: ['date', 'money'],
+    raw: true
+  })
+  const map = new Map()
+  rows.forEach((row) => {
+    const month = dayjs(Number(row.date)).format('YYYY-MM')
+    let item = map.get(month)
+    if (!item) {
+      item = { month, count: 0, money: 0 }
+      map.set(month, item)
+    }
+    item.count += 1
+    item.money += Number(row.money) || 0
+  })
+  return [...map.values()]
+    .map((item) => ({ ...item, money: fixMoney(item.money) }))
+    .sort((a, b) => (a.month < b.month ? 1 : -1))
+}
+
+// 查询列表
+exports.getList = async (data) => {
+  const pageIndex = data.pageIndex
+  const pageSize = data.pageSize
+  const { where, andList } = buildFilter(data)
+  const filterWhere = withAnd(where, andList)
+  const direction = data.direction
+  const anchorTs = toTimestamp(data.anchorDate)
+  const useCursor = direction === 'latest' || direction === 'older' || direction === 'newer' || anchorTs != null
+
+  // 未传游标参数时保持原来的页码分页，供总览、移动端继续使用
+  if (!useCursor) {
+    const res = await Transaction.findAll({
+      where: filterWhere,
+      order: [['date', 'DESC']],
+      offset: pageIndex * pageSize,
+      limit: pageSize
+    })
+    const length = await Transaction.count({ where: filterWhere })
+    if (res) return [null, { total: length, datas: res }]
+    return ['查询失败', res]
+  }
+
+  let datas = []
+  let hasOlder = false
+  let hasNewer = false
+
+  if (anchorTs != null && direction !== 'older' && direction !== 'newer') {
+    // 定位：该日及更早一页 + 该日之后一页
+    const anchorEnd = dayjs(anchorTs).endOf('day').valueOf()
+    const olderWhere = withAnd(where, andList, { date: { [Op.lte]: anchorEnd } })
+    const newerWhere = withAnd(where, andList, { date: { [Op.gt]: anchorEnd } })
+    const older = await queryPage(olderWhere, ORDER_DESC, pageSize)
+    const newer = await queryPage(newerWhere, ORDER_ASC, pageSize)
+    datas = [...newer.rows].reverse().concat(older.rows)
+    hasOlder = older.hasMore
+    hasNewer = newer.hasMore
+  } else if (direction === 'older' || direction === 'newer') {
+    const cursorDate = toTimestamp(data.cursorDate)
+    if (cursorDate == null) return ['游标日期不能为空', null]
+    const page = await queryPage(
+      withAnd(where, andList, direction === 'older' ? olderThanCursor(cursorDate, data.cursorId) : newerThanCursor(cursorDate, data.cursorId)),
+      direction === 'older' ? ORDER_DESC : ORDER_ASC,
+      pageSize
+    )
+    datas = direction === 'older' ? page.rows : [...page.rows].reverse()
+    hasOlder = direction === 'older' ? page.hasMore : true
+    hasNewer = direction === 'newer' ? page.hasMore : true
+  } else {
+    const page = await queryPage(filterWhere, ORDER_DESC, pageSize)
+    datas = page.rows
+    hasOlder = page.hasMore
+    hasNewer = false
+  }
+
+  const total = await Transaction.count({ where: filterWhere })
+  const retData = { total, datas, hasOlder, hasNewer }
+  if (data.withMonthSummary) {
+    retData.monthSummaries = await loadMonthSummaries(filterWhere)
+  }
+  return [null, retData]
 }
 
 // 新增交易信息

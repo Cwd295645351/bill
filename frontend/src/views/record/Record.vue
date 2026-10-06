@@ -1,8 +1,25 @@
 <template>
   <div class="record">
     <div class="timeline-container">
-      <el-scrollbar view-class="list-container" @end-reached="load" height="100%">
-        <div class="list-item" v-for="(item, index) in listData" :key="item.date + index">
+      <div class="locate-bar">
+        <span class="locate-label">定位日期</span>
+        <el-date-picker v-model="locateDate" value-format="x" type="date" placeholder="请选择日期" clearable />
+        <el-button type="primary" @click="locateToDate">定位</el-button>
+      </div>
+      <div class="timeline-scroll">
+      <el-scrollbar ref="scrollbarRef" view-class="list-container" @scroll="onScroll" height="100%">
+        <div v-show="loadingDirection === 'newer'" class="tips-label">正在加载数据...</div>
+        <div class="month-group" v-for="month in monthGroups" :key="month.month">
+          <div class="month-header" @click="toggleMonth(month.month)">
+            <span class="month-label">{{ month.label }}</span>
+            <span class="month-summary">{{ month.count }} 笔 · {{ Number(month.money).toFixed(2) }}</span>
+            <el-icon>
+              <ArrowDown v-if="!collapsedMonths.has(month.month)" />
+              <ArrowRight v-else />
+            </el-icon>
+          </div>
+          <template v-if="!collapsedMonths.has(month.month)">
+        <div class="list-item" v-for="item in month.days" :key="item.date" :data-date="item.date" :class="{ 'is-reverse': item.reverse }">
           <div class="decorate">
             <div class="line"></div>
             <div class="circle"></div>
@@ -16,7 +33,7 @@
             </div>
           </div>
           <div class="detail">
-            <div class="detail-item" v-for="detail in item.arr" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail.id">
+            <div class="detail-item" v-for="detail in item.arr" :style="{ '--belong-bg': belongBg(detail.belongUserId) }" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail.id">
               <div class="top">
                 <span>
                   <span class="belong-user">{{ detail.belongUserName }}</span>
@@ -35,9 +52,12 @@
             </div>
           </div>
         </div>
-        <div v-show="loadingMore" class="tips-label">正在加载数据...</div>
-        <div v-show="noMore" class="tips-label">没有更多了</div>
+          </template>
+        </div>
+        <div v-show="loadingDirection === 'older'" class="tips-label">正在加载数据...</div>
+        <div v-show="listFetchedOnce && !hasOlder" class="tips-label">没有更多了</div>
       </el-scrollbar>
+      </div>
     </div>
     <div class="header">
       <div class="type-box">
@@ -257,13 +277,15 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { ArrowDown, ArrowRight } from '@element-plus/icons-vue'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
 import { useParse } from './hooks/use-parse'
 
 const {
-  loadingMore,
-  noMore,
+  loadingDirection,
+  hasOlder,
+  listFetchedOnce,
   type,
   typeName,
   searchOptions,
@@ -274,10 +296,15 @@ const {
   costTypes,
   incomesTypes,
   payMethods,
-  listData,
+  monthGroups,
+  collapsedMonths,
+  locateDate,
+  scrollbarRef,
   userInfo,
   exportExcel,
-  load,
+  onScroll,
+  locateToDate,
+  toggleMonth,
   changeAddType,
   search,
 } = useRecord()
@@ -300,6 +327,17 @@ const {
 } = useAddEdit({ search, type })
 
 const { parseBatch, loading } = useParse(costTypes)
+
+/** 归属人卡片底色。「全部」保持白底，其余按账本成员顺序循环取色 */
+const belongPalette = ['#fff3e0', '#e3f2fd', '#e8f5e9', '#fce4ec', '#f3e5f5', '#e0f7fa', '#fff8e1', '#fbe9e7']
+const belongBg = (belongUserId: string) => {
+  if (!belongUserId) return '#fff'
+  const index = users.value.findIndex((user) => user.id === belongUserId)
+  if (index >= 0) return belongPalette[index % belongPalette.length]
+  let hash = 0
+  for (let i = 0; i < belongUserId.length; i++) hash = (hash * 31 + belongUserId.charCodeAt(i)) >>> 0
+  return belongPalette[hash % belongPalette.length]
+}
 
 /** 批量解析相关 */
 const batchDialog = ref(false)
@@ -341,11 +379,66 @@ const handleBatchSave = async () => {
     background-color: #fff;
     box-shadow: 1px 1px 5px #999;
     border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    .locate-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #eee;
+      .locate-label {
+        font-size: 14px;
+        color: #666;
+        flex-shrink: 0;
+      }
+      :deep(.el-date-editor) {
+        width: 180px;
+      }
+    }
+    .timeline-scroll {
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
     :deep(.list-container) {
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      padding-top: 40px;
+      padding-top: 20px;
+    }
+    .month-group {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .month-header {
+      align-self: stretch;
+      position: relative;
+      z-index: 1;
+      margin: 16px 16px 8px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 12px;
+      background: #f3f8fb;
+      border-radius: 8px;
+      cursor: pointer;
+      user-select: none;
+      .month-label {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+      }
+      .month-summary {
+        font-size: 14px;
+        color: #888;
+      }
+    }
+    .month-header + .list-item {
+      margin-top: 28px;
     }
     .list-item {
       width: 50%;
@@ -413,6 +506,7 @@ const handleBatchSave = async () => {
           box-shadow: 0 0 2px #ddd;
           width: 500px;
           padding: 10px;
+          background-color: var(--belong-bg, #fff);
           &.gray-background {
             background-color: #eee;
           }
@@ -457,7 +551,7 @@ const handleBatchSave = async () => {
           }
         }
       }
-      &:nth-child(2n) {
+      &.is-reverse {
         align-self: flex-start;
         .decorate {
           left: unset;

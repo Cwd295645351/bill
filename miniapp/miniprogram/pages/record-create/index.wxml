@@ -1,0 +1,5 @@
+<view class="page">
+  <view wx:if="{{ bill }}" class="form-wrap">
+    <record-form id="form" mode="add" bill="{{ bill }}" bind:submit="onSubmit" />
+  </view>
+</view>

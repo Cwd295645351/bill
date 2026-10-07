@@ -1,0 +1,48 @@
+<view class="form">
+  <scroll-view class="body" scroll-y>
+    <view class="type-switch">
+      <view class="type {{ type === 1 ? 'on cost' : '' }}" data-type="1" bindtap="onType">支出</view>
+      <view class="type {{ type === 2 ? 'on income' : '' }}" data-type="2" bindtap="onType">收入</view>
+    </view>
+    <view class="amount {{ type === 1 ? 'cost' : 'income' }} {{ showKeyboard ? 'editing' : '' }}" bindtap="openKeyboard">
+      <text class="yen">¥</text>
+      <text>{{ amount || '0.00' }}</text>
+    </view>
+    <category-grid list="{{ categories }}" current="{{ categoryId }}" bind:select="onSelectCat" />
+    <view class="suggest" wx:if="{{ categoryId }}">
+      <view class="chips">
+        <view
+          class="chip {{ item.on ? 'on' : '' }}"
+          wx:for="{{ suggestions }}"
+          wx:key="text"
+          data-text="{{ item.text }}"
+          data-custom="{{ item.custom }}"
+          bindtap="onPickSuggestion"
+        >
+          {{ removingSuggestion && item.custom ? '× ' : '' }}{{ item.text }}
+        </view>
+        <view class="chip tool" bindtap="onAddSuggestion">+</view>
+        <view class="chip tool {{ removingSuggestion ? 'on' : '' }}" bindtap="onToggleRemove">-</view>
+      </view>
+      <view class="desc-box">
+        <textarea class="desc" maxlength="150" placeholder="描述这笔记账..." value="{{ remark }}" bindfocus="closeKeyboard" bindinput="onRemark" />
+        <view class="count">{{ remark.length }}/150</view>
+      </view>
+    </view>
+    <view class="shortcuts">
+      <picker mode="date" value="{{ date }}" bindchange="onDate" bindtap="closeKeyboard">
+        <van-cell title="日期" value="{{ date }}" is-link />
+      </picker>
+      <van-cell title="归属人" value="{{ belongUserName || '全部' }}" is-link bind:click="openUsers" />
+    </view>
+    <view wx:if="{{ canDelete }}" class="danger" bindtap="onDelete">删除这条记录</view>
+  </scroll-view>
+  <view class="submit-bar" wx:if="{{ !showKeyboard && canEdit }}">
+    <view wx:if="{{ mode === 'add' }}" class="again" hover-class="again-hover" bindtap="onAgain">再记一笔</view>
+    <view class="ok" hover-class="ok-hover" bindtap="onConfirm">{{ mode === 'add' ? '完成' : '保存' }}</view>
+  </view>
+  <money-keyboard wx:if="{{ showKeyboard }}" show-again="{{ false }}" confirm-text="完成" bind:key="onKey" bind:confirm="closeKeyboard" />
+  <van-popup show="{{ showUsers }}" position="bottom" bind:close="closeUsers">
+    <van-picker columns="{{ userNames }}" show-toolbar title="归属人" bind:confirm="onUser" bind:cancel="closeUsers" />
+  </van-popup>
+</view>

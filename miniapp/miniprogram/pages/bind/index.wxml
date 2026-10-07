@@ -1,0 +1,11 @@
+<view class="page">
+  <view class="title">绑定已有账号</view>
+  <view class="desc">小程序不提供注册。请使用电脑或网页端已经注册的账号完成一次性绑定，之后会自动登录。</view>
+  <van-cell-group>
+    <van-field label="账号" value="{{ username }}" placeholder="请输入账号" bind:change="onUsername" />
+    <van-field label="密码" type="password" value="{{ password }}" placeholder="请输入密码" bind:change="onPassword" />
+  </van-cell-group>
+  <view class="btn">
+    <van-button type="primary" block round color="#4285F4" loading="{{ submitting }}" bind:click="onSubmit">绑定并进入</van-button>
+  </view>
+</view>

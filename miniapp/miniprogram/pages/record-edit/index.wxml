@@ -1,0 +1,11 @@
+<view class="page">
+  <record-form
+    wx:if="{{ bill }}"
+    id="form"
+    mode="edit"
+    bill="{{ bill }}"
+    initial="{{ initial }}"
+    bind:submit="onSubmit"
+    bind:delete="onDelete"
+  />
+</view>

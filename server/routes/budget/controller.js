@@ -8,9 +8,7 @@ exports.getList = async (data) => {
   data.date = Number(data.date)
   const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
-  console.log(data.userId)
   if (!findBill.users.find((item) => item.id === data.userId)) return ['该用户并未加入此账本', null]
-  console.log(findBill, data.date)
   const res = findBill.budget.find((item) => item.date === data.date) || { totalBudget: 0, currCost: 0, details: [] }
   if (res) return [null, res]
   else return ['查询失败', null]

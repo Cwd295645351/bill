@@ -1,0 +1,18 @@
+.page {
+  min-height: 100vh;
+  padding: 80rpx 48rpx;
+  background: #fff;
+}
+
+.name {
+  font-size: 40rpx;
+  font-weight: 600;
+  text-align: center;
+}
+
+.message {
+  margin: 32rpx 0 48rpx;
+  color: #666;
+  text-align: center;
+  line-height: 1.6;
+}

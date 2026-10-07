@@ -1,0 +1,13 @@
+<view class="kb">
+  <view class="rows">
+    <view class="row" wx:for="{{ rows }}" wx:key="index">
+      <view class="key" wx:for="{{ item }}" wx:for-item="key" wx:key="*this" data-key="{{ key }}" hover-class="key-hover" bindtap="onKey">
+        {{ key === 'del' ? '删除' : key }}
+      </view>
+    </view>
+  </view>
+  <view class="actions">
+    <view wx:if="{{ showAgain }}" class="again" hover-class="key-hover" bindtap="onAgain">再记一笔</view>
+    <view class="ok" hover-class="ok-hover" bindtap="onConfirm">{{ confirmText || (showAgain ? '完成' : '保存') }}</view>
+  </view>
+</view>

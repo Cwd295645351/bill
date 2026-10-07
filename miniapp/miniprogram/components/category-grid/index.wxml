@@ -1,0 +1,13 @@
+<view class="grid">
+  <view
+    class="item {{ current === item.id ? 'on' : '' }}"
+    wx:for="{{ view }}"
+    wx:key="id"
+    data-id="{{ item.id }}"
+    data-name="{{ item.name }}"
+    bindtap="onTap"
+  >
+    <view class="icon" style="background: {{ colors[index % 8] }}">{{ item.short }}</view>
+    <view class="name">{{ item.name }}</view>
+  </view>
+</view>

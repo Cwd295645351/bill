@@ -1,10 +1,14 @@
 const { KEYUTIL, KJUR, b64tohex } = require('jsrsasign')
 const { xssData } = require('../../utils/xss')
 const jwt = require('jsonwebtoken')
-const { Encryption, User } = require('../../database/index')
+const { Encryption, User, UserWechat } = require('../../database/index')
 const { generateRsaKeyPair, ensureEncryptionKey } = require('../../database/ensureEncryption')
+const { code2session } = require('../../utils/wechat')
+const { createBindTicket, peekBindTicket, consumeBindTicket } = require('../../utils/redis')
 
 const { genPassword } = require('../../utils/cryp')
+
+const USER_ATTRS = ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
 
 // 获取登录配置（表为空时自动生成密钥，避免全新部署无法登录）
 const getLoginConfig = async () => {
@@ -34,7 +38,8 @@ const updateEncryptionKey = async () => {
   }
 }
 
-const login = async (username, password) => {
+/** RSA 解密登录密码并校验账号，供密码登录与微信绑定共用 */
+const verifyPassword = async (username, password) => {
   try {
     const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
     if (!keys.length || !keys[0]?.privateKey) {
@@ -44,20 +49,73 @@ const login = async (username, password) => {
     const privateKey = KEYUTIL.getKey(keys[0].privateKey)
     const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
     username = xssData(username)
-    password = xssData(genPassword(decryptoPassword)) // 对密码进行加密
+    const hashedPassword = xssData(genPassword(decryptoPassword))
     const res = await User.findOne({
-      where: { username: username, password: password },
-      attributes: ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
+      where: { username, password: hashedPassword },
+      attributes: USER_ATTRS
     })
-    if (res) {
-      return [null, res]
-    } else {
-      return ['账号密码不匹配', null]
-    }
+    if (res) return [null, res]
+    return ['账号密码不匹配', null]
   } catch (err) {
     console.error(err)
     return [err?.message || '登录失败', null]
   }
+}
+
+const login = async (username, password) => verifyPassword(username, password)
+
+const findUserById = async (userId) => {
+  return User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+}
+
+/** 小程序静默登录：已绑定直接返回用户，未绑定返回一次性 bindTicket */
+const wxLogin = async (code) => {
+  const [err, session] = await code2session(code)
+  if (err) return [err, null]
+  const bind = await UserWechat.findOne({ where: { openid: session.openid } })
+  if (!bind) {
+    const bindTicket = await createBindTicket(session.openid)
+    return [null, { needBind: true, bindTicket }]
+  }
+  const user = await findUserById(bind.userId)
+  if (!user) return ['绑定的账号不存在', null]
+  return [null, { needBind: false, user }]
+}
+
+/**
+ * 用账号密码把当前微信绑定到已有用户。
+ * openid 已绑定则直接登录；账号已绑定其他微信则拒绝。
+ */
+const wxBind = async ({ bindTicket, username, password }) => {
+  const pendingOpenid = await peekBindTicket(bindTicket)
+  if (!pendingOpenid) return ['绑定凭证无效或已过期，请重新进入小程序', null]
+
+  const existed = await UserWechat.findOne({ where: { openid: pendingOpenid } })
+  if (existed) {
+    const boundUser = await findUserById(existed.userId)
+    if (!boundUser) return ['绑定的账号不存在', null]
+    await consumeBindTicket(bindTicket)
+    return [null, boundUser]
+  }
+
+  const [err, user] = await verifyPassword(username, password)
+  if (err) return [err, null]
+
+  const byUser = await UserWechat.findOne({ where: { userId: user.id } })
+  if (byUser) return ['该账号已绑定其他微信，请联系管理员', null]
+
+  const openid = await consumeBindTicket(bindTicket)
+  if (!openid) return ['绑定凭证无效或已过期，请重新进入小程序', null]
+
+  try {
+    await UserWechat.create({ userId: user.id, openid, unionid: '' })
+  } catch (e) {
+    console.error(e)
+    const again = await UserWechat.findOne({ where: { openid } })
+    if (again && again.userId === user.id) return [null, user]
+    return ['该账号已绑定其他微信，请联系管理员', null]
+  }
+  return [null, user]
 }
 
 // 生成jwt授权
@@ -118,4 +176,4 @@ const register = async (username, password, nickName) => {
   }
 }
 
-module.exports = { getLoginConfig, updateEncryptionKey, login, register, createJwt }
+module.exports = { getLoginConfig, updateEncryptionKey, login, register, createJwt, verifyPassword, wxLogin, wxBind }

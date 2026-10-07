@@ -1,1 +1,4 @@
 node_modules
+miniprogram_npm
+miniapp/.env
+miniapp/miniprogram/config/env.local.ts

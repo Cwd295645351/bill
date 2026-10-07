@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="name">《{{ name }}》</view>
+  <view class="message">{{ message || '正在确认邀请…' }}</view>
+  <van-button wx:if="{{ !joined }}" type="primary" block color="#4285F4" bind:click="doJoin">确认加入</van-button>
+  <van-button wx:else type="primary" block color="#4285F4" bind:click="goBills">去账本</van-button>
+</view>

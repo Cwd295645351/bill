@@ -1,0 +1,72 @@
+<view class="page">
+  <view class="summary">
+    <view class="summary-actions">
+      <button wx:if="{{ isCreator }}" class="invite" open-type="share">邀请成员</button>
+      <view class="search" bindtap="onSearch">
+        <van-icon name="search" size="18px" color="#4285F4" />
+      </view>
+    </view>
+    <view class="item">
+      <view class="label">年度支出</view>
+      <view class="num">{{ yearCost }}</view>
+    </view>
+    <view class="item">
+      <view class="label">当月支出</view>
+      <view class="num">{{ monthCost }}</view>
+    </view>
+    <view class="item">
+      <view class="label">剩余预算</view>
+      <view class="num">{{ restBudget }}</view>
+    </view>
+    <view class="item">
+      <view class="label">总投资</view>
+      <view class="num">{{ investCost }}</view>
+    </view>
+    <view class="item">
+      <view class="label">总消费</view>
+      <view class="num">{{ consumptionCost }}</view>
+    </view>
+    <view class="item">
+      <view class="label">总收入</view>
+      <view class="num income">{{ totalIncomes }}</view>
+    </view>
+  </view>
+  <view class="types">
+    <view class="type {{ type === 1 ? 'on' : '' }}" data-type="1" bindtap="onType">支出</view>
+    <view class="type {{ type === 2 ? 'on' : '' }}" data-type="2" bindtap="onType">收入</view>
+  </view>
+  <scroll-view
+    class="list"
+    scroll-y
+    refresher-enabled
+    refresher-triggered="{{ refreshing }}"
+    bindrefresherrefresh="onRefresh"
+    bindscrolltolower="onMore"
+  >
+    <block wx:for="{{ groups }}" wx:key="date">
+      <view class="day">
+        <text>{{ item.date }} {{ item.week }}</text>
+        <text class="sum" wx:if="{{ type === 2 }}">收 {{ item.incomes }}</text>
+        <text class="sum" wx:elif="{{ type === 1 }}">支 {{ item.cost }}</text>
+      </view>
+      <van-swipe-cell wx:for="{{ item.arr }}" wx:for-item="record" wx:key="id" right-width="{{ record.mine ? 72 : 0 }}">
+        <view class="row {{ record.mine ? 'mine' : '' }}" style="{{ record.belongBg ? 'background-color:' + record.belongBg : '' }}" data-id="{{ record.id }}" bindtap="onEdit">
+          <view class="meta">
+            <view class="title">
+              <text>{{ record.belongUserName || '全部' }} · {{ record.category }}</text>
+              <text wx:if="{{ record.mine }}" class="mine-tag">我</text>
+            </view>
+            <view class="remark">{{ record.remark }}</view>
+          </view>
+          <view class="money {{ record.type === 1 ? 'cost' : 'income' }}">{{ record.moneyText }}</view>
+        </view>
+        <view wx:if="{{ record.mine }}" slot="right" class="del" data-id="{{ record.id }}" catchtap="onDelete">删除</view>
+      </van-swipe-cell>
+    </block>
+    <van-empty wx:if="{{ !loading && !groups.length }}" description="暂无记录" />
+    <view wx:else class="more">{{ finished ? '没有更多了' : '上拉加载更多' }}</view>
+  </scroll-view>
+  <view class="fab" bindtap="onAdd">
+    <van-icon name="plus" size="28px" color="#ffffff" />
+  </view>
+</view>

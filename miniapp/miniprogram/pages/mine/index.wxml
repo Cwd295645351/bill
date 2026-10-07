@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="header">
+    <view class="avatar">{{ loggedOut ? '?' : avatarText }}</view>
+    <view class="name">{{ loggedOut ? '未登录' : nickName }}</view>
+  </view>
+  <view class="panel" wx:if="{{ !loggedOut }}">
+    <van-cell title="总收入" value="{{ incomes }}" value-class="income" />
+    <van-cell title="总支出" value="{{ expenses }}" value-class="cost" />
+  </view>
+  <view class="panel">
+    <van-cell wx:if="{{ !loggedOut }}" title="通过邀请码加入" is-link bind:click="onJoin" />
+    <van-cell wx:if="{{ !loggedOut }}" title="退出登录" is-link bind:click="onLogout" />
+    <view wx:else class="relogin">
+      <van-button type="primary" block color="#4285F4" bind:click="onRelogin">重新进入</van-button>
+    </view>
+  </view>
+</view>

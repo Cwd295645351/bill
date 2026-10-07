@@ -1,0 +1,17 @@
+{
+  "name": "miniapp",
+  "private": true,
+  "version": "0.1.0",
+  "description": "家庭记账微信小程序",
+  "scripts": {
+    "sync-env": "node script/sync-env.js"
+  },
+  "dependencies": {
+    "@vant/weapp": "^1.11.7",
+    "dayjs": "^1.11.13",
+    "jsrsasign": "^10.8.6"
+  },
+  "devDependencies": {
+    "miniprogram-api-typings": "^3.12.3"
+  }
+}

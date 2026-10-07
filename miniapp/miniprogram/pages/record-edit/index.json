@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "编辑记录",
+  "usingComponents": {
+    "record-form": "/components/record-form/index"
+  }
+}

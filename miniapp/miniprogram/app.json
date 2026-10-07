@@ -1,0 +1,59 @@
+{
+  "pages": [
+    "pages/bills/index",
+    "pages/record-add/index",
+    "pages/mine/index",
+    "pages/bill-detail/index",
+    "pages/record-create/index",
+    "pages/record-edit/index",
+    "pages/record-search/index",
+    "pages/bind/index",
+    "pages/join/index"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#4285F4",
+    "navigationBarTitleText": "记账",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#f5f6f8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#4285F4",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/bills/index",
+        "text": "账本",
+        "iconPath": "assets/tab/bills.png",
+        "selectedIconPath": "assets/tab/bills-on.png"
+      },
+      {
+        "pagePath": "pages/record-add/index",
+        "text": "记一笔",
+        "iconPath": "assets/tab/add.png",
+        "selectedIconPath": "assets/tab/add-on.png"
+      },
+      {
+        "pagePath": "pages/mine/index",
+        "text": "我的",
+        "iconPath": "assets/tab/mine.png",
+        "selectedIconPath": "assets/tab/mine-on.png"
+      }
+    ]
+  },
+  "usingComponents": {
+    "van-button": "@vant/weapp/button/index",
+    "van-cell": "@vant/weapp/cell/index",
+    "van-cell-group": "@vant/weapp/cell-group/index",
+    "van-field": "@vant/weapp/field/index",
+    "van-empty": "@vant/weapp/empty/index",
+    "van-popup": "@vant/weapp/popup/index",
+    "van-picker": "@vant/weapp/picker/index",
+    "van-swipe-cell": "@vant/weapp/swipe-cell/index",
+    "van-icon": "@vant/weapp/icon/index"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

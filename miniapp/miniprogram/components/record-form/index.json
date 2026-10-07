@@ -1,0 +1,7 @@
+{
+  "component": true,
+  "usingComponents": {
+    "money-keyboard": "/components/money-keyboard/index",
+    "category-grid": "/components/category-grid/index"
+  }
+}

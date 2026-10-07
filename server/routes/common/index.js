@@ -1,6 +1,6 @@
 const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
-const { getLoginConfig, updateEncryptionKey, login, createJwt, register } = require('./controller')
+const { getLoginConfig, updateEncryptionKey, login, createJwt, register, wxLogin, wxBind } = require('./controller')
 
 const VERSION = require('../../config/version')
 
@@ -36,6 +36,65 @@ router.post('/login', async (ctx, next) => {
     }
     ctx.body = new ResModel(retData, '登录成功')
   } else ctx.body = new ResModel(null, err, 'error')
+})
+
+/** 组装与密码登录一致的令牌响应，并写入 session 供 H5 / PC 刷新令牌 */
+const writeLoginResult = (ctx, user) => {
+  const userId = user.id
+  const userInfo = typeof user.toJSON === 'function' ? user.toJSON() : user
+  const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId })
+  ctx.session.bill_userId = userId
+  ctx.session.bill_refreshToken = refreshToken
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: EXPIRES_TIME,
+    userInfo
+  }
+}
+
+// 小程序静默登录
+router.post('/wxLogin', async (ctx) => {
+  const code = ctx.request.body && ctx.request.body.code
+  if (!code || typeof code !== 'string') {
+    ctx.body = new ResModel(null, 'code不能为空', 'error')
+    return
+  }
+  const [err, res] = await wxLogin(code)
+  if (!res) {
+    ctx.body = new ResModel(null, err, 'error')
+    return
+  }
+  if (res.needBind) {
+    ctx.body = new ResModel({ needBind: true, bindTicket: res.bindTicket }, '需要绑定账号')
+    return
+  }
+  ctx.body = new ResModel({ ...writeLoginResult(ctx, res.user), needBind: false }, '登录成功')
+})
+
+// 小程序首次绑定已有账号
+router.post('/wxBind', async (ctx) => {
+  const character_reg = /^\w{3,20}/
+  const data = ctx.request.body || {}
+  const { bindTicket, username, password } = data
+  if (!bindTicket || typeof bindTicket !== 'string') {
+    ctx.body = new ResModel(null, '绑定凭证不能为空', 'error')
+    return
+  }
+  if (username === null || username === undefined || !character_reg.test(username)) {
+    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+    return
+  }
+  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
+    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+    return
+  }
+  const [err, user] = await wxBind({ bindTicket, username, password })
+  if (!user) {
+    ctx.body = new ResModel(null, err, 'error')
+    return
+  }
+  ctx.body = new ResModel({ ...writeLoginResult(ctx, user), needBind: false }, '绑定成功')
 })
 
 // 登出

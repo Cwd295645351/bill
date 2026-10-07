@@ -1,0 +1,33 @@
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+}
+
+.bill-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16rpx 32rpx;
+  background: #f5f8ff;
+}
+
+.name {
+  font-size: 30rpx;
+  font-weight: 600;
+}
+
+.switch {
+  color: #4285f4;
+}
+
+.form-wrap {
+  flex: 1;
+  height: 0;
+}
+
+.empty {
+  padding-top: 80rpx;
+  text-align: center;
+}

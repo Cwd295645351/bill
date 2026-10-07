@@ -1,0 +1,16 @@
+<view class="page">
+  <view class="bill-bar" bindtap="openBills">
+    <text class="name">{{ billName }}</text>
+    <text class="switch">{{ bills.length ? '切换' : '去账本' }}</text>
+  </view>
+  <view wx:if="{{ bill }}" class="form-wrap">
+    <record-form id="form" mode="add" bill="{{ bill }}" bind:submit="onSubmit" />
+  </view>
+  <view wx:else class="empty">
+    <van-empty description="先创建或加入一个账本" />
+    <van-button type="primary" color="#4285F4" bind:click="goBills">去账本</van-button>
+  </view>
+  <van-popup show="{{ showBills }}" position="bottom" bind:close="closeBills">
+    <van-picker columns="{{ billNames }}" show-toolbar title="选择账本" bind:confirm="onPickBill" bind:cancel="closeBills" />
+  </van-popup>
+</view>

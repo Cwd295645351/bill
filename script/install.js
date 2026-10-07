@@ -1,3 +1,7 @@
 const concurrently = require("concurrently")
 
-concurrently(["pnpm install --prefix frontend", "pnpm install --prefix server"])
+concurrently([
+  "pnpm install --prefix frontend",
+  "pnpm install --prefix server",
+  "pnpm install --prefix miniapp"
+])

@@ -1,0 +1,15 @@
+<view class="page">
+  <scroll-view class="list" scroll-y enhanced show-scrollbar="{{ false }}">
+    <van-empty wx:if="{{ !loading && !bills.length }}" description="还没有账本，创建一个或让家人邀请你" />
+    <block wx:for="{{ bills }}" wx:key="id">
+      <van-swipe-cell wx:if="{{ item.creator === userId }}" right-width="{{ 72 }}">
+        <van-cell title="{{ item.name }}" is-link data-id="{{ item.id }}" bind:click="onOpen" />
+        <view slot="right" class="del" data-id="{{ item.id }}" catchtap="onDelete">删除</view>
+      </van-swipe-cell>
+      <van-cell wx:else title="{{ item.name }}" is-link data-id="{{ item.id }}" bind:click="onOpen" />
+    </block>
+  </scroll-view>
+  <view class="footer">
+    <van-button type="primary" block round color="#4285F4" bind:click="onCreate">新建账本</van-button>
+  </view>
+</view>

@@ -1,0 +1,79 @@
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.types {
+  display: flex;
+  align-items: center;
+  background: #fff;
+}
+
+.type {
+  flex: 1;
+  text-align: center;
+  line-height: 72rpx;
+  color: #666;
+}
+
+.type.on {
+  color: #4285f4;
+  font-weight: 600;
+}
+
+.search-btn {
+  padding: 16rpx 24rpx 24rpx;
+  background: #fff;
+}
+
+.list {
+  flex: 1;
+  height: 0;
+}
+
+.day {
+  padding: 16rpx 24rpx;
+  color: #888;
+  font-size: 24rpx;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0 24rpx 12rpx;
+  padding: 20rpx 24rpx;
+  background: #fff;
+  border-radius: 12rpx;
+}
+
+.row.mine {
+  box-shadow: inset 6rpx 0 0 #4285f4;
+}
+
+.title {
+  display: flex;
+  align-items: center;
+}
+
+.mine-tag {
+  flex-shrink: 0;
+  margin-left: 12rpx;
+  padding: 0 10rpx;
+  color: #4285f4;
+  font-size: 20rpx;
+  line-height: 32rpx;
+  background: #e8f0fe;
+  border-radius: 8rpx;
+}
+
+.remark {
+  margin-top: 6rpx;
+  color: #999;
+  font-size: 24rpx;
+}
+
+.money {
+  font-weight: 600;
+}

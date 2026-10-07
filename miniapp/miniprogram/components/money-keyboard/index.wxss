@@ -1,0 +1,55 @@
+.kb {
+  display: flex;
+  background: #e8eaed;
+  padding: 12rpx 12rpx calc(12rpx + env(safe-area-inset-bottom));
+}
+
+.rows {
+  flex: 3;
+}
+
+.row {
+  display: flex;
+}
+
+.key,
+.again,
+.ok {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 96rpx;
+  margin: 8rpx;
+  border-radius: 12rpx;
+  background: #fff;
+  font-size: 36rpx;
+}
+
+.key {
+  flex: 1;
+}
+
+.actions {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.again,
+.ok {
+  flex: 1;
+  font-size: 30rpx;
+}
+
+.ok {
+  background: #4285f4;
+  color: #fff;
+}
+
+.key-hover {
+  background: #f2f3f5;
+}
+
+.ok-hover {
+  background: #2f6fda;
+}

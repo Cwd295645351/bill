@@ -11,11 +11,11 @@ const koaBody = require('koa-body') // 接口数据处理
 const fs = require('fs')
 const morgan = require('koa-morgan') // 日志处理
 const session = require('koa-generic-session') // session
-const redisStore = require('koa-redis') // redis
 const cors = require('koa2-cors') // 跨域处理
 const koajwt = require('koa-jwt') // jwt权限管理
 
-const CONF = require('./config/db')
+const { store: redisSessionStore } = require('./utils/redis')
+const { applyJwtUser } = require('./utils/jwtUser')
 const { connectDB } = require('./database/index')
 
 const VERSION = require('./config/version')
@@ -86,9 +86,7 @@ app.use(
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000 // 过期时间24小时
     },
-    store: redisStore({
-      all: `${CONF.REDIS_CONF.host}:${CONF.REDIS_CONF.port}` // redis的地址
-    })
+    store: redisSessionStore
   })
 )
 
@@ -132,9 +130,22 @@ app.use(
   koajwt({
     secret: SECRET_KEY
   }).unless({
-    path: [/\/api\/v1\/common\/login/, /\/api\/v1\/common\/logout/, /\/api\/v1\/common\/login_config/, /\/api\/v1\/common\/register/]
+    path: [
+      /\/api\/v1\/common\/login$/,
+      /\/api\/v1\/common\/logout/,
+      /\/api\/v1\/common\/login_config/,
+      /\/api\/v1\/common\/register/,
+      /\/api\/v1\/common\/wxLogin$/,
+      /\/api\/v1\/common\/wxBind$/
+    ]
   })
 )
+
+// 以 JWT 内的 userId 覆盖请求头，阻止伪造 userid 访问他人账本
+app.use(async (ctx, next) => {
+  applyJwtUser(ctx)
+  await next()
+})
 
 app.use(koaBody())
 

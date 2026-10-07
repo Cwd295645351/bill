@@ -390,6 +390,9 @@ exports.editTransaction = async (data) => {
   }
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['编辑失败', null]
+  if (!data.userId || String(old.userId) !== String(data.userId)) {
+    return ['只能编辑自己记的账单', null]
+  }
 
   const tx = await sequelize.transaction()
   try {
@@ -425,6 +428,9 @@ exports.deleteTransaction = async (data) => {
   const params = { id: data.id, isDel: false }
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['该明细不存在', null]
+  if (!data.operatorId || String(old.userId) !== String(data.operatorId)) {
+    return ['只能删除自己记的账单', null]
+  }
 
   const findBill = await findBillById(old.billId)
   if (!findBill) return ['未找到账本', null]

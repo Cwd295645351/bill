@@ -39,6 +39,19 @@ function initModels(sequelize) {
     { tableName: 'users' }
   )
 
+  // 微信小程序 openid 与账号一对一绑定，不可解绑（换绑需管理员改库）
+  const UserWechat = sequelize.define(
+    'user_wechats',
+    {
+      id: defineId,
+      userId: { type: DataTypes.CHAR(36), allowNull: false, unique: true, field: 'user_id' },
+      openid: { type: DataTypes.STRING(64), allowNull: false, unique: true },
+      unionid: { type: DataTypes.STRING(64), allowNull: true, defaultValue: '' },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' }
+    },
+    { tableName: 'user_wechats' }
+  )
+
   const Encryption = sequelize.define(
     'encryptions',
     {
@@ -260,6 +273,7 @@ function initModels(sequelize) {
 
   return {
     User,
+    UserWechat,
     Encryption,
     Bill,
     BillUser,

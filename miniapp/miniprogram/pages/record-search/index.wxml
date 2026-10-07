@@ -1,0 +1,47 @@
+<view class="page">
+  <view class="filters">
+    <view class="types">
+      <view class="type {{ type === 1 ? 'on' : '' }}" data-type="1" bindtap="onType">支出</view>
+      <view class="type {{ type === 2 ? 'on' : '' }}" data-type="2" bindtap="onType">收入</view>
+    </view>
+    <picker mode="date" value="{{ beginDate }}" bindchange="onBegin">
+      <van-cell title="开始时间" value="{{ beginDate || '请选择' }}" is-link />
+    </picker>
+    <picker mode="date" value="{{ endDate }}" bindchange="onEnd">
+      <van-cell title="结束时间" value="{{ endDate || '请选择' }}" is-link />
+    </picker>
+    <van-field label="内容" value="{{ remark }}" placeholder="备注关键字" bind:change="onRemark" />
+    <van-cell title="归属人" value="{{ belongUserName }}" is-link bind:click="openUsers" />
+    <van-cell title="分类" value="{{ categoryName }}" is-link bind:click="openCategory" />
+    <van-cell title="金额" value="{{ conditionName }}" is-link bind:click="openCondition" />
+    <van-field label="数值" value="{{ rangeMoney }}" type="digit" placeholder="不填则不限制" bind:change="onMoney" />
+    <view class="search-btn">
+      <van-button type="primary" block color="#4285F4" bind:click="onSearch">搜索</van-button>
+    </view>
+  </view>
+  <scroll-view class="list" scroll-y bindscrolltolower="onMore">
+    <block wx:for="{{ groups }}" wx:key="date">
+      <view class="day">{{ item.date }} {{ item.week }}　收 {{ item.incomes }}　支 {{ item.cost }}</view>
+      <view class="row {{ record.mine ? 'mine' : '' }}" style="{{ record.belongBg ? 'background-color:' + record.belongBg : '' }}" wx:for="{{ item.arr }}" wx:for-item="record" wx:key="id" data-id="{{ record.id }}" bindtap="onEdit">
+        <view>
+          <view class="title">
+            <text>{{ record.belongUserName || '全部' }} · {{ record.category }}</text>
+            <text wx:if="{{ record.mine }}" class="mine-tag">我</text>
+          </view>
+          <view class="remark">{{ record.remark }}</view>
+        </view>
+        <view class="money {{ record.type === 1 ? 'cost' : 'income' }}">{{ record.moneyText }}</view>
+      </view>
+    </block>
+    <van-empty wx:if="{{ searched && !loading && !groups.length }}" description="没有符合条件的记录" />
+  </scroll-view>
+  <van-popup show="{{ showUsers }}" position="bottom" bind:close="closeUsers">
+    <van-picker columns="{{ userNames }}" show-toolbar bind:confirm="onUser" bind:cancel="closeUsers" />
+  </van-popup>
+  <van-popup show="{{ showCategory }}" position="bottom" bind:close="closeCategory">
+    <van-picker columns="{{ categoryNames }}" show-toolbar bind:confirm="onCategory" bind:cancel="closeCategory" />
+  </van-popup>
+  <van-popup show="{{ showCondition }}" position="bottom" bind:close="closeCondition">
+    <van-picker columns="{{ conditionNames }}" show-toolbar bind:confirm="onCondition" bind:cancel="closeCondition" />
+  </van-popup>
+</view>

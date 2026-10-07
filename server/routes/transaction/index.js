@@ -105,7 +105,7 @@ router.delete('/', async (ctx, next) => {
   const { id } = data
   if (!id) ctx.body = new ResModel(null, 'id不能为空', 'error')
   else {
-    const [err, res] = await Transaction.deleteTransaction(data)
+    const [err, res] = await Transaction.deleteTransaction({ ...data, operatorId: ctx.header.userid })
     if (res) ctx.body = new ResModel(null, '删除成功')
     else ctx.body = new ResModel(null, err, 'error')
   }

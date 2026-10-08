@@ -4,6 +4,8 @@
 
 面向终端用户的完整操作说明见 [docs/用户手册.md](docs/用户手册.md)。
 
+功能开发遵循规格驱动（SDD）。项目宪章见 `.specify/memory/constitution.md`。在 Cursor Agent 输入 `/` 调用 `speckit-*` 技能：先 `/speckit-specify` 写清变更，再 plan / tasks / implement，最后 `/speckit-converge` 对照规格验收。每个功能一份目录，位于 `specs/`。
+
 ## 一、项目结构
 
 `frontent` 为前端页面，通过 `vite` + `vue3` + `tpyescript` 编写，每个页面都是独立的模块，包含独有的 `api.js`、 `router.js` 等元素，框架会自动读取每个页面的 `router.js` 文件并加入到路由当中。

@@ -1,0 +1,15 @@
+{
+  "default_integration": "cursor-agent",
+  "integration": "cursor-agent",
+  "version": "1.0.6",
+  "installed_integrations": [
+    "cursor-agent"
+  ],
+  "integration_state_schema": 1,
+  "integration_settings": {
+    "cursor-agent": {
+      "script": "ps"
+    }
+  }
+}
+

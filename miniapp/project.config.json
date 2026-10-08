@@ -39,7 +39,12 @@
     "minifyWXSS": true,
     "minifyWXML": true,
     "disableUseStrict": false,
-    "uglifyFileName": false
+    "uglifyFileName": false,
+    "compileWorklet": false,
+    "localPlugins": false,
+    "condition": false,
+    "swc": false,
+    "disableSWC": true
   },
   "compileType": "miniprogram",
   "libVersion": "3.17.3",
@@ -51,5 +56,6 @@
     "tabIndent": "insertSpaces",
     "tabSize": 2
   },
-  "srcMiniprogramRoot": "miniprogram/"
+  "srcMiniprogramRoot": "miniprogram/",
+  "simulatorPluginLibVersion": {}
 }

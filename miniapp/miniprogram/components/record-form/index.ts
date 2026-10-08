@@ -5,7 +5,7 @@ import {
   splitRemark,
   suggestionChips
 } from '../../utils/content-suggestions'
-import { dayStartTs, today } from '../../utils/date'
+import { dayStartTs, today, toDayText } from '../../utils/date'
 import { applyAmountKey } from '../../utils/records'
 import { getLastPref, getUser, RecordPref } from '../../utils/storage'
 
@@ -50,11 +50,6 @@ Component({
     canDelete: false,
     canEdit: true
   },
-  lifetimes: {
-    attached() {
-      this.setData({ date: today() })
-    }
-  },
   observers: {
     'bill, initial': function () {
       this.syncFromProps()
@@ -80,7 +75,7 @@ Component({
         const type = initial.type === 2 ? 2 : 1
         patch.type = type
         patch.amount = initial.money != null ? String(initial.money) : ''
-        patch.date = initial.dateText || this.data.date || today()
+        patch.date = toDayText(initial.dateText) || toDayText(initial.date)
         patch.rawRemark = initial.remark || ''
         patch.belongUserId = initial.belongUserId || ''
         patch.belongUserName = initial.belongUserName || '全部'
@@ -282,9 +277,14 @@ Component({
         return null
       }
       const bill = this.data.bill as any
+      const dateText = this.data.recordId ? toDayText(this.data.date) : (this.data.date || today())
+      if (this.data.recordId && !dateText) {
+        wx.showToast({ title: '请选择日期', icon: 'none' })
+        return null
+      }
       const payload: any = {
         billId: bill.id,
-        date: dayStartTs(this.data.date || today()),
+        date: dayStartTs(dateText),
         money,
         type: this.data.type,
         belongUserId: this.data.belongUserId,

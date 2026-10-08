@@ -16,6 +16,30 @@ export function formatDay(ts: number | string): string {
   return dayjs(Number(ts)).format('YYYY-MM-DD')
 }
 
+const DAY_TEXT = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * 转成日期选择器可用的日历日。
+ * 接受毫秒时间戳或已是 YYYY-MM-DD 的文本；非法输入返回空字符串，不用今天填补。
+ */
+export function toDayText(value: string | number | null | undefined): string {
+  if (value === undefined || value === null || value === '') return ''
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (DAY_TEXT.test(trimmed)) {
+      const parsed = dayjs(trimmed)
+      if (parsed.isValid() && parsed.format('YYYY-MM-DD') === trimmed) return trimmed
+      return ''
+    }
+  }
+  const timestamp = Number(value)
+  if (!Number.isFinite(timestamp)) return ''
+  const parsed = dayjs(timestamp)
+  if (!parsed.isValid()) return ''
+  const text = parsed.format('YYYY-MM-DD')
+  return DAY_TEXT.test(text) ? text : ''
+}
+
 export function formatDayLabel(ts: number | string): string {
   return dayjs(Number(ts)).format('YYYY年MM月DD日')
 }

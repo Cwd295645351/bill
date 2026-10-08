@@ -1,6 +1,6 @@
 import { deleteTransaction, editTransaction, getBillDetail } from '../../apis/index'
 import { guardPage } from '../../utils/auth'
-import { formatDay } from '../../utils/date'
+import { toDayText } from '../../utils/date'
 import { getEditingRecord, getUser, setBillDict, setLastPref } from '../../utils/storage'
 
 Page({
@@ -14,9 +14,8 @@ Page({
   onLoad(query: Record<string, string>) {
     const record = getEditingRecord()
     const billId = query.billId || (record && record.billId) || ''
-    const initial = record
-      ? Object.assign({}, record, { dateText: formatDay(record.date) })
-      : null
+    const dateText = record ? toDayText(record.date) : ''
+    const initial = record ? Object.assign({}, record, { dateText }) : null
     this.setData({ billId, initial })
   },
 
@@ -41,6 +40,7 @@ Page({
     this.setData({ bill: res.data })
   },
 
+  /** 只在用户点保存且接口成功后返回。失败或未保存离开都不改原日期。 */
   async onSubmit(e: WechatMiniprogram.CustomEvent) {
     if (this.data.saving) return
     this.setData({ saving: true })

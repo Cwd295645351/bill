@@ -1,6 +1,6 @@
 const koaRouter = require('koa-router')
 const { ResModel } = require('../../model/resModel')
-const { getLoginConfig, updateEncryptionKey, login, createJwt, register, wxLogin, wxBind } = require('./controller')
+const { getLoginConfig, updateEncryptionKey, assertAdmin, login, createJwt, register, wxLogin, wxBind } = require('./controller')
 
 const VERSION = require('../../config/version')
 
@@ -110,7 +110,6 @@ router.post('/logout', async (ctx, next) => {
 // 刷新token
 router.put('/refreshToken', async (ctx, next) => {
   const { refreshToken } = ctx.request.body
-  console.log(refreshToken)
   if (refreshToken && ctx.session.bill_refreshToken === refreshToken) {
     // 当前用户已登录，刷新token
     // jwt生成token
@@ -160,17 +159,16 @@ router.get('/login_config', async (ctx, next) => {
   else ctx.body = new ResModel(null, err, 'error')
 })
 
-// 更新密钥
+// 更新密钥：当前登录用户名必须等于 ADMIN_USERNAME
 router.put('/encryption', async (ctx, next) => {
-  const MANAGER = { username: 'admin', password: '123456' } // 管理员账号
-  const data = ctx.request.body
-  if (data.username !== MANAGER.username || data.password !== MANAGER.password) {
-    ctx.body = new ResModel(null, '非管理员没有权限生成密钥', 'error')
-  } else {
-    const [err, res] = await updateEncryptionKey()
-    if (res) ctx.body = new ResModel(null, '更新密钥成功')
-    else ctx.body = new ResModel(null, err, 'error')
+  const denied = await assertAdmin(ctx.header.userid)
+  if (denied) {
+    ctx.body = new ResModel(null, denied, 'error')
+    return
   }
+  const [err, res] = await updateEncryptionKey()
+  if (res) ctx.body = new ResModel(null, '更新密钥成功')
+  else ctx.body = new ResModel(null, err, 'error')
 })
 
 module.exports = router

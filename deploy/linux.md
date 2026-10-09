@@ -151,7 +151,7 @@ sudo systemctl enable redis-server   # Ubuntu 上 redis.service 只是别名，e
 redis-cli ping   # 应返回 PONG
 ```
 
-默认无密码即可，与 `server/config/db.js` 中 `REDIS_CONF`（`127.0.0.1:6379`）一致。若开启 `requirepass`，需同步改后端连接配置。
+默认无密码即可，与 `server/.env` 未设置 `REDIS_HOST` / `REDIS_PORT` 时的默认值（`127.0.0.1:6379`）一致。若开启 `requirepass`，需同步改后端连接配置。
 
 ## 6. 安装 Nginx
 
@@ -192,24 +192,16 @@ pnpm install
 
 ## 8. 配置数据库连接
 
-后端**没有** `.env`，连接信息写在 **`~/bill/server/config/db.js`**：
+数据库账号和密钥都写在 **`~/bill/server/.env`**。`MYSQL_USER`、`MYSQL_PASSWORD` 必填。`JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV` 也必填（后两项各 16 字节）。主机、端口、库名不填时分别为 `127.0.0.1`、`3306`、`bill`：
 
-```js
-const MYSQL_CONF = {
-  host: '127.0.0.1',
-  port: 3306,
-  username: 'bill',          // 改成实际账号
-  password: '你的强密码',     // 改成实际密码
-  database: 'bill',
-  dialect: 'mysql',
-  logging: false,
-  pool: { max: 10, min: 0, acquire: 30000, idle: 10000 }
-}
-
-const REDIS_CONF = {
-  host: '127.0.0.1',
-  port: 6379
-}
+```dotenv
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=bill
+MYSQL_PASSWORD=你的强密码
+MYSQL_DATABASE=bill
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
 ```
 
 首次启动时 `~/bill/server/database/index.js` 会：
@@ -363,7 +355,7 @@ ssl_certificate_key /etc/letsencrypt/live/your_domain.com/privkey.pem;
    - `npx pm2 status`（在 `~/bill/server` 下）进程是否 online
    - `npx pm2 logs bill-manage`
    - 安全组是否放行 80/443
-   - `~/bill/server/config/db.js` 账号密码、Redis 是否可达
+   - `~/bill/server/.env` 中的 `MYSQL_USER` / `MYSQL_PASSWORD`、Redis 是否可达
 
 ## 14. 后续维护
 
@@ -380,7 +372,7 @@ pnpm install
 npx pm2 restart bill-manage
 ```
 
-改了 `~/bill/server/config/db.js` 也必须重启 PM2。
+改了 `~/bill/server/.env` 也必须重启 PM2。
 
 ### 监控与日志
 
@@ -446,7 +438,7 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 | 前端空白 / 静态资源 404 | `dist` 未同步到 `/var/www/bill/pc` 或 `/var/www/bill/mobile` | 确认有 `index.html`，且 Nginx 可读（目录属主为 ubuntu 即可） |
 | API 502 Bad Gateway | 后端未启动或端口不是 3000 | `npx pm2 status`、看 `~/bill/server/logs` |
 | API 404 且路径少了 `/api` | `proxy_pass` 写成了 `http://localhost:3000/`（带尾斜杠） | 使用仓库模板：`proxy_pass http://bill_api;` |
-| MySQL connect failed，进程退出 | `~/bill/server/config/db.js` 账号密码错误或 MySQL 未启动 | 修正 `MYSQL_CONF`，`systemctl status mysql` |
+| MySQL connect failed，进程退出 | `.env` 中 `MYSQL_USER` / `MYSQL_PASSWORD` 错误或 MySQL 未启动 | 修正后重启，`systemctl status mysql` |
 | Redis 相关报错 / 登录态异常 | Redis 未启动 | `redis-cli ping`，`sudo systemctl start redis-server` |
 | HTTPS 证书错误 | 仍使用模板里的 localhost 证书路径 | 换成 Let's Encrypt 或自有证书 |
 

@@ -27,7 +27,7 @@ nginx/                          ← 例如 D:\tools\nginx
 └── nginx.exe
 ```
 
-后端 API 由 Node 提供，默认 `http://127.0.0.1:3000`。连接信息改 `server/config/db.js` 的 `MYSQL_CONF` / `REDIS_CONF`（无 `.env`）。
+后端 API 由 Node 提供，默认 `http://127.0.0.1:3000`。数据库账号和密钥都写在 `server/.env`。
 
 ## 部署步骤
 
@@ -62,7 +62,7 @@ include bill.conf;
 
 **4. 启动后端**
 
-确保本机 MySQL、Redis 已运行，并已填写 `server/config/db.js`。
+确保本机 MySQL、Redis 已运行，且 `server/.env` 中已配置 `JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`、`MYSQL_USER`、`MYSQL_PASSWORD`。
 
 ```bash
 cd E:/my-codes/bill/server

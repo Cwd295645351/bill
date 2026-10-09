@@ -1,4 +1,5 @@
 const crypto = require('crypto')
+const { loadSecrets } = require('../config/secrets')
 
 // md5加密
 const md5 = (content) => {
@@ -8,18 +9,16 @@ const md5 = (content) => {
 
 // 对密码进行加密
 const genPassword = (password) => {
-  // 密钥
-  const SECRET_KEY = '15641#!#0.SAFAasd'
-  const str = `password=${password}&key=${SECRET_KEY}`
+  const { passwordSalt } = loadSecrets()
+  const str = `password=${password}&key=${passwordSalt}`
   return md5(str)
 }
 
 // 对称加密
 const encode = (src) => {
-  const key = 'chenyd-bill-keys'
-  const iv = 'chenyd--bill--iv'
+  const { aesKey, aesIv } = loadSecrets()
   let sign = ''
-  const cipher = crypto.createCipheriv('aes-128-cbc', key, iv) // createCipher在10.0.0已被废弃
+  const cipher = crypto.createCipheriv('aes-128-cbc', aesKey, aesIv) // createCipher在10.0.0已被废弃
   sign += cipher.update(src, 'utf8', 'hex')
   sign += cipher.final('hex')
   return sign
@@ -27,10 +26,9 @@ const encode = (src) => {
 
 // 对称解密
 const decode = (src) => {
-  const key = 'chenyd-bill-keys'
-  const iv = 'chenyd--bill--iv'
+  const { aesKey, aesIv } = loadSecrets()
   let sign = ''
-  const cipher = crypto.createDecipheriv('aes-128-cbc', key, iv)
+  const cipher = crypto.createDecipheriv('aes-128-cbc', aesKey, aesIv)
   sign += cipher.update(src, 'hex', 'utf8')
   sign += cipher.final('utf8')
   return sign

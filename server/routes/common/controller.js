@@ -7,6 +7,7 @@ const { code2session } = require('../../utils/wechat')
 const { createBindTicket, peekBindTicket, consumeBindTicket } = require('../../utils/redis')
 
 const { genPassword } = require('../../utils/cryp')
+const { loadSecrets } = require('../../config/secrets')
 
 const USER_ATTRS = ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
 
@@ -19,6 +20,16 @@ const getLoginConfig = async () => {
     console.error(err)
     return [err, null]
   }
+}
+
+/** 仅允许环境变量指定的登录用户轮换 RSA 密钥。未配置则拒绝所有人。 */
+const assertAdmin = async (userId) => {
+  const adminUsername = process.env.ADMIN_USERNAME
+  if (!adminUsername) return '未配置管理员，拒绝更新密钥'
+  if (!userId) return '请先登录'
+  const user = await User.findByPk(userId, { attributes: ['username'] })
+  if (!user || user.username !== adminUsername) return '非管理员没有权限生成密钥'
+  return null
 }
 
 // 更新密钥
@@ -120,10 +131,8 @@ const wxBind = async ({ bindTicket, username, password }) => {
 
 // 生成jwt授权
 const createJwt = (data) => {
-  const SECRET_KEY = 'admin_jwt_token'
   const EXPIRES_TIME = 24 * 60 * 60 // 有效时间
-  // jwt生成token
-  const accessToken = jwt.sign(data, SECRET_KEY, { expiresIn: EXPIRES_TIME })
+  const accessToken = jwt.sign(data, loadSecrets().jwtSecret, { expiresIn: EXPIRES_TIME })
   // refresh token
   const refreshToken = accessToken.slice(accessToken.lastIndexOf('.') + 1)
 
@@ -176,4 +185,4 @@ const register = async (username, password, nickName) => {
   }
 }
 
-module.exports = { getLoginConfig, updateEncryptionKey, login, register, createJwt, verifyPassword, wxLogin, wxBind }
+module.exports = { getLoginConfig, updateEncryptionKey, assertAdmin, login, register, createJwt, verifyPassword, wxLogin, wxBind }

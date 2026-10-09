@@ -1,5 +1,13 @@
 const path = require('path')
 require('dotenv').config({ path: path.join(__dirname, '.env'), quiet: true })
+const { loadSecrets } = require('./config/secrets')
+try {
+  loadSecrets()
+  require('./config/db')
+} catch (err) {
+  console.error(err.message)
+  process.exit(1)
+}
 
 const Koa = require('koa')
 const json = require('koa-json')
@@ -125,10 +133,9 @@ app.use((ctx, next) => {
 })
 
 // jwt验证
-const SECRET_KEY = 'admin_jwt_token'
 app.use(
   koajwt({
-    secret: SECRET_KEY
+    secret: loadSecrets().jwtSecret
   }).unless({
     path: [
       /\/api\/v1\/common\/login$/,

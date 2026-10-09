@@ -85,7 +85,7 @@ Follow-up TODOs: docs/用户手册.md 尚未记载小程序入口；改小程序
 
 密钥不得进入源码或 Git。部署约定以 `deploy/` 为准。
 
-- `AI_API_KEY`、`WX_APPID`、`WX_SECRET` 等密钥只放 `server/.env` 或进程环境变量；`server/.env` 已被 Git 忽略。
+- `AI_API_KEY`、`WX_APPID`、`WX_SECRET`、`JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`、`MYSQL_USER`、`MYSQL_PASSWORD` 只放 `server/.env` 或进程环境变量；`server/.env` 已被 Git 忽略。`server/config/db.js` 只读取这些变量，可以提交。
 - 本地联调：Web 使用 `env.local.js`；小程序体验版/正式版地址写在 `miniapp/.env` 的 `MINIAPP_BASE_URL`，执行 `npm run sync-env` 生成 `env.local.ts`。`.env` 与 `env.local.ts` 均不提交。
 - 小程序 `project.config.json` 的正式 `appid` 可按发布环境修改，但不要把密钥或生产接口地址写入可提交源码。
 - 生产启动与 Nginx 配置遵循 `deploy/README.md`、`deploy/linux.md`、`deploy/windows.md`；小程序发布步骤见 `deploy/README.md`「微信小程序」。

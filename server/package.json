@@ -10,6 +10,7 @@
     "db:init": "node -e \"require('./database/index').connectDB().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})\""
   },
   "dependencies": {
+    "ali-oss": "^6.23.0",
     "dayjs": "^1.11.5",
     "debug": "^4.1.1",
     "dotenv": "^17.4.2",

@@ -43,7 +43,15 @@
                 <div class="money">{{ detail.money }}</div>
               </div>
               <div class="remark-container">
-                <div class="remark">{{ detail.remark }}</div>
+                <div class="remark">
+                  <span>{{ detail.remark }}</span>
+                  <el-link
+                    v-if="detail.images && detail.images.length"
+                    type="primary"
+                    class="photo-link"
+                    @click.stop="previewImages(detail)"
+                  >查看照片 {{ detail.images.length }}</el-link>
+                </div>
                 <div class="operate" v-if="detail.userId === userInfo.userId">
                   <el-link type="info" @click="showEditDialog(detail)">编辑</el-link>
                   <el-link type="danger" @click="showDeleteDialog(detail)">删除</el-link>
@@ -215,14 +223,42 @@
         <el-form-item class="form-item" size="large" label="内容">
           <el-input v-model="operateData.remark" placeholder="请输入"></el-input>
         </el-form-item>
+        <el-form-item class="form-item" size="large" label="照片">
+          <div class="edit-photos">
+            <div class="edit-photo" v-for="(img, index) in editImages" :key="img.id">
+              <el-image :src="img.viewUrl" fit="cover" :preview-src-list="editPreviewUrls" :initial-index="index" />
+              <button type="button" class="photo-remove" title="删除" @click.stop="removeEditImage(index)">
+                <el-icon :size="12"><Close /></el-icon>
+              </button>
+            </div>
+            <label v-if="editImages.length < 9" class="edit-photo-add">
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                multiple
+                hidden
+                :disabled="photoUploading || btnLoading"
+                @change="onPickEditPhotos"
+              />
+              <span>{{ photoUploading ? '上传中…' : '+' }}</span>
+            </label>
+          </div>
+          <div class="photo-tip">最多 9 张，单张不超过 10MB；新记一笔不能附照片</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
-          <el-button size="large" :loading="btnLoading" type="primary" @click="submitEditTransaction">确定</el-button>
-          <el-button size="large" :disabled="btnLoading" @click="editDialog = false">取消</el-button>
+          <el-button size="large" :loading="btnLoading || photoUploading" type="primary" @click="submitEditTransaction">确定</el-button>
+          <el-button size="large" :disabled="btnLoading || photoUploading" @click="editDialog = false">取消</el-button>
         </div>
       </template>
     </el-dialog>
+    <el-image-viewer
+      v-if="previewVisible"
+      :url-list="previewUrls"
+      :initial-index="previewIndex"
+      @close="previewVisible = false"
+    />
     <el-dialog title="批量解析" class="batch-parse-dialog" v-model="batchDialog" :close-on-click-modal="false">
       <div class="batch-input-area">
         <el-input v-model="batchText" type="textarea" :rows="6" placeholder="请输入内容，每行一条记录..." />
@@ -276,11 +312,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { ArrowDown, ArrowRight } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
+import { ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
 import { useParse } from './hooks/use-parse'
+import type { Information } from './type'
 
 const {
   loadingDirection,
@@ -315,8 +352,10 @@ const {
   deleteDialog,
   editDialog,
   btnLoading,
+  photoUploading,
   addInformation,
   operateData,
+  editImages,
   showDeleteDialog,
   showEditDialog,
   submitDeleteTransaction,
@@ -324,9 +363,33 @@ const {
   addInfo,
   batchAdd,
   changeAddContainer,
+  removeEditImage,
+  addEditImages,
 } = useAddEdit({ search, type })
 
 const { parseBatch, loading } = useParse(costTypes)
+
+const previewVisible = ref(false)
+const previewUrls = ref<string[]>([])
+const previewIndex = ref(0)
+const editPreviewUrls = computed(() => editImages.value.map((img) => img.viewUrl))
+
+/** 时间线打开照片预览（账本成员均可看，不进入编辑） */
+const previewImages = (detail: Information) => {
+  const imgs = (detail.images || []).slice().sort((a, b) => (a.sort || 0) - (b.sort || 0))
+  const urls = imgs.map((img) => img.viewUrl).filter(Boolean)
+  if (!urls.length) return
+  previewUrls.value = urls
+  previewIndex.value = 0
+  previewVisible.value = true
+}
+
+const onPickEditPhotos = async (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (!input.files || !input.files.length) return
+  await addEditImages(input.files)
+  input.value = ''
+}
 
 /** 归属人卡片底色。「全部」保持白底，其余按账本成员顺序循环取色 */
 const belongPalette = ['#fff3e0', '#e3f2fd', '#e8f5e9', '#fce4ec', '#f3e5f5', '#e0f7fa', '#fff8e1', '#fbe9e7']
@@ -538,6 +601,12 @@ const handleBatchSave = async () => {
               flex: 1;
               min-width: 0;
               word-break: break-all;
+              .photo-link {
+                display: inline-block;
+                margin-left: 8px;
+                font-size: 14px;
+                vertical-align: baseline;
+              }
             }
             .operate {
               margin-left: 40px;
@@ -659,6 +728,62 @@ const handleBatchSave = async () => {
     .el-input__wrapper {
       width: 310px;
     }
+  }
+  .edit-photos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 310px;
+  }
+  .edit-photo {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    .el-image {
+      width: 72px;
+      height: 72px;
+      border-radius: 4px;
+    }
+    .photo-remove {
+      position: absolute;
+      top: 0;
+      right: 0;
+      z-index: 2;
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      border-radius: 0 4px 0 6px;
+      color: #fff;
+      background: rgba(0, 0, 0, 0.5);
+      cursor: pointer;
+      line-height: 1;
+      &:hover {
+        background: rgba(0, 0, 0, 0.7);
+      }
+    }
+  }
+  .edit-photo-add {
+    width: 72px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px dashed #c0c4cc;
+    border-radius: 4px;
+    color: #909399;
+    font-size: 28px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .photo-tip {
+    margin-top: 6px;
+    color: #999;
+    font-size: 12px;
+    line-height: 1.4;
   }
 }
 .batch-parse-dialog {

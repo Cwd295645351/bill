@@ -1,6 +1,7 @@
 import { addTransaction, getBillDetail, getBillList } from '../../apis/index'
 import { guardPage } from '../../utils/auth'
 import { getLastBillId, setBillDict, setLastBillId, setLastPref } from '../../utils/storage'
+import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../utils/upload-photos'
 
 Page({
   data: {
@@ -68,19 +69,37 @@ Page({
 
   async onSubmit(e: WechatMiniprogram.CustomEvent) {
     if (this.data.saving) return
-    const { payload, again, pref } = e.detail
+    const { payload, pref, photos } = e.detail
     this.setData({ saving: true })
-    const res = await addTransaction(payload)
-    this.setData({ saving: false })
-    if (res.retCode !== 0) return
-    setLastPref(pref)
-    setLastBillId(payload.billId)
-    wx.showToast({ title: '已保存' })
-    if (again) {
-      const form = this.selectComponent('#form') as any
-      if (form && form.resetForAgain) form.resetForAgain()
-      return
+    const form = this.selectComponent('#form') as any
+    const list = Array.isArray(photos) ? photos : []
+
+    try {
+      if (list.length) {
+        const serverIds = await uploadPendingPhotos(payload.billId, list, (ids) => {
+          if (form && form.setPhotoServerIds) form.setPhotoServerIds(ids)
+        })
+        if (!serverIds) {
+          this.setData({ saving: false })
+          return
+        }
+        showSaveLoading('保存中')
+        const body = { ...payload, imageIds: serverIds }
+        const res = await addTransaction(body)
+        if (res.retCode !== 0) return
+      } else {
+        showSaveLoading('保存中')
+        const res = await addTransaction(payload)
+        if (res.retCode !== 0) return
+      }
+      setLastPref(pref)
+      setLastBillId(payload.billId)
+      hideSaveLoading()
+      wx.showToast({ title: '已保存' })
+      wx.navigateTo({ url: `/pages/bill-detail/index?id=${payload.billId}` })
+    } finally {
+      hideSaveLoading()
+      this.setData({ saving: false })
     }
-    wx.navigateTo({ url: `/pages/bill-detail/index?id=${payload.billId}` })
   }
 })

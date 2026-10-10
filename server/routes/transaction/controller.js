@@ -1,11 +1,29 @@
 const { Transaction, User } = require('../../database/index')
 const { findBillById, saveBudget, sequelize } = require('../../database/services/billService')
+const {
+  uploadImage,
+  attachImages,
+  markImagesUnviewableByTransaction,
+  attachImagesToList,
+  getImageFile,
+  tryDeleteObject,
+  assertBillMember
+} = require('../../database/services/transactionImageService')
 const { Op } = require('sequelize')
 const dayjs = require('dayjs')
 const { toTimestamp, yearFromTimestamp, formatDate } = require('../../utils/dateUtil')
 const { createXlsx } = require('../../utils/xlsx')
 const xlsx = require('node-xlsx')
 const fs = require('fs')
+
+/** 请求体是否显式携带 imageIds（不传则不动已有照片） */
+const hasImageIdsField = (data) => Object.prototype.hasOwnProperty.call(data || {}, 'imageIds')
+
+/** 规范化 imageIds：必须是数组，元素为字符串 id */
+const normalizeImageIds = (imageIds) => {
+  if (!Array.isArray(imageIds)) return null
+  return imageIds.map((id) => String(id))
+}
 
 /** 金额保留两位小数（返回 number） */
 const fixMoney = (n) => Number(Number(n).toFixed(2))
@@ -124,7 +142,7 @@ const loadMonthSummaries = async (where) => {
 }
 
 // 查询列表
-exports.getList = async (data) => {
+exports.getList = async (data, ctx) => {
   const pageIndex = data.pageIndex
   const pageSize = data.pageSize
   const { where, andList } = buildFilter(data)
@@ -132,6 +150,7 @@ exports.getList = async (data) => {
   const direction = data.direction
   const anchorTs = toTimestamp(data.anchorDate)
   const useCursor = direction === 'latest' || direction === 'older' || direction === 'newer' || anchorTs != null
+  const listOpts = { billId: data.billId, userId: data.viewerUserId, ctx }
 
   // 未传游标参数时保持原来的页码分页，供总览、移动端继续使用
   if (!useCursor) {
@@ -142,7 +161,10 @@ exports.getList = async (data) => {
       limit: pageSize
     })
     const length = await Transaction.count({ where: filterWhere })
-    if (res) return [null, { total: length, datas: res }]
+    if (res) {
+      const datas = await attachImagesToList(res, listOpts)
+      return [null, { total: length, datas }]
+    }
     return ['查询失败', res]
   }
 
@@ -179,12 +201,23 @@ exports.getList = async (data) => {
   }
 
   const total = await Transaction.count({ where: filterWhere })
+  datas = await attachImagesToList(datas, listOpts)
   const retData = { total, datas, hasOlder, hasNewer }
   if (data.withMonthSummary) {
     retData.monthSummaries = await loadMonthSummaries(filterWhere)
   }
   return [null, retData]
 }
+
+// 上传一张照片（未挂接）
+exports.uploadTransactionImage = async ({ file, billId, userId }) => {
+  const isMember = await assertBillMember(billId, userId)
+  if (!isMember) return ['未找到账本', null]
+  return uploadImage({ file, billId, userId })
+}
+
+// 按签名打开照片
+exports.openTransactionImage = async (query) => getImageFile(query)
 
 // 新增交易信息
 exports.addTransaction = async (data) => {
@@ -227,10 +260,25 @@ exports.addTransaction = async (data) => {
     params.belongUserName = users.name
   }
 
+  const wantImages = hasImageIdsField(data)
+  const imageIds = wantImages ? normalizeImageIds(data.imageIds) : null
+  if (wantImages && imageIds == null) return ['照片列表无效', null]
+
   const tx = await sequelize.transaction()
+  let pendingDeleteKeys = []
   try {
     const res = await Transaction.create(params, { transaction: tx })
     if (!res) throw new Error('新增失败')
+
+    if (wantImages) {
+      pendingDeleteKeys = await attachImages({
+        transactionId: res.id,
+        billId: data.billId,
+        userId: data.userId,
+        imageIds,
+        sequelizeTx: tx
+      })
+    }
 
     // 需要增加用户表的总支出或总收入 + 更新账本预算
     if (params.type === 1) {
@@ -251,10 +299,14 @@ exports.addTransaction = async (data) => {
     }
 
     await tx.commit()
+    for (const key of pendingDeleteKeys) {
+      await tryDeleteObject(key)
+    }
     return [null, true]
   } catch (e) {
     await tx.rollback()
     console.error(e)
+    if (wantImages) return [e.message === '一笔最多附 9 张照片' ? e.message : '新增失败', null]
     return ['新增失败', null]
   }
 }
@@ -394,9 +446,24 @@ exports.editTransaction = async (data) => {
     return ['只能编辑自己记的账单', null]
   }
 
+  const wantImages = hasImageIdsField(data)
+  const imageIds = wantImages ? normalizeImageIds(data.imageIds) : null
+  if (wantImages && imageIds == null) return ['照片列表无效', null]
+
   const tx = await sequelize.transaction()
+  let pendingDeleteKeys = []
   try {
     await Transaction.update(changeData, { where: params, transaction: tx })
+
+    if (wantImages) {
+      pendingDeleteKeys = await attachImages({
+        transactionId: old.id,
+        billId: data.billId,
+        userId: data.userId,
+        imageIds,
+        sequelizeTx: tx
+      })
+    }
 
     const differenceMoney = data.money - Number(old.money) // 编辑后的金额差
 
@@ -415,10 +482,14 @@ exports.editTransaction = async (data) => {
       await User.increment({ incomes: differenceMoney }, { where: { id: data.userId }, transaction: tx })
     }
     await tx.commit()
+    for (const key of pendingDeleteKeys) {
+      await tryDeleteObject(key)
+    }
     return [null, true]
   } catch (e) {
     await tx.rollback()
     console.error(e)
+    if (wantImages) return [e.message === '一笔最多附 9 张照片' ? e.message : '编辑失败', null]
     return ['编辑失败', null]
   }
 }
@@ -436,8 +507,10 @@ exports.deleteTransaction = async (data) => {
   if (!findBill) return ['未找到账本', null]
 
   const tx = await sequelize.transaction()
+  let pendingDeleteKeys = []
   try {
     await Transaction.update({ isDel: true }, { where: params, transaction: tx })
+    pendingDeleteKeys = await markImagesUnviewableByTransaction(old.id, tx)
 
   // 支出交易明细创删除成功后，需向账本表的预算删除数据，并需要减少用户表的总支出或总收入
     if (old.type === 1) {
@@ -459,6 +532,9 @@ exports.deleteTransaction = async (data) => {
       await User.increment({ incomes: 0 - Number(old.money) }, { where: { id: old.userId }, transaction: tx })
     }
     await tx.commit()
+    for (const key of pendingDeleteKeys) {
+      await tryDeleteObject(key)
+    }
     return [null, true]
   } catch (e) {
     await tx.rollback()

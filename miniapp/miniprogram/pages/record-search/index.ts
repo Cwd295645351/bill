@@ -201,5 +201,16 @@ Page({
     }
     setEditingRecord(record)
     wx.navigateTo({ url: `/pages/record-edit/index?billId=${this.data.billId}` })
+  },
+
+  /** 打开照片预览，不进入编辑 */
+  onPreviewImages(e: WechatMiniprogram.TouchEvent) {
+    const id = e.currentTarget.dataset.id
+    const record = this.data.records.find((item) => item.id === id)
+    if (!record || !record.images || !record.images.length) return
+    const sorted = record.images.slice().sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    const urls = sorted.map((img) => img.viewUrl).filter(Boolean)
+    if (!urls.length) return
+    wx.previewImage({ current: urls[0], urls })
   }
 })

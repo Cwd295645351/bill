@@ -6,8 +6,11 @@ import {
   suggestionChips
 } from '../../utils/content-suggestions'
 import { dayStartTs, today, toDayText } from '../../utils/date'
-import { applyAmountKey } from '../../utils/records'
+import { applyAmountKey, RecordImage } from '../../utils/records'
 import { getLastPref, getUser, RecordPref } from '../../utils/storage'
+
+const MAX_PHOTOS = 9
+const MAX_PHOTO_BYTES = 10485760
 
 function visibleTypes(list: any[]) {
   return (list || []).filter((item) => !item.isDel && !item.hidden)
@@ -21,6 +24,13 @@ const emptyPref = (): RecordPref => ({
   belongUserId: '',
   belongUserName: ''
 })
+
+/** 本地待上传或已上传成功的照片 */
+export interface LocalPhoto {
+  path: string
+  size: number
+  serverId?: string
+}
 
 Component({
   properties: {
@@ -48,7 +58,12 @@ Component({
     reimbursement: 0,
     showKeyboard: false,
     canDelete: false,
-    canEdit: true
+    canEdit: true,
+    /** 新增时本地选择的照片；编辑增删在后续阶段开放 */
+    photos: [] as LocalPhoto[],
+    /** 编辑时已有照片（只展示，本阶段不提供增删） */
+    images: [] as RecordImage[],
+    maxPhotos: MAX_PHOTOS
   },
   observers: {
     'bill, initial': function () {
@@ -83,8 +98,15 @@ Component({
         patch.reimbursement = initial.reimbursement || 0
         patch.categoryId = type === 2 ? initial.incomesTypeId : initial.costTypeId
         patch.categoryName = type === 2 ? initial.incomesTypeName : initial.costTypeName
+        // 编辑：展示已有照片；增删在后续阶段开放
+        const imgs = Array.isArray(initial.images) ? initial.images.slice() : []
+        imgs.sort((a: RecordImage, b: RecordImage) => (a.sort || 0) - (b.sort || 0))
+        patch.images = imgs
+        patch.photos = []
       } else {
         patch.date = this.data.date || today()
+        patch.images = []
+        patch.photos = this.data.photos || []
         const pref = getLastPref()
         const me = getUser()
         if (pref && (pref.belongUserId || pref.belongUserName)) {
@@ -297,7 +319,110 @@ Component({
       } else {
         payload.incomesTypeId = this.data.categoryId
       }
+      // 编辑保存时提交当前照片 id 列表（含未改动的原图）；新增由页面上传后再挂 imageIds
+      if (this.data.recordId) {
+        const fromExisting = (this.data.images || []).map((img: RecordImage) => img.id)
+        const fromLocal = (this.data.photos || [])
+          .map((p: LocalPhoto) => p.serverId)
+          .filter(Boolean) as string[]
+        payload.imageIds = fromExisting.concat(fromLocal)
+      }
       return payload
+    },
+
+    photoCount() {
+      return (this.data.images || []).length + (this.data.photos || []).length
+    },
+
+    /** 相册或拍照；已满 9 张时拒绝。新增与编辑（本人）均可 */
+    onAddPhoto() {
+      if (!this.data.canEdit) return
+      const remain = MAX_PHOTOS - this.photoCount()
+      if (remain <= 0) {
+        wx.showToast({ title: '最多 9 张', icon: 'none' })
+        return
+      }
+      wx.chooseMedia({
+        count: remain,
+        mediaType: ['image'],
+        sourceType: ['album', 'camera'],
+        sizeType: ['compressed', 'original'],
+        success: (res) => {
+          const accepted = (this.data.photos || []).slice()
+          let total = this.photoCount()
+          for (const file of res.tempFiles || []) {
+            if (total >= MAX_PHOTOS) {
+              wx.showToast({ title: '最多 9 张', icon: 'none' })
+              break
+            }
+            const size = Number(file.size || 0)
+            if (!size || size > MAX_PHOTO_BYTES) {
+              wx.showToast({ title: '单张照片不能超过 10MB', icon: 'none' })
+              continue
+            }
+            if (!file.tempFilePath) {
+              wx.showToast({ title: '无法当作照片打开', icon: 'none' })
+              continue
+            }
+            accepted.push({ path: file.tempFilePath, size })
+            total += 1
+          }
+          this.setData({ photos: accepted, showKeyboard: false })
+        },
+        fail: (err) => {
+          // 用户取消不提示；无权限时说明原因
+          const msg = (err && err.errMsg) || ''
+          if (/auth|authorize|permission|deny/i.test(msg)) {
+            wx.showToast({ title: '需要允许访问相机或相册后才能选照片', icon: 'none' })
+          }
+        }
+      })
+    },
+
+    onRemovePhoto(e: WechatMiniprogram.TouchEvent) {
+      if (!this.data.canEdit) return
+      const index = Number(e.currentTarget.dataset.index)
+      if (!Number.isFinite(index)) return
+      const photos = (this.data.photos || []).slice()
+      photos.splice(index, 1)
+      this.setData({ photos })
+    },
+
+    /** 编辑时去掉已挂接的原图 */
+    onRemoveExisting(e: WechatMiniprogram.TouchEvent) {
+      if (!this.data.canEdit || this.data.mode !== 'edit') return
+      const index = Number(e.currentTarget.dataset.index)
+      if (!Number.isFinite(index)) return
+      const images = (this.data.images || []).slice()
+      images.splice(index, 1)
+      this.setData({ images })
+    },
+
+    onPreviewLocal(e: WechatMiniprogram.TouchEvent) {
+      const index = Number(e.currentTarget.dataset.index)
+      const urls = (this.data.photos || []).map((p: LocalPhoto) => p.path)
+      if (!urls.length) return
+      wx.previewImage({ current: urls[index] || urls[0], urls })
+    },
+
+    onPreviewExisting(e: WechatMiniprogram.TouchEvent) {
+      const index = Number(e.currentTarget.dataset.index)
+      const urls = (this.data.images || []).map((img: RecordImage) => img.viewUrl).filter(Boolean)
+      if (!urls.length) return
+      wx.previewImage({ current: urls[index] || urls[0], urls })
+    },
+
+    /** 上传成功后回写 serverId，便于失败重试时只补传未成功的 */
+    setPhotoServerIds(ids: Array<string | undefined>) {
+      const photos = (this.data.photos || []).map((p: LocalPhoto, i: number) => {
+        if (ids[i]) return { ...p, serverId: ids[i] }
+        return p
+      })
+      this.setData({ photos })
+    },
+
+    getPhotos(): LocalPhoto[] {
+      return (this.data.photos || []).slice()
     },
 
     onConfirm() {
@@ -307,19 +432,23 @@ Component({
       }
       const payload = this.buildPayload()
       if (!payload) return
-      this.triggerEvent('submit', { payload, again: false, pref: this.mergePref() })
+      this.triggerEvent('submit', {
+        payload,
+        again: false,
+        pref: this.mergePref(),
+        photos: this.getPhotos()
+      })
     },
 
+    /** 再记一笔：不产生记账，清空照片、金额和描述，保留日期和归属人 */
     onAgain() {
-      const payload = this.buildPayload()
-      if (!payload) return
-      this.triggerEvent('submit', { payload, again: true, pref: this.mergePref() })
+      this.resetForAgain()
     },
 
-    /** 再记一笔：保留日期和归属人，清空金额与内容 */
+    /** 再记一笔：保留日期和归属人，清空金额、内容与已选照片 */
     resetForAgain() {
       this.refreshSuggestions(this.data.categoryId, this.data.categoryName, '')
-      this.setData({ amount: '', remark: '', showKeyboard: true })
+      this.setData({ amount: '', remark: '', photos: [], showKeyboard: true })
     },
 
     onDelete() {

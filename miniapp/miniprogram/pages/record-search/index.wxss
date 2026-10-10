@@ -68,6 +68,12 @@
   border-radius: 8rpx;
 }
 
+.photo-entry {
+  margin-top: 8rpx;
+  color: #4285f4;
+  font-size: 24rpx;
+}
+
 .remark {
   margin-top: 6rpx;
   color: #999;

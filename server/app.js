@@ -143,7 +143,9 @@ app.use(
       /\/api\/v1\/common\/login_config/,
       /\/api\/v1\/common\/register/,
       /\/api\/v1\/common\/wxLogin$/,
-      /\/api\/v1\/common\/wxBind$/
+      /\/api\/v1\/common\/wxBind$/,
+      // 照片查看地址靠签名放行，图片组件无法携带登录头
+      /\/api\/v1\/transaction\/image\/file/
     ]
   })
 )
@@ -154,7 +156,28 @@ app.use(async (ctx, next) => {
   await next()
 })
 
-app.use(koaBody())
+// 单张照片上限 10MB；超过时由上传接口返回「单张照片不能超过 10MB」
+app.use(
+  koaBody({
+    multipart: true,
+    formidable: {
+      maxFileSize: 10485760
+    },
+    onError: (err, ctx) => {
+      const msg = (err && err.message) || ''
+      if (/maxFileSize|max file size|limit/i.test(msg)) {
+        ctx.status = 200
+        ctx.body = {
+          retCode: 1,
+          message: '单张照片不能超过 10MB',
+          data: null
+        }
+        return
+      }
+      throw err
+    }
+  })
+)
 
 // routes
 app.use(common.routes(), common.allowedMethods())

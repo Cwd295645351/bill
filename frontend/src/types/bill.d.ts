@@ -119,6 +119,8 @@ export interface RecordItem {
   belongUserName: string
   /** 账本id */
   billId: string
+  /** 记账人 id */
+  userId: string
   /** 支出类型 id */
   costTypeId: string
   /** 支出类型名称 */
@@ -127,6 +129,8 @@ export interface RecordItem {
   incomesTypeId: string
   /** 收入类型名称 */
   incomesTypeName: string
+  /** 支付方式名称 */
+  payMethodName?: string
   /** 日期 */
   date: string
   /** id */
@@ -141,4 +145,6 @@ export interface RecordItem {
   remark: string
   /** 收支类型：1-支出；2收入 */
   type: number
+  /** 所附照片 */
+  images?: Array<{ id: string; sort: number; viewUrl: string }>
 }

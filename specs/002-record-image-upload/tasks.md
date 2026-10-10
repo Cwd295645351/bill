@@ -30,9 +30,9 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 **Purpose**: 加上对象存储依赖和空的密钥项，并限制单张上传大小
 
-- [ ] T001 [P] 在 `server/package.json` 的 dependencies 加入 `ali-oss`，不改 `server` 的 test 脚本，不引入测试框架
-- [ ] T002 [P] 在 `server/.env.example` 增加空项 `OSS_REGION`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_URL_SECRET`，注释写明只放服务端、禁止提交真实密钥。不要把密钥写进 `miniapp/` 或 `frontend/`
-- [ ] T003 [P] 在 `server/app.js` 把 multipart 单文件上限设为 10485760 字节。超过时对调用方返回「单张照片不能超过 10MB」。不要修改 `deploy/nginx.conf` 与 `deploy/nginx-linux.conf` 里已有的 `client_max_body_size 200m`
+- [X] T001 [P] 在 `server/package.json` 的 dependencies 加入 `ali-oss`，不改 `server` 的 test 脚本，不引入测试框架
+- [X] T002 [P] 在 `server/.env.example` 增加空项 `OSS_REGION`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_URL_SECRET`，注释写明只放服务端、禁止提交真实密钥。不要把密钥写进 `miniapp/` 或 `frontend/`
+- [X] T003 [P] 在 `server/app.js` 把 multipart 单文件上限设为 10485760 字节。超过时对调用方返回「单张照片不能超过 10MB」。不要修改 `deploy/nginx.conf` 与 `deploy/nginx-linux.conf` 里已有的 `client_max_body_size 200m`
 
 ---
 
@@ -42,11 +42,11 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 **⚠️ CRITICAL**: 用户故事开始前必须完成本阶段
 
-- [ ] T004 在 `server/database/models/index.js` 新增 `transaction_images`，不要改 `transactions` 的列。字段约束原文：「id CHAR(36) 主键；bill_id 必填；transaction_id 可空；user_id 必填；object_key 必填且不返回给客户端；sort 从 0 起；size 为 1 到 10485760 的整数；content_type 仅 image/jpeg、image/png、image/gif、image/webp；viewable 默认 true；created_at。」索引为 `transaction_id`，以及 `bill_id + user_id`。建表仍走现有 `sequelize.sync()`
-- [ ] T005 在 `server/database/services/transactionImageService.js` 实现私有桶上传、尽力删除和查看地址签名。只认文件头为 JPEG、PNG、GIF、WebP，否则拒绝。`viewUrl` 指向本服务 `/api/v1/transaction/image/file`，`exp` 为 2 小时后的 Unix 秒，`sig` 用 `OSS_URL_SECRET` 对 `id` 与 `exp` 签名。地址里不得出现对象键或对象存储密钥。对象删除失败只记日志，不得把 `viewable` 改回 true
-- [ ] T006 在 `server/routes/transaction/controller.js` 与 `server/routes/transaction/index.js` 增加 `POST /api/v1/transaction/image`（multipart 字段 `file`、`billId`）。调用者必须是该账本成员，否则 message 为「未找到账本」。成功时 `data` 为 `{ id }`，照片保持未挂接。失败文案原文：「单张照片不能超过 10MB」「无法当作照片打开」「照片没有保存成功」
-- [ ] T007 在 `server/routes/transaction/controller.js` 的列表结果上为每条记账增加 `images`（元素仅 `id`、`sort`、`viewUrl`；没有照片时为 `[]`）。非该账本成员的 `images` 必须是 `[]` 且不带 `viewUrl`。在 `server/routes/transaction/index.js` 增加 `GET /api/v1/transaction/image/file`。放行条件原文：「签名正确且未过期；该行已挂到某笔记账；viewable 为 true；该笔记账未删除。」否则不输出图片字节。不要改列表原有字段名
-- [ ] T008 在 `server/routes/transaction/controller.js` 的新增与编辑中接受可选 `imageIds`。约束原文：「不传 imageIds 表示不动已有照片；传了才按顺序替换，空数组表示清空。」挂接时每一张必须属于当前 billId、上传人就是记账人、尚未挂到别的记账、仍可挂接，且总数不超过 9。任一条件失败则整次新增或编辑失败，原照片不变，未挂接的行保持不可见。新增成功时 `data` 仍为空。删除成功后把该笔照片的 `viewable` 改为 false，并尽力删除对象。不要改 `batchAddTransaction` 与 `exportData`
+- [X] T004 在 `server/database/models/index.js` 新增 `transaction_images`，不要改 `transactions` 的列。字段约束原文：「id CHAR(36) 主键；bill_id 必填；transaction_id 可空；user_id 必填；object_key 必填且不返回给客户端；sort 从 0 起；size 为 1 到 10485760 的整数；content_type 仅 image/jpeg、image/png、image/gif、image/webp；viewable 默认 true；created_at。」索引为 `transaction_id`，以及 `bill_id + user_id`。建表仍走现有 `sequelize.sync()`
+- [X] T005 在 `server/database/services/transactionImageService.js` 实现私有桶上传、尽力删除和查看地址签名。只认文件头为 JPEG、PNG、GIF、WebP，否则拒绝。`viewUrl` 指向本服务 `/api/v1/transaction/image/file`，`exp` 为 2 小时后的 Unix 秒，`sig` 用 `OSS_URL_SECRET` 对 `id` 与 `exp` 签名。地址里不得出现对象键或对象存储密钥。对象删除失败只记日志，不得把 `viewable` 改回 true
+- [X] T006 在 `server/routes/transaction/controller.js` 与 `server/routes/transaction/index.js` 增加 `POST /api/v1/transaction/image`（multipart 字段 `file`、`billId`）。调用者必须是该账本成员，否则 message 为「未找到账本」。成功时 `data` 为 `{ id }`，照片保持未挂接。失败文案原文：「单张照片不能超过 10MB」「无法当作照片打开」「照片没有保存成功」
+- [X] T007 在 `server/routes/transaction/controller.js` 的列表结果上为每条记账增加 `images`（元素仅 `id`、`sort`、`viewUrl`；没有照片时为 `[]`）。非该账本成员的 `images` 必须是 `[]` 且不带 `viewUrl`。在 `server/routes/transaction/index.js` 增加 `GET /api/v1/transaction/image/file`。放行条件原文：「签名正确且未过期；该行已挂到某笔记账；viewable 为 true；该笔记账未删除。」否则不输出图片字节。不要改列表原有字段名
+- [X] T008 在 `server/routes/transaction/controller.js` 的新增与编辑中接受可选 `imageIds`。约束原文：「不传 imageIds 表示不动已有照片；传了才按顺序替换，空数组表示清空。」挂接时每一张必须属于当前 billId、上传人就是记账人、尚未挂到别的记账、仍可挂接，且总数不超过 9。任一条件失败则整次新增或编辑失败，原照片不变，未挂接的行保持不可见。新增成功时 `data` 仍为空。删除成功后把该笔照片的 `viewable` 改为 false，并尽力删除对象。不要改 `batchAddTransaction` 与 `exportData`
 
 **Checkpoint**: 上传、列表、打开、挂接和删除后不可查看已在服务端成立。客户端可以开始做
 
@@ -60,10 +60,10 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 ### Implementation for User Story 1
 
-- [ ] T009 [P] [US1] 在 `miniapp/miniprogram/utils/records.ts` 的 `RecordItem` 增加可选 `images`（`id`、`sort`、`viewUrl`）。`groupRecords` 必须把原对象放进分组，不得丢掉 `images`。金额合计仍只累加 `money`
-- [ ] T010 [P] [US1] 在 `miniapp/miniprogram/apis/index.ts` 增加上传一张照片的方法，使用 `wx.uploadFile` 调用 `POST /api/v1/transaction/image`，并带上现有登录头。不要改已有 `addTransaction` 的路径
-- [ ] T011 [US1] 在 `miniapp/miniprogram/components/record-form/index.ts`、`index.wxml`、`index.wxss` 的新增模式增加相册与拍照。已选满 9 张再加时说明最多 9 张。超过 10MB 或无法当作照片打开时拒绝这一张，其它已选照片和已填内容保留。「再记一笔」清空已选照片、金额和描述，保留日期和归属人，且不产生记账。编辑模式先只展示已有照片，本阶段不要提供增删。不要改日期默认今天、编辑回填原日期的逻辑
-- [ ] T012 [US1] 在 `miniapp/miniprogram/pages/record-add/index.ts` 与 `miniapp/miniprogram/pages/record-create/index.ts` 按选择顺序逐张上传，全部成功后才把 `imageIds` 放进现有新增请求。任一张失败则不调用新增，保留已成功的 id，重试时只补传失败的那张。保存过程中再次点完成不得发出第二次新增。不选照片时不传 `imageIds`
+- [X] T009 [P] [US1] 在 `miniapp/miniprogram/utils/records.ts` 的 `RecordItem` 增加可选 `images`（`id`、`sort`、`viewUrl`）。`groupRecords` 必须把原对象放进分组，不得丢掉 `images`。金额合计仍只累加 `money`
+- [X] T010 [P] [US1] 在 `miniapp/miniprogram/apis/index.ts` 增加上传一张照片的方法，使用 `wx.uploadFile` 调用 `POST /api/v1/transaction/image`，并带上现有登录头。不要改已有 `addTransaction` 的路径
+- [X] T011 [US1] 在 `miniapp/miniprogram/components/record-form/index.ts`、`index.wxml`、`index.wxss` 的新增模式增加相册与拍照。已选满 9 张再加时说明最多 9 张。超过 10MB 或无法当作照片打开时拒绝这一张，其它已选照片和已填内容保留。「再记一笔」清空已选照片、金额和描述，保留日期和归属人，且不产生记账。编辑模式先只展示已有照片，本阶段不要提供增删。不要改日期默认今天、编辑回填原日期的逻辑
+- [X] T012 [US1] 在 `miniapp/miniprogram/pages/record-add/index.ts` 与 `miniapp/miniprogram/pages/record-create/index.ts` 按选择顺序逐张上传，全部成功后才把 `imageIds` 放进现有新增请求。任一张失败则不调用新增，保留已成功的 id，重试时只补传失败的那张。保存过程中再次点完成不得发出第二次新增。不选照片时不传 `imageIds`
 
 **Checkpoint**: 用户故事 1 可独立验证。小程序能附上照片并再次看到；此时其它成员的查看入口和电脑端修改还未做
 
@@ -77,9 +77,9 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 ### Implementation for User Story 2
 
-- [ ] T013 [P] [US2] 在 `miniapp/miniprogram/pages/bill-detail/index.wxml` 与 `index.ts` 为有 `images` 的记录增加打开照片的入口，用 `wx.previewImage` 按 `sort` 打开 `viewUrl`。该入口不得触发 `onEdit`。非本人点整行仍提示「只能编辑自己记的账单」。金额、归属人、类型、备注的现有展示不要改
-- [ ] T014 [P] [US2] 在 `miniapp/miniprogram/pages/record-search/index.wxml` 与 `index.ts` 使用与 T013 相同的打开方式和编辑限制。搜索仍只按文字，不要按照片内容过滤
-- [ ] T015 [P] [US2] 在 `frontend/src/views/record/type.d.ts` 为明细增加可选 `images`。在 `frontend/src/views/record/Record.vue` 的时间线上，有照片时给账本成员一个打开入口，预览全部 `viewUrl`。不要改归属人、类型、支付方式、金额、备注的现有文字。本阶段不要在编辑弹窗里增删照片，也不要在新增表单里加选择照片
+- [X] T013 [P] [US2] 在 `miniapp/miniprogram/pages/bill-detail/index.wxml` 与 `index.ts` 为有 `images` 的记录增加打开照片的入口，用 `wx.previewImage` 按 `sort` 打开 `viewUrl`。该入口不得触发 `onEdit`。非本人点整行仍提示「只能编辑自己记的账单」。金额、归属人、类型、备注的现有展示不要改
+- [X] T014 [P] [US2] 在 `miniapp/miniprogram/pages/record-search/index.wxml` 与 `index.ts` 使用与 T013 相同的打开方式和编辑限制。搜索仍只按文字，不要按照片内容过滤
+- [X] T015 [P] [US2] 在 `frontend/src/views/record/type.d.ts` 为明细增加可选 `images`。在 `frontend/src/views/record/Record.vue` 的时间线上，有照片时给账本成员一个打开入口，预览全部 `viewUrl`。不要改归属人、类型、支付方式、金额、备注的现有文字。本阶段不要在编辑弹窗里增删照片，也不要在新增表单里加选择照片
 
 **Checkpoint**: 用户故事 1 和 2 同时成立。两端都能看，非记账人不能借看图改账
 
@@ -93,9 +93,9 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 ### Implementation for User Story 4
 
-- [ ] T016 [P] [US4] 在 `frontend/src/views/record/api.ts` 增加上传一张照片的方法，请求 `POST /api/v1/transaction/image`。不要改已有新增、编辑路径
-- [ ] T017 [US4] 在 `frontend/src/views/record/hooks/use-add-edit.ts` 的编辑保存中提交当前 `imageIds`（含未改动的原 id，顺序与界面一致）。新增 `addInfo` 不传 `imageIds`。保存进行中忽略再次点击。编辑失败时不要当成已成功去刷新掉用户刚改的内容；未点确定就关弹窗不得发编辑请求
-- [ ] T018 [US4] 在 `frontend/src/views/record/Record.vue` 的编辑弹窗中增加补照片和去掉照片。已有 9 张再加时说明最多 9 张。超过 10MB 或无法当作照片打开时拒绝该张，原照片和已填字段保留。新增表单不要出现选择照片。不改照片只改金额时，提交的 `imageIds` 必须与打开时一致
+- [X] T016 [P] [US4] 在 `frontend/src/views/record/api.ts` 增加上传一张照片的方法，请求 `POST /api/v1/transaction/image`。不要改已有新增、编辑路径
+- [X] T017 [US4] 在 `frontend/src/views/record/hooks/use-add-edit.ts` 的编辑保存中提交当前 `imageIds`（含未改动的原 id，顺序与界面一致）。新增 `addInfo` 不传 `imageIds`。保存进行中忽略再次点击。编辑失败时不要当成已成功去刷新掉用户刚改的内容；未点确定就关弹窗不得发编辑请求
+- [X] T018 [US4] 在 `frontend/src/views/record/Record.vue` 的编辑弹窗中增加补照片和去掉照片。已有 9 张再加时说明最多 9 张。超过 10MB 或无法当作照片打开时拒绝该张，原照片和已填字段保留。新增表单不要出现选择照片。不改照片只改金额时，提交的 `imageIds` 必须与打开时一致
 
 **Checkpoint**: 电脑端可查看、可在编辑时修改，新增不附图。小程序编辑时的增删尚未做
 
@@ -109,8 +109,8 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 ### Implementation for User Story 3
 
-- [ ] T019 [US3] 在 `miniapp/miniprogram/components/record-form/index.ts`、`index.wxml`、`index.wxss` 的编辑模式允许记账人去掉已有照片、再补照片。总数仍不得超过 9 张，超过时说明已经到上限且原照片不变。只改金额或描述时，提交的照片 id 顺序与打开时一致。未点保存离开不得发编辑请求
-- [ ] T020 [US3] 在 `miniapp/miniprogram/pages/record-edit/index.ts` 仅在用户点保存时提交当前 `imageIds`。保存失败或 `retCode !== 0` 时不要返回上一页，也不要本地改掉服务端已保存的照片。删除仍走现有删除接口；删除成功后成员再打开应失败
+- [X] T019 [US3] 在 `miniapp/miniprogram/components/record-form/index.ts`、`index.wxml`、`index.wxss` 的编辑模式允许记账人去掉已有照片、再补照片。总数仍不得超过 9 张，超过时说明已经到上限且原照片不变。只改金额或描述时，提交的照片 id 顺序与打开时一致。未点保存离开不得发编辑请求
+- [X] T020 [US3] 在 `miniapp/miniprogram/pages/record-edit/index.ts` 仅在用户点保存时提交当前 `imageIds`。保存失败或 `retCode !== 0` 时不要返回上一页，也不要本地改掉服务端已保存的照片。删除仍走现有删除接口；删除成功后成员再打开应失败
 
 **Checkpoint**: 小程序编辑可以改照片。电脑端编辑与小程序看到同一批结果
 
@@ -124,8 +124,8 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 ### Implementation for User Story 5
 
-- [ ] T021 [P] [US5] 不要在 `mobile/src/views/bill-detail/components/records/components/add-page/Index.vue`、`mobile/src/views/bill-detail/components/records/components/edit-page/Index.vue`、`mobile/src/views/bill-detail/components/records/api.ts` 增加照片选择、预览或 `imageIds`。这些请求必须继续不传 `imageIds`，以便服务端保留已有照片
-- [ ] T022 [P] [US5] 保持 `server/routes/transaction/controller.js` 的 `exportData` 与 `batchAddTransaction` 不读取 `images`、不增加照片列、不接收 `imageIds`。不要修改 `server/routes/overview` 与 `server/routes/budget` 的金额计算
+- [X] T021 [P] [US5] 不要在 `mobile/src/views/bill-detail/components/records/components/add-page/Index.vue`、`mobile/src/views/bill-detail/components/records/components/edit-page/Index.vue`、`mobile/src/views/bill-detail/components/records/api.ts` 增加照片选择、预览或 `imageIds`。这些请求必须继续不传 `imageIds`，以便服务端保留已有照片
+- [X] T022 [P] [US5] 保持 `server/routes/transaction/controller.js` 的 `exportData` 与 `batchAddTransaction` 不读取 `images`、不增加照片列、不接收 `imageIds`。不要修改 `server/routes/overview` 与 `server/routes/budget` 的金额计算
 
 **Checkpoint**: 手机网页和统计、导出保持原样
 
@@ -135,9 +135,9 @@ description: "记账照片：小程序上传，电脑端可查看和修改"
 
 **Purpose**: 手册、部署域名和整条验收路径
 
-- [ ] T023 [P] 在 `docs/用户手册.md` 的「6.6 编辑与删除」写明：电脑端可以查看照片，记账人只能在编辑已有记账时增删，新记一笔不能附照片。在「10.8」旁用一两句写明：小程序记一笔可以附上照片，同一账本的成员可以查看，只有记账人可以增删。不要新写整章小程序指南，不要写对象存储或签名细节
-- [ ] T024 [P] 在 `deploy/README.md` 的微信小程序步骤中补一句：`uploadFile` 与 `downloadFile` 合法域名都填现有接口的 HTTPS 域名，与 `request` 相同，不带路径和端口。不要把对象存储域名写进该步骤
-- [ ] T025 按 `specs/002-record-image-upload/quickstart.md` 做手工验收，覆盖小程序新增、失败不落账、再记一笔、成员查看、电脑端编辑、电脑端新增不附图、删除后不可打开、手机网页与导出不变、手册句子
+- [X] T023 [P] 在 `docs/用户手册.md` 的「6.6 编辑与删除」写明：电脑端可以查看照片，记账人只能在编辑已有记账时增删，新记一笔不能附照片。在「10.8」旁用一两句写明：小程序记一笔可以附上照片，同一账本的成员可以查看，只有记账人可以增删。不要新写整章小程序指南，不要写对象存储或签名细节
+- [X] T024 [P] 在 `deploy/README.md` 的微信小程序步骤中补一句：`uploadFile` 与 `downloadFile` 合法域名都填现有接口的 HTTPS 域名，与 `request` 相同，不带路径和端口。不要把对象存储域名写进该步骤
+- [X] T025 按 `specs/002-record-image-upload/quickstart.md` 做手工验收，覆盖小程序新增、失败不落账、再记一笔、成员查看、电脑端编辑、电脑端新增不附图、删除后不可打开、手机网页与导出不变、手册句子
 
 ---
 

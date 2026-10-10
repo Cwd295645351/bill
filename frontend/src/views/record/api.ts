@@ -7,6 +7,12 @@ export const editTransaction = TRANSACTION.put('') // 编辑交易明细
 export const deleteTransaction = TRANSACTION.delete('') // 删除交易明细
 export const parseBatchTransactions = AI.post('parse-batch') // 批量 AI 解析
 
+/** 上传一张记账照片（multipart：file + billId） */
+export const uploadTransactionImage = TRANSACTION.post('image', (config) => {
+  config.headers = { ...config.headers, 'Content-Type': 'multipart/form-data' }
+  return config
+})
+
 // 导出交易明细
 export const exportData = TRANSACTION.post('export', (config) => {
   config.responseType = 'blob'

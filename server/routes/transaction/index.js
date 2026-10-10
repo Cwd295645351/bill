@@ -27,10 +27,48 @@ router.post('/list', async (ctx, next) => {
     data.type = 1
   }
   if (!data.rangeMoney) data.rangeMoney = 0
+  // 列表附加 images 时用于判断账本成员，勿与筛选条件里的 userId 混淆
+  data.viewerUserId = ctx.header.userid
 
-  const [err, res] = await Transaction.getList(data)
+  const [err, res] = await Transaction.getList(data, ctx)
   if (res) ctx.body = new ResModel(res, '查找成功')
   else ctx.body = new ResModel(null, err, 'error')
+})
+
+// 上传一张记账照片（未挂接）
+router.post('/image', async (ctx) => {
+  const userId = ctx.header.userid
+  const billId = ctx.request.body && ctx.request.body.billId
+  const file = ctx.request.files && ctx.request.files.file
+  if (!userId) {
+    ctx.body = new ResModel(null, 'userId不能为空', 'error')
+    return
+  }
+  if (!billId) {
+    ctx.body = new ResModel(null, '未找到账本', 'error')
+    return
+  }
+  if (!file) {
+    ctx.body = new ResModel(null, '照片没有保存成功', 'error')
+    return
+  }
+  const [err, res] = await Transaction.uploadTransactionImage({ file, billId, userId })
+  if (res) ctx.body = new ResModel(res, '上传成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+// 按签名打开照片（不走登录头，供小程序/电脑端图片组件直接访问）
+router.get('/image/file', async (ctx) => {
+  const { id, exp, sig } = ctx.query
+  const [err, res] = await Transaction.openTransactionImage({ id, exp, sig })
+  if (!res) {
+    ctx.status = 403
+    ctx.body = new ResModel(null, err || '无权查看', 'error')
+    return
+  }
+  ctx.set('Content-Type', res.contentType)
+  ctx.set('Cache-Control', 'private, max-age=600')
+  ctx.body = res.buffer
 })
 
 // 新增交易

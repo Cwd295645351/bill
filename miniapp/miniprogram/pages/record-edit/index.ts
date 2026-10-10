@@ -2,6 +2,7 @@ import { deleteTransaction, editTransaction, getBillDetail } from '../../apis/in
 import { guardPage } from '../../utils/auth'
 import { toDayText } from '../../utils/date'
 import { getEditingRecord, getUser, setBillDict, setLastPref } from '../../utils/storage'
+import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../utils/upload-photos'
 
 Page({
   data: {
@@ -40,16 +41,41 @@ Page({
     this.setData({ bill: res.data })
   },
 
-  /** 只在用户点保存且接口成功后返回。失败或未保存离开都不改原日期。 */
+  /** 只在用户点保存且接口成功后返回。失败或未保存离开都不改原照片与字段。 */
   async onSubmit(e: WechatMiniprogram.CustomEvent) {
     if (this.data.saving) return
+    const { payload, pref, photos } = e.detail
     this.setData({ saving: true })
-    const res = await editTransaction(e.detail.payload)
-    this.setData({ saving: false })
-    if (res.retCode !== 0) return
-    setLastPref(e.detail.pref)
-    wx.showToast({ title: '已保存' })
-    setTimeout(() => wx.navigateBack(), 400)
+    const form = this.selectComponent('#form') as any
+    const list = Array.isArray(photos) ? photos : []
+
+    try {
+      const serverIds = await uploadPendingPhotos(payload.billId, list, (ids) => {
+        if (form && form.setPhotoServerIds) form.setPhotoServerIds(ids)
+      })
+      if (serverIds == null) {
+        this.setData({ saving: false })
+        return
+      }
+
+      const existingIds =
+        form && form.data && Array.isArray(form.data.images)
+          ? form.data.images.map((img: any) => img.id)
+          : []
+      showSaveLoading('保存中')
+      const res = await editTransaction({
+        ...payload,
+        imageIds: existingIds.concat(serverIds)
+      })
+      if (res.retCode !== 0) return
+      setLastPref(pref)
+      hideSaveLoading()
+      wx.showToast({ title: '已保存' })
+      setTimeout(() => wx.navigateBack(), 400)
+    } finally {
+      hideSaveLoading()
+      this.setData({ saving: false })
+    }
   },
 
   onDelete(e: WechatMiniprogram.CustomEvent) {
@@ -59,7 +85,9 @@ Page({
       content: '删除后无法恢复',
       success: async (res) => {
         if (!res.confirm) return
+        wx.showLoading({ title: '删除中', mask: true })
         const ret = await deleteTransaction(id)
+        wx.hideLoading()
         if (ret.retCode === 0) {
           wx.showToast({ title: '已删除' })
           setTimeout(() => wx.navigateBack(), 400)

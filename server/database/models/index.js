@@ -259,6 +259,30 @@ function initModels(sequelize) {
     }
   )
 
+  // 记账照片：一行一张，不改 transactions 列；未挂接时 transaction_id 为空
+  const TransactionImage = sequelize.define(
+    'transaction_images',
+    {
+      id: defineId,
+      billId: { type: DataTypes.CHAR(36), allowNull: false, field: 'bill_id' },
+      transactionId: { type: DataTypes.CHAR(36), allowNull: true, field: 'transaction_id' },
+      userId: { type: DataTypes.CHAR(36), allowNull: false, field: 'user_id' },
+      objectKey: { type: DataTypes.STRING(512), allowNull: false, field: 'object_key' },
+      sort: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+      size: { type: DataTypes.INTEGER, allowNull: false },
+      contentType: { type: DataTypes.STRING(64), allowNull: false, field: 'content_type' },
+      viewable: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
+      createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' }
+    },
+    {
+      tableName: 'transaction_images',
+      indexes: [
+        { fields: ['transaction_id'], name: 'idx_transaction_images_transaction_id' },
+        { fields: ['bill_id', 'user_id'], name: 'idx_transaction_images_bill_user' }
+      ]
+    }
+  )
+
   Bill.hasMany(BillUser, { foreignKey: 'billId', as: 'billUsers' })
   Bill.hasMany(BillCostType, { foreignKey: 'billId', as: 'costTypes' })
   Bill.hasMany(BillIncomeType, { foreignKey: 'billId', as: 'incomesTypes' })
@@ -270,6 +294,9 @@ function initModels(sequelize) {
 
   Asset.belongsTo(Member, { foreignKey: 'memberId', as: 'member' })
   Asset.hasMany(AssetRecord, { foreignKey: 'assetId', as: 'records' })
+
+  Transaction.hasMany(TransactionImage, { foreignKey: 'transactionId', as: 'images' })
+  TransactionImage.belongsTo(Transaction, { foreignKey: 'transactionId', as: 'transaction' })
 
   return {
     User,
@@ -287,7 +314,8 @@ function initModels(sequelize) {
     Member,
     Asset,
     AssetRecord,
-    Transaction
+    Transaction,
+    TransactionImage
   }
 }
 

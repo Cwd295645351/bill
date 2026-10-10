@@ -1,9 +1,12 @@
 import { ref, Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { addTransaction, batchAddTransaction, deleteTransaction, editTransaction } from '../api'
-import type { Information, InformationType } from '../type'
+import { addTransaction, batchAddTransaction, deleteTransaction, editTransaction, uploadTransactionImage } from '../api'
+import type { Information, InformationType, RecordImage } from '../type'
 import type { Bill } from '@/types/bill'
+
+const MAX_PHOTOS = 9
+const MAX_PHOTO_BYTES = 10485760
 
 export const useAddEdit = (options: { search: () => void; type: Ref<InformationType> }) => {
   const { type, search } = options
@@ -18,6 +21,10 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
   const deleteDialog = ref(false)
   const editDialog = ref(false)
   const btnLoading = ref(false)
+  const photoUploading = ref(false)
+
+  /** 编辑弹窗中的照片列表（含原图与新上传） */
+  const editImages = ref<RecordImage[]>([])
 
   /** 新增的账单明细 */
   const addInformation = ref<Information>({
@@ -52,9 +59,12 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     deleteDialog.value = true
   }
 
-  /** 显示编辑弹窗 */
+  /** 显示编辑弹窗：克隆明细与照片，未保存关闭不影响列表 */
   const showEditDialog = (detail: Information) => {
-    operateData.value = detail
+    operateData.value = { ...detail }
+    const imgs = Array.isArray(detail.images) ? detail.images.slice() : []
+    imgs.sort((a, b) => (a.sort || 0) - (b.sort || 0))
+    editImages.value = imgs.map((img) => ({ ...img }))
     editDialog.value = true
   }
 
@@ -74,7 +84,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     }
   }
 
-  // 新增交易明细
+  // 新增交易明细（不传 imageIds，电脑端新增不附图）
   const addInfo = async () => {
     const information = addInformation.value
     const data: Information = {
@@ -104,9 +114,58 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     }
   }
 
-  /** 编辑交易明细 */
+  /** 编辑时去掉一张照片 */
+  const removeEditImage = (index: number) => {
+    if (index < 0 || index >= editImages.value.length) return
+    editImages.value = editImages.value.filter((_, i) => i !== index)
+  }
+
+  /** 编辑时补照片 */
+  const addEditImages = async (files: FileList | File[]) => {
+    const list = Array.from(files || [])
+    if (!list.length) return
+    const billId = operateData.value.billId || (bill.value as Bill)?.id
+    if (!billId) {
+      ElMessage.error('未找到账本')
+      return
+    }
+    photoUploading.value = true
+    try {
+      for (const file of list) {
+        if (editImages.value.length >= MAX_PHOTOS) {
+          ElMessage.warning('最多 9 张')
+          break
+        }
+        if (!file.type || !/^image\/(jpeg|png|gif|webp)$/i.test(file.type)) {
+          ElMessage.warning('无法当作照片打开')
+          continue
+        }
+        if (file.size > MAX_PHOTO_BYTES) {
+          ElMessage.warning('单张照片不能超过 10MB')
+          continue
+        }
+        const [err, res] = await uploadTransactionImage({ data: { file, billId } })
+        if (err || !res || res.retCode !== 0 || !(res.data && res.data.id)) {
+          ElMessage.error((res && res.message) || '照片没有保存成功')
+          continue
+        }
+        const localUrl = URL.createObjectURL(file)
+        editImages.value = editImages.value.concat({
+          id: res.data.id,
+          sort: editImages.value.length,
+          viewUrl: localUrl,
+        })
+      }
+    } finally {
+      photoUploading.value = false
+    }
+  }
+
+  /** 编辑交易明细：始终提交当前 imageIds（含未改动的原 id） */
   const submitEditTransaction = async () => {
+    if (btnLoading.value || photoUploading.value) return
     const currOperateData = operateData.value
+    const imageIds = editImages.value.map((img) => img.id)
     const data = {
       id: currOperateData.id,
       billId: currOperateData.billId,
@@ -118,17 +177,19 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
       payMethodId: currOperateData.payMethodId,
       reimbursement: currOperateData.reimbursement,
       belongUserId: currOperateData.belongUserId,
+      incomesTypeId: currOperateData.incomesTypeId,
+      imageIds,
     }
     btnLoading.value = true
     const [err, res] = await editTransaction({ data })
     btnLoading.value = false
-    deleteDialog.value = false
-    editDialog.value = false
     if (err) return
     if (res.retCode === 0) {
+      editDialog.value = false
       ElMessage.success('编辑交易明细成功')
       search()
     } else {
+      // 失败时不关弹窗，保留用户刚改的内容与照片
       ElMessage.error('编辑交易明细失败，' + res.message)
     }
   }
@@ -174,8 +235,10 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     deleteDialog,
     editDialog,
     btnLoading,
+    photoUploading,
     addInformation,
     operateData,
+    editImages,
     showDeleteDialog,
     showEditDialog,
     submitDeleteTransaction,
@@ -183,5 +246,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     addInfo,
     batchAdd,
     changeAddContainer,
+    removeEditImage,
+    addEditImages,
   }
 }

@@ -1,5 +1,11 @@
 import { formatDayLabel, weekLabel } from './date'
 
+export interface RecordImage {
+  id: string
+  sort: number
+  viewUrl: string
+}
+
 export interface RecordItem {
   id: string
   billId: string
@@ -19,6 +25,8 @@ export interface RecordItem {
   moneyText?: string
   mine?: boolean
   belongBg?: string
+  /** 列表接口附加的照片；groupRecords 必须保留原对象上的该字段 */
+  images?: RecordImage[]
 }
 
 export interface DayGroup {

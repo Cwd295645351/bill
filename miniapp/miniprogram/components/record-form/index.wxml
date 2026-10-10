@@ -29,6 +29,24 @@
         <view class="count">{{ remark.length }}/150</view>
       </view>
     </view>
+    <view class="photos" wx:if="{{ mode === 'add' || mode === 'edit' }}">
+      <view class="photos-title">照片（可选，最多 {{ maxPhotos }} 张）</view>
+      <view class="photos-grid">
+        <view class="photo-item" wx:for="{{ images }}" wx:key="id" data-index="{{ index }}" bindtap="onPreviewExisting">
+          <image class="photo-thumb" src="{{ item.viewUrl }}" mode="aspectFill" />
+          <view wx:if="{{ mode === 'edit' && canEdit }}" class="photo-del" data-index="{{ index }}" catchtap="onRemoveExisting">×</view>
+        </view>
+        <view class="photo-item" wx:for="{{ photos }}" wx:for-item="photo" wx:key="path" data-index="{{ index }}" bindtap="onPreviewLocal">
+          <image class="photo-thumb" src="{{ photo.path }}" mode="aspectFill" />
+          <view wx:if="{{ canEdit }}" class="photo-del" data-index="{{ index }}" catchtap="onRemovePhoto">×</view>
+        </view>
+        <view
+          wx:if="{{ canEdit && images.length + photos.length < maxPhotos }}"
+          class="photo-add"
+          bindtap="onAddPhoto"
+        >+</view>
+      </view>
+    </view>
     <view class="shortcuts">
       <picker mode="date" value="{{ date }}" bindchange="onDate" bindtap="closeKeyboard">
         <van-cell title="日期" value="{{ date }}" is-link />

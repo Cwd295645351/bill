@@ -7,7 +7,7 @@
     </el-carousel>
     <div class="login-content">
       <div class="title">{{ title }}</div>
-      <el-form :model="formInfo" :rules="rules" ref="$loginForm">
+      <el-form :model="formInfo" :rules="rules" ref="$loginForm" @keyup.enter="onEnterSubmit">
         <el-form-item prop="username">
           <el-input :prefix-icon="UserFilled" v-model="formInfo.username" :placeholder="status === 'register' ? '请输入用户名（英文数字）' : '请输入用户名'"></el-input>
         </el-form-item>
@@ -27,7 +27,7 @@
           </template>
         </div>
         <el-form-item>
-          <el-button class="login-btn" size="large" type="primary" @click="status === 'register' ? register() : login()">{{ status === 'register' ? '注册' : '登录' }}</el-button>
+          <el-button class="login-btn" size="large" type="primary" @click="onEnterSubmit">{{ status === 'register' ? '注册' : '登录' }}</el-button>
         </el-form-item>
       </el-form>
     </div>
@@ -86,6 +86,12 @@ const rules = {
   ],
 }
 const { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login } = useLogin()
+
+/** 回车与按钮共用：登录页登录，注册页注册 */
+const onEnterSubmit = () => {
+  if (status.value === 'register') register()
+  else login()
+}
 </script>
 
 <style scoped lang="scss">

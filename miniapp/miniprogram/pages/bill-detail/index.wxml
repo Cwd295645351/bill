@@ -57,6 +57,12 @@
               <text wx:if="{{ record.mine }}" class="mine-tag">我</text>
             </view>
             <view class="remark">{{ record.remark }}</view>
+            <view
+              wx:if="{{ record.images && record.images.length }}"
+              class="photo-entry"
+              data-id="{{ record.id }}"
+              catchtap="onPreviewImages"
+            >查看照片 {{ record.images.length }}</view>
           </view>
           <view class="money {{ record.type === 1 ? 'cost' : 'income' }}">{{ record.moneyText }}</view>
         </view>

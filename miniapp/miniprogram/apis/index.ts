@@ -1,6 +1,21 @@
+import { getBaseURL } from '../config/env'
+import { ensureLogin } from '../utils/auth'
 import { request } from '../utils/request'
+import { getUser, isExpired } from '../utils/storage'
+import { showTip } from '../utils/tip'
+import type { ApiBody } from '../utils/request'
 
 const V = '/api/v1'
+
+function authHeader() {
+  const user = getUser()
+  if (!user) return {}
+  return {
+    Authorization: `bearer ${user.accessToken}`,
+    userId: user.userId,
+    nickName: encodeURIComponent(user.nickName || '')
+  }
+}
 
 export function getLoginConfig() {
   return request<{ publicKey: string }>({ url: `${V}/common/login_config`, auth: false, silent: true })
@@ -40,6 +55,44 @@ export function getRecordList(data: any) {
 
 export function addTransaction(data: any) {
   return request({ url: `${V}/transaction`, method: 'POST', data })
+}
+
+/** 上传一张记账照片，返回未挂接的照片 id */
+export async function uploadTransactionImage(billId: string, filePath: string): Promise<ApiBody<{ id: string }>> {
+  if (isExpired()) {
+    const status = await ensureLogin()
+    if (status !== 'ok') {
+      showTip('登录已失效')
+      return { retCode: 401, message: '登录已失效', data: null as any }
+    }
+  }
+  const url = `${getBaseURL()}${V}/transaction/image`
+  return new Promise((resolve) => {
+    wx.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      formData: { billId },
+      header: authHeader(),
+      success: (res) => {
+        let body: ApiBody<{ id: string }>
+        try {
+          body = typeof res.data === 'string' ? JSON.parse(res.data) : (res.data as any)
+        } catch (e) {
+          body = { retCode: -1, message: '照片没有保存成功', data: null as any }
+        }
+        if (!body || body.retCode == null) {
+          body = { retCode: -1, message: '照片没有保存成功', data: null as any }
+        }
+        if (body.retCode !== 0) showTip(body.message || '照片没有保存成功')
+        resolve(body)
+      },
+      fail: () => {
+        showTip('网络异常')
+        resolve({ retCode: -1, message: '网络异常', data: null as any })
+      }
+    })
+  })
 }
 
 export function editTransaction(data: any) {

@@ -1,4 +1,10 @@
-node_modules
+node_modules/
+dist/
+build/
+*.log
+.env
+.env.*
+!.env.example
 miniprogram_npm
 miniapp/.env
 miniapp/miniprogram/config/env.local.ts

@@ -1,6 +1,7 @@
-const { Transaction } = require('../../database/index')
+const { Transaction, BillUser, BillOverviewRule, User } = require('../../database/index')
 const dayjs = require('dayjs')
 const { Op } = require('sequelize')
+const { buildSettlement } = require('../../database/services/overviewSettlement')
 
 /** 金额保留两位小数（返回 number） */
 const fixMoney = (n) => Number(Number(n).toFixed(2))
@@ -181,4 +182,90 @@ const batchDeal = (res) => {
   }
 
   return resObj
+}
+
+/**
+ * 校验数量规则输入。通过时返回归一化后的数组。
+ * 未出现在请求里的已启用数量规则按数量 0。
+ */
+const normalizeQuantityInputs = (rawInputs, enabledRules, memberIds) => {
+  const inputs = Array.isArray(rawInputs) ? rawInputs : []
+  const quantityRules = enabledRules.filter((rule) => rule.ruleType === 'quantity')
+  const ruleById = new Map(quantityRules.map((rule) => [rule.id, rule]))
+  const seen = new Set()
+  const normalized = []
+  for (const input of inputs) {
+    const ruleId = input && input.ruleId
+    const rule = ruleById.get(ruleId)
+    if (!rule) return ['数量规则不存在或未启用', null]
+    if (seen.has(ruleId)) continue
+    seen.add(ruleId)
+    const rawQty = input.quantity
+    const quantity = rawQty === undefined || rawQty === null || rawQty === '' ? 0 : Number(rawQty)
+    if (!Number.isFinite(quantity) || quantity < 0) return [`${rule.name}数量不能为负`, null]
+    const belongUserId = input.belongUserId || ''
+    if (quantity > 0 && !memberIds.has(belongUserId)) return ['归属人不是该账本成员', null]
+    normalized.push({ ruleId, quantity, belongUserId })
+  }
+  quantityRules.forEach((rule) => {
+    if (!seen.has(rule.id)) normalized.push({ ruleId: rule.id, quantity: 0, belongUserId: '' })
+  })
+  return [null, normalized]
+}
+
+/** 多人分账。不改总支出等汇总口径 */
+exports.getSettlement = async (data, userId) => {
+  const member = await BillUser.findOne({ where: { billId: data.billId, userId } })
+  if (!member) return ['不是该账本成员', null]
+
+  const billUsers = await BillUser.findAll({
+    where: { billId: data.billId },
+    order: [['id', 'ASC']]
+  })
+  const enabledRules = await BillOverviewRule.findAll({
+    where: { billId: data.billId, enabled: true }
+  })
+  const memberIds = new Set(billUsers.map((item) => item.userId))
+  const [inputErr, quantityInputs] = normalizeQuantityInputs(data.quantityInputs, enabledRules, memberIds)
+  if (inputErr) return [inputErr, null]
+
+  const rows = await Transaction.findAll({
+    where: {
+      billId: data.billId,
+      date: { [Op.between]: [data.beginDate, data.endDate] },
+      isDel: false
+    },
+    attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+  })
+
+  const outsiderIds = [...new Set(rows.map((row) => row.userId).filter((id) => id && !memberIds.has(id)))]
+  const outsiderUsers = outsiderIds.length
+    ? await User.findAll({ where: { id: { [Op.in]: outsiderIds } }, attributes: ['id', 'nickName'] })
+    : []
+  const outsiderNames = new Map(outsiderUsers.map((item) => [item.id, item.nickName]))
+  const memberNames = new Map(billUsers.map((item) => [item.userId, item.userName]))
+
+  const result = buildSettlement({
+    members: billUsers.map((item) => ({ userId: item.userId, name: item.userName })),
+    rules: enabledRules.map((item) => ({
+      id: item.id,
+      name: item.name,
+      ruleType: item.ruleType,
+      unitPrice: item.unitPrice,
+      costTypeId: item.costTypeId
+    })),
+    quantityInputs,
+    transactions: rows.map((row) => ({
+      id: row.id,
+      type: row.type,
+      money: row.money,
+      userId: row.userId,
+      payerName: memberNames.get(row.userId) || outsiderNames.get(row.userId) || '未知',
+      belongUserId: row.belongUserId,
+      belongUserName: row.belongUserName,
+      costTypeId: row.costTypeId,
+      costTypeName: row.costTypeName
+    }))
+  })
+  return [null, result]
 }

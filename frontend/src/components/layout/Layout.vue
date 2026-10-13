@@ -59,11 +59,11 @@ const rules = {
         if (!value) {
           return callback(new Error('请输入分享码'))
         }
-        const reg = /^[A-Za-z0-9]{96}$/
+        const reg = /^[A-Za-z0-9]{128}$/
         if (reg.test(value)) {
           callback()
         } else {
-          callback(new Error('分享码只包括英文、数字，长度为96位'))
+          callback(new Error('分享码只包括英文、数字，长度为128位'))
         }
       },
       trigger: 'blur',

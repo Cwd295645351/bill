@@ -17,8 +17,8 @@
         </div>
       </div>
       <div class="detail">
-        <div class="detail-item" v-for="item in belongUsers.details" :key="item.belongUserId + '_' + item.userId + '_' + item.type">
-          ({{ item.userName }}) {{ item.belongUserName }}{{ item.type === 1 ? '支出：' : '收入：' }}<span :class="[item.type === 1 ? 'color-red' : 'color-green']">{{ item.money.toFixed(2) }}</span>
+        <div class="detail-item" v-for="item in incomeDetails" :key="item.belongUserId + '_' + item.userId + '_' + item.type">
+          ({{ item.userName }}) {{ item.belongUserName }}收入：<span class="color-green">{{ item.money.toFixed(2) }}</span>
         </div>
       </div>
       <div class="add-data-container">
@@ -44,47 +44,46 @@
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
-          <el-form-item size="small" :label="refundText"> </el-form-item>
+          <div class="settlement-lines">
+            <div class="settlement-line" v-for="(line, index) in settlementLines" :key="index">{{ line }}</div>
+          </div>
         </el-form>
       </div>
     </div>
     <div class="chart-container">
-      <div class="per-year-container">
-        <div class="per-year-chart" id="perYearChart"></div>
-        <div class="table-container">
-          <div class="line bold">
-            <div class="line-item year">年份</div>
-            <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
-            <div class="line-item total">总消费</div>
-            <div class="line-item total">总支出</div>
-          </div>
-          <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
-            <div class="line-item year bold">{{ item.name }}</div>
-            <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
-              {{ ite }}
+      <el-scrollbar height="100%">
+        <div class="per-year-container">
+          <div class="per-year-chart" id="perYearChart"></div>
+          <div class="table-container">
+            <div class="line bold">
+              <div class="line-item year">年份</div>
+              <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
+              <div class="line-item total">总消费</div>
+              <div class="line-item total">总支出</div>
             </div>
-            <div class="line-item total">{{ item.consumption ? item.consumption.toFixed(2) : '0.00' }}</div>
-            <div class="line-item total">{{ item.total ? item.total.toFixed(2) : '0.00' }}</div>
+            <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
+              <div class="line-item year bold">{{ item.name }}</div>
+              <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
+                {{ ite }}
+              </div>
+              <div class="line-item total">{{ item.consumption ? item.consumption.toFixed(2) : '0.00' }}</div>
+              <div class="line-item total">{{ item.total ? item.total.toFixed(2) : '0.00' }}</div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="belong-type-container">
-        <div class="belong-type-chart" v-for="i in chartCount" :key="i" :id="'belongTypeChart' + (i - 1)"></div>
-      </div>
+        <div class="belong-type-container">
+          <div class="belong-type-chart" v-for="i in chartCount" :key="i" :id="'belongTypeChart' + (i - 1)"></div>
+        </div>
+      </el-scrollbar>
     </div>
     <el-dialog v-model="dialogVisible" :title="`${currentCategory} - 消费明细 (共 ${currentCategoryTotal} 元)`" width="70%">
       <el-table :data="detailList" v-loading="loading" stripe height="500px">
         <el-table-column property="date" label="日期" width="160" sortable></el-table-column>
         <el-table-column property="userName" label="记账人" width="100"></el-table-column>
         <el-table-column property="belongUserName" label="归属人" width="100"></el-table-column>
-        <el-table-column property="totalMoney" label="原金额" width="140" sortable>
-          <template #default="scope">
-            <span>{{ scope.row.totalMoney.toFixed(2) }}</span>
-          </template>
-        </el-table-column>
         <el-table-column property="money" label="金额" width="140" sortable>
           <template #default="scope">
-            <span class="color-red">{{ scope.row.money.toFixed(2) }}</span>
+            <span class="color-red">{{ Number(scope.row.money).toFixed(2) }}</span>
           </template>
         </el-table-column>
         <el-table-column property="remark" label="备注"></el-table-column>
@@ -94,18 +93,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { users, quantityRules, belongCondition, belongUsers, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount, refundText } = useTypeChart({ colorOptions })
+const { users, quantityRules, belongCondition, belongUsers, settlementLines, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount } =
+  useTypeChart({ colorOptions })
+/** 明细只展示收入。分账按区间内的支出计算，不看这些行是否出现在屏幕上 */
+const incomeDetails = computed(() => belongUsers.value.details.filter((item) => item.type !== 1))
 </script>
 <style lang="scss" scoped>
 .overview-module {
   flex: 1;
   min-height: 0;
   width: 100%;
-  background-color: #fff;
+  background-color: #fafafa;
   display: flex;
   align-items: center;
   padding: 20px;
@@ -118,7 +121,7 @@ const { users, quantityRules, belongCondition, belongUsers, getBalanceAndPieData
   .belong-user-module {
     width: 280px;
     height: 100%;
-    margin-right: 20px;
+    margin-right: 10px;
     border-radius: 8px;
     box-shadow: 1px 1px 5px #ddd;
     background-color: #fff;
@@ -163,17 +166,32 @@ const { users, quantityRules, belongCondition, belongUsers, getBalanceAndPieData
           justify-content: center;
         }
       }
+      .settlement-lines {
+        padding-top: 4px;
+      }
+      .settlement-line {
+        font-size: 16px;
+        line-height: 26px;
+        color: #333;
+      }
     }
   }
   .chart-container {
     flex: 1;
     min-width: 0;
+    min-height: 0;
     height: 100%;
+    container-type: size;
+    :deep(.el-scrollbar__view) {
+      padding: 0 2px 2px 2px;
+      box-sizing: border-box;
+    }
     .per-year-container {
+      background-color: #fff;
       box-shadow: 1px 1px 5px #ddd;
       border-radius: 8px;
       width: 100%;
-      height: 50%;
+      height: 50cqh;
       padding: 10px;
       display: flex;
       flex-direction: column;
@@ -218,14 +236,15 @@ const { users, quantityRules, belongCondition, belongUsers, getBalanceAndPieData
       }
     }
     .belong-type-container {
-      margin-top: 20px;
+      margin-top: 10px;
       width: 100%;
-      height: calc(50% - 20px);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-auto-rows: 393px;
+      gap: 10px;
       .belong-type-chart {
-        width: 32%;
+        background-color: #fff;
+        min-width: 0;
         height: 100%;
         box-shadow: 1px 1px 5px #ddd;
         border-radius: 8px;

@@ -24,6 +24,28 @@ router.get('/balance', async (ctx, next) => {
   }
 })
 
+// 多人分账。不影响上面的汇总接口
+router.post('/settlement', async (ctx, next) => {
+  const data = ctx.request.body || {}
+  const billId = data.billId
+  const beginDate = data.beginDate
+  const endDate = data.endDate
+  if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
+  else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
+  else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
+  else {
+    const params = {
+      billId,
+      beginDate: toTimestamp(beginDate),
+      endDate: toTimestamp(endDate),
+      quantityInputs: data.quantityInputs
+    }
+    const [err, res] = await Overview.getSettlement(params, ctx.header.userid)
+    if (res) ctx.body = new ResModel(res, '查询成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
+
 // 近三年支出
 router.get('/threeYearCost', async (ctx, next) => {
   const { billId } = ctx.query

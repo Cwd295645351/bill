@@ -13,7 +13,8 @@ export interface RecordItem {
   type: number
   money: number
   remark: string
-  belongUserId: string
+  /** 归属人 id 列表：「全部」为空数组，多人按账本成员顺序 */
+  belongUserIds: string[]
   belongUserName: string
   costTypeId: string
   costTypeName: string
@@ -44,9 +45,14 @@ function moneyText(n: number) {
 /** 与电脑端账本明细同一套色板，按成员顺序循环 */
 const BELONG_PALETTE = ['#fff3e0', '#e3f2fd', '#e8f5e9', '#fce4ec', '#f3e5f5', '#e0f7fa', '#fff8e1', '#fbe9e7']
 
-/** 归属人卡片底色。「全部」或未指定归属人返回空串，沿用白底 */
-export function belongBackground(belongUserId: string, belongUserName: string, users: { id: string }[] = []): string {
-  if (!belongUserId || belongUserName === '全部') return ''
+/** 多人归属的固定底色，与电脑端一致 */
+const MULTI_BELONG_BG = '#ede7f6'
+
+/** 归属人卡片底色。「全部」或未指定归属人返回空串，沿用白底；多人用固定底色 */
+export function belongBackground(belongUserIds: string[] = [], belongUserName: string, users: { id: string }[] = []): string {
+  if (!belongUserIds.length || belongUserName === '全部') return ''
+  if (belongUserIds.length > 1) return MULTI_BELONG_BG
+  const belongUserId = belongUserIds[0]
   const index = users.findIndex((user) => String(user.id) === String(belongUserId))
   let slot = index
   if (slot < 0) {
@@ -79,7 +85,7 @@ export function groupRecords(list: RecordItem[], userId?: string, users: { id: s
     item.category = item.type === 1 ? item.costTypeName || '未分类' : item.incomesTypeName || '未分类'
     item.moneyText = moneyText(item.money)
     item.mine = !!userId && String(item.userId) === String(userId)
-    item.belongBg = belongBackground(item.belongUserId, item.belongUserName, users)
+    item.belongBg = belongBackground(item.belongUserIds, item.belongUserName, users)
     row.arr.push(item)
     if (item.type === 1) row.costNum += Number(item.money || 0)
     else row.incomesNum += Number(item.money || 0)

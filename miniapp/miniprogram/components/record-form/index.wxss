@@ -161,6 +161,37 @@
   border-top: 1rpx solid #f0f0f0;
 }
 
+.belong {
+  padding: 20rpx 32rpx 4rpx;
+  border-top: 1rpx solid #f0f0f0;
+}
+
+.belong-title {
+  margin-bottom: 16rpx;
+  color: #323233;
+  font-size: 28rpx;
+}
+
+.belong-tags {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.belong-tag {
+  margin: 0 16rpx 16rpx 0;
+  padding: 10rpx 28rpx;
+  border: 1rpx solid #dcdee0;
+  border-radius: 28rpx;
+  color: #666;
+  font-size: 26rpx;
+}
+
+.belong-tag.on {
+  color: #fff;
+  border-color: #4285f4;
+  background: #4285f4;
+}
+
 .danger {
   margin: 24rpx;
   text-align: center;

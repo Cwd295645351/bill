@@ -1,7 +1,9 @@
 import { ref, Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
+import { getUserInfo } from '@/utils/common-info'
 import { addTransaction, batchAddTransaction, deleteTransaction, editTransaction, uploadTransactionImage } from '../api'
+import { PUBLIC_OPTION, toSelectValue, useBelongSelect } from './use-belong-select'
 import type { Information, InformationType, RecordImage } from '../type'
 import type { Bill } from '@/types/bill'
 
@@ -32,11 +34,21 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     costTypeId: '',
     payMethodId: '',
     reimbursement: 0,
-    belongUserId: '',
+    belongUserIds: [],
     incomesTypeId: '',
     money: 0,
     remark: '',
   })
+
+  const selfId = () => getUserInfo().userId
+
+  /** 新增表单的归属人下拉值 */
+  const addBelong = ref<string[]>(type.value === 2 ? [selfId()] : [PUBLIC_OPTION])
+  const addBelongSelect = useBelongSelect(addBelong, type, { selfId, watchType: true, notify: () => showAdd.value })
+
+  /** 编辑弹窗的归属人下拉值；弹窗内收支类型固定 */
+  const editBelong = ref<string[]>([PUBLIC_OPTION])
+  const editBelongSelect = useBelongSelect(editBelong, type, { selfId })
 
   /** 正在编辑的账单明细 */
   const operateData = ref<Information>({
@@ -47,7 +59,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     costTypeId: '',
     payMethodId: '',
     reimbursement: 0,
-    belongUserId: '',
+    belongUserIds: [],
     incomesTypeId: '',
     money: 0,
     remark: '',
@@ -62,6 +74,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
   /** 显示编辑弹窗：克隆明细与照片，未保存关闭不影响列表 */
   const showEditDialog = (detail: Information) => {
     operateData.value = { ...detail }
+    editBelong.value = toSelectValue(detail.belongUserIds)
     const imgs = Array.isArray(detail.images) ? detail.images.slice() : []
     imgs.sort((a, b) => (a.sort || 0) - (b.sort || 0))
     editImages.value = imgs.map((img) => ({ ...img }))
@@ -87,12 +100,17 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
   // 新增交易明细（不传 imageIds，电脑端新增不附图）
   const addInfo = async () => {
     const information = addInformation.value
+    const belongUserIds = addBelongSelect.toBelongUserIds()
+    if (type.value === 2 && belongUserIds.length !== 1) {
+      ElMessage.warning('收入必须选一名归属人')
+      return
+    }
     const data: Information = {
       billId: (bill.value as Bill).id,
       date: Number(information.date),
       money: information.money,
       type: type.value,
-      belongUserId: information.belongUserId,
+      belongUserIds,
       remark: information.remark,
     }
     if (type.value === 1) {
@@ -110,7 +128,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
       ElMessage.success('新增交易明细成功')
       search()
     } else {
-      ElMessage.error('新增交易明细失败')
+      ElMessage.error('新增交易明细失败，' + res.message)
     }
   }
 
@@ -166,6 +184,11 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     if (btnLoading.value || photoUploading.value) return
     const currOperateData = operateData.value
     const imageIds = editImages.value.map((img) => img.id)
+    const belongUserIds = editBelongSelect.toBelongUserIds()
+    if (currOperateData.type === 2 && belongUserIds.length !== 1) {
+      ElMessage.warning('收入必须选一名归属人')
+      return
+    }
     const data = {
       id: currOperateData.id,
       billId: currOperateData.billId,
@@ -176,7 +199,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
       costTypeId: currOperateData.costTypeId,
       payMethodId: currOperateData.payMethodId,
       reimbursement: currOperateData.reimbursement,
-      belongUserId: currOperateData.belongUserId,
+      belongUserIds,
       incomesTypeId: currOperateData.incomesTypeId,
       imageIds,
     }
@@ -208,7 +231,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
       type: type.value,
       date: item.date,
       money: item.money,
-      belongUserId: item.belongUserId,
+      belongUserIds: item.belongUserId ? [item.belongUserId] : [],
       remark: item.remark,
       costTypeId: item.costTypeId,
       payMethodId: '',
@@ -223,7 +246,7 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
       search()
       return true
     } else {
-      ElMessage.error('批量新增失败')
+      ElMessage.error('批量新增失败，' + res.message)
       return false
     }
   }
@@ -237,7 +260,13 @@ export const useAddEdit = (options: { search: () => void; type: Ref<InformationT
     btnLoading,
     photoUploading,
     addInformation,
+    addBelong,
+    onAddBelongChange: addBelongSelect.onExpenseChange,
+    addIncomeBelong: addBelongSelect.incomeValue,
     operateData,
+    editBelong,
+    onEditBelongChange: editBelongSelect.onExpenseChange,
+    editIncomeBelong: editBelongSelect.incomeValue,
     editImages,
     showDeleteDialog,
     showEditDialog,

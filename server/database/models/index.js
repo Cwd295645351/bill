@@ -247,8 +247,8 @@ function initModels(sequelize) {
       reimbursement: { type: DataTypes.INTEGER, allowNull: true },
       incomesTypeId: { type: DataTypes.STRING(32), allowNull: true, field: 'incomes_type_id' },
       incomesTypeName: { type: DataTypes.STRING(64), allowNull: true, field: 'incomes_type_name' },
-      belongUserId: { type: DataTypes.STRING(36), allowNull: true, field: 'belong_user_id' },
-      belongUserName: { type: DataTypes.STRING(64), allowNull: true, field: 'belong_user_name' },
+      belongUserId: { type: DataTypes.STRING(1024), allowNull: true, field: 'belong_user_id' },
+      belongUserName: { type: DataTypes.STRING(2048), allowNull: true, field: 'belong_user_name' },
       remark: { type: DataTypes.STRING(512), allowNull: true },
       money: decimalMoney('money'),
       isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' }

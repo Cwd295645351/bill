@@ -9,6 +9,7 @@ const {
   tryDeleteObject,
   assertBillMember
 } = require('../../database/services/transactionImageService')
+const { loadOrderedMembers, resolveBelongUsers, buildBelongWhere, toBelongResponse } = require('../../database/services/belongUsers')
 const { Op } = require('sequelize')
 const dayjs = require('dayjs')
 const { toTimestamp, yearFromTimestamp, formatDate } = require('../../utils/dateUtil')
@@ -72,8 +73,8 @@ const buildFilter = (data) => {
   if (data.incomesTypeId) where.incomesTypeId = data.incomesTypeId
   const userIds = toIdList(data.userId)
   if (userIds) where.userId = { [Op.in]: userIds }
-  const belongUserIds = toIdList(data.belongUserId)
-  if (belongUserIds) where.belongUserId = { [Op.in]: belongUserIds }
+  const belongWhere = buildBelongWhere(data.belongUserIds)
+  if (belongWhere) andList.push(belongWhere)
 
   return { where, andList }
 }
@@ -162,7 +163,7 @@ exports.getList = async (data, ctx) => {
     })
     const length = await Transaction.count({ where: filterWhere })
     if (res) {
-      const datas = await attachImagesToList(res, listOpts)
+      const datas = (await attachImagesToList(res, listOpts)).map(toBelongResponse)
       return [null, { total: length, datas }]
     }
     return ['查询失败', res]
@@ -201,7 +202,7 @@ exports.getList = async (data, ctx) => {
   }
 
   const total = await Transaction.count({ where: filterWhere })
-  datas = await attachImagesToList(datas, listOpts)
+  datas = (await attachImagesToList(datas, listOpts)).map(toBelongResponse)
   const retData = { total, datas, hasOlder, hasNewer }
   if (data.withMonthSummary) {
     retData.monthSummaries = await loadMonthSummaries(filterWhere)
@@ -224,6 +225,9 @@ exports.addTransaction = async (data) => {
   data.money = Number(data.money)
   const findBill = await findBillById(data.billId)
   if (!findBill) return ['未找到账本', null]
+  const members = await loadOrderedMembers(data.billId)
+  const [belongErr, belong] = resolveBelongUsers(data, data.type, members)
+  if (belongErr) return [belongErr, null]
   const params = {
     billId: data.billId,
     userId: data.userId,
@@ -231,8 +235,8 @@ exports.addTransaction = async (data) => {
     type: data.type,
     remark: data.remark,
     money: data.money,
-    belongUserId: '',
-    belongUserName: '全部',
+    belongUserId: belong.belongUserId,
+    belongUserName: belong.belongUserName,
     isDel: false
   }
   if (params.type === 1) {
@@ -253,11 +257,6 @@ exports.addTransaction = async (data) => {
       params.incomesTypeId = incomes.id
       params.incomesTypeName = incomes.name
     }
-  }
-  if (data.belongUserId) {
-    const users = findBill.users.find((item) => item.id === data.belongUserId)
-    params.belongUserId = users.id
-    params.belongUserName = users.name
   }
 
   const wantImages = hasImageIdsField(data)
@@ -316,12 +315,15 @@ exports.batchAddTransaction = async (list) => {
   const billId = list[0].billId
   const findBill = await findBillById(billId)
   if (!findBill) return ['未找到账本', null]
+  const members = await loadOrderedMembers(billId)
 
   const insertList = []
   let totalMoney = 0
   const budgetMap = {}
 
-  for (const data of list) {
+  for (const [index, data] of list.entries()) {
+    const [belongErr, belong] = resolveBelongUsers(data, data.type, members)
+    if (belongErr) return [`第 ${index + 1} 条：${belongErr}`, null]
     data.money = Number(data.money)
     totalMoney += data.money
     const params = {
@@ -331,8 +333,8 @@ exports.batchAddTransaction = async (list) => {
       type: data.type,
       remark: data.remark,
       money: data.money,
-      belongUserId: '',
-      belongUserName: '全部',
+      belongUserId: belong.belongUserId,
+      belongUserName: belong.belongUserName,
       isDel: false
     }
     if (params.type === 1) {
@@ -351,13 +353,6 @@ exports.batchAddTransaction = async (list) => {
         }
       }
       params.reimbursement = data.reimbursement || 0
-    }
-    if (data.belongUserId) {
-      const user = findBill.users.find((item) => item.id === data.belongUserId)
-      if (user) {
-        params.belongUserId = user.id
-        params.belongUserName = user.name
-      }
     }
     insertList.push(params)
 
@@ -412,9 +407,7 @@ exports.editTransaction = async (data) => {
     date: toTimestamp(data.date),
     remark: data.remark,
     money: data.money,
-    type: data.type,
-    belongUserId: '',
-    belongUserName: '全部'
+    type: data.type
   }
   if (data.type === 1) {
     if (data.costTypeId) {
@@ -435,16 +428,16 @@ exports.editTransaction = async (data) => {
       changeData.incomesTypeName = incomes.name
     }
   }
-  if (data.belongUserId) {
-    const users = findBill.users.find((item) => item.id === data.belongUserId)
-    changeData.belongUserId = users.id
-    changeData.belongUserName = users.name
-  }
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['编辑失败', null]
   if (!data.userId || String(old.userId) !== String(data.userId)) {
     return ['只能编辑自己记的账单', null]
   }
+  const members = await loadOrderedMembers(data.billId)
+  const [belongErr, belong] = resolveBelongUsers(data, data.type, members)
+  if (belongErr) return [belongErr, null]
+  changeData.belongUserId = belong.belongUserId
+  changeData.belongUserName = belong.belongUserName
 
   const wantImages = hasImageIdsField(data)
   const imageIds = wantImages ? normalizeImageIds(data.imageIds) : null
@@ -587,7 +580,7 @@ exports.getCurrentMonthCost = async (data, userId) => {
     }
   })
 
-  belongUserCosts = belongUserCosts.map((item) => ({ ...item, money: fixMoney(item.money) }))
+  belongUserCosts = belongUserCosts.map((item) => toBelongResponse({ ...item, money: fixMoney(item.money) }))
   // 按照从大到小排序
   costTypeCost = costTypeCost
     .sort((a, b) => b.money - a.money)
@@ -635,9 +628,9 @@ exports.exportData = async (data) => {
   if (data.incomesTypeId) exportParams.incomesTypeId = data.incomesTypeId
   const exportUserIds = toIdList(data.userId)
   if (exportUserIds) exportParams.userId = { [Op.in]: exportUserIds }
-  const exportBelongUserIds = toIdList(data.belongUserId)
-  if (exportBelongUserIds) exportParams.belongUserId = { [Op.in]: exportBelongUserIds }
-  
+  const exportBelongWhere = buildBelongWhere(data.belongUserIds)
+  if (exportBelongWhere) exportParams[Op.and] = [exportBelongWhere]
+
   const res = await Transaction.findAll({
     where: exportParams,
     attributes: ['date', 'costTypeName', 'userId', 'belongUserName', 'money', 'remark'],

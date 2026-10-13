@@ -33,7 +33,7 @@
             </div>
           </div>
           <div class="detail">
-            <div class="detail-item" v-for="detail in item.arr" :style="{ '--belong-bg': belongBg(detail.belongUserId) }" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail.id">
+            <div class="detail-item" v-for="detail in item.arr" :style="{ '--belong-bg': belongBg(detail.belongUserIds) }" :class="{ 'gray-background': detail.reimbursement !== 0 }" :key="detail.id">
               <div class="top">
                 <span>
                   <span class="belong-user">{{ detail.belongUserName }}</span>
@@ -146,9 +146,12 @@
               <el-input v-model="addInformation.money" clearable placeholder="请输入"></el-input>
             </el-form-item>
             <el-form-item class="form-item width-300" size="large" label="归属人">
-              <el-select v-model="addInformation.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
-                <el-option label="全部" value=""></el-option>
-                <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+              <el-select v-if="type === 1" :model-value="addBelong" @update:model-value="onAddBelongChange" multiple collapse-tags collapse-tags-tooltip filterable placeholder="请选择" automatic-dropdown>
+                <el-option label="全部" :value="PUBLIC_OPTION"></el-option>
+                <el-option v-for="item in users" :key="item.id" :label="item.name" :value="item.id"></el-option>
+              </el-select>
+              <el-select v-else v-model="addIncomeBelong" filterable placeholder="请选择" automatic-dropdown>
+                <el-option v-for="item in users" :key="item.id" :label="item.name" :value="item.id"></el-option>
               </el-select>
             </el-form-item>
             <el-form-item class="form-item" v-show="type === 1" size="large" label="报销进度">
@@ -196,9 +199,12 @@
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="归属人">
-          <el-select v-model="operateData.belongUserId" filterable placeholder="请选择" :empty-values="[null, undefined]" :value-on-clear="null" automatic-dropdown clearable>
-            <el-option label="全部" value=""></el-option>
-            <el-option v-for="(item, index) in users" :key="item + '_' + index" :label="item.name" :value="item.id"></el-option>
+          <el-select v-if="type === 1" :model-value="editBelong" @update:model-value="onEditBelongChange" multiple collapse-tags collapse-tags-tooltip filterable placeholder="请选择" automatic-dropdown>
+            <el-option label="全部" :value="PUBLIC_OPTION"></el-option>
+            <el-option v-for="item in users" :key="item.id" :label="item.name" :value="item.id"></el-option>
+          </el-select>
+          <el-select v-else v-model="editIncomeBelong" filterable placeholder="请选择" automatic-dropdown>
+            <el-option v-for="item in users" :key="item.id" :label="item.name" :value="item.id"></el-option>
           </el-select>
         </el-form-item>
         <el-form-item class="form-item" size="large" label="金额">
@@ -317,6 +323,7 @@ import { ArrowDown, ArrowRight, Close } from '@element-plus/icons-vue'
 import { useAddEdit } from './hooks/use-add-edit'
 import { useRecord } from './hooks/use-record'
 import { useParse } from './hooks/use-parse'
+import { PUBLIC_OPTION } from './hooks/use-belong-select'
 import type { Information } from './type'
 
 const {
@@ -354,7 +361,13 @@ const {
   btnLoading,
   photoUploading,
   addInformation,
+  addBelong,
+  onAddBelongChange,
+  addIncomeBelong,
   operateData,
+  editBelong,
+  onEditBelongChange,
+  editIncomeBelong,
   editImages,
   showDeleteDialog,
   showEditDialog,
@@ -391,10 +404,13 @@ const onPickEditPhotos = async (e: Event) => {
   input.value = ''
 }
 
-/** 归属人卡片底色。「全部」保持白底，其余按账本成员顺序循环取色 */
+/** 归属人卡片底色。「全部」保持白底，多人用固定底色，单人按账本成员顺序循环取色 */
 const belongPalette = ['#fff3e0', '#e3f2fd', '#e8f5e9', '#fce4ec', '#f3e5f5', '#e0f7fa', '#fff8e1', '#fbe9e7']
-const belongBg = (belongUserId: string) => {
-  if (!belongUserId) return '#fff'
+const MULTI_BELONG_BG = '#ede7f6'
+const belongBg = (belongUserIds: string[] = []) => {
+  if (!belongUserIds.length) return '#fff'
+  if (belongUserIds.length > 1) return MULTI_BELONG_BG
+  const belongUserId = belongUserIds[0]
   const index = users.value.findIndex((user) => user.id === belongUserId)
   if (index >= 0) return belongPalette[index % belongPalette.length]
   let hash = 0

@@ -32,6 +32,9 @@ interface MonthSummary {
   money: number
 }
 
+/** 搜索框的归属人单选值 → 接口筛选名单。「全部」或清空为空数组，表示不限归属人 */
+const toBelongFilter = (belongUserId: string | null | undefined) => (belongUserId ? [belongUserId] : [])
+
 /** 同一天内 id 更大者在 date DESC, id DESC 中更靠前 */
 const isNewerCursor = (a: DateCursor, b: DateCursor) => {
   if (a.date !== b.date) return a.date > b.date
@@ -226,7 +229,7 @@ export const useRecord = () => {
       beginDate: options.beginDate ? dayStartTs(options.beginDate) : '',
       endDate: options.endDate ? dayEndTs(options.endDate) : '',
       userId: options.userId,
-      belongUserId: options.belongUserId,
+      belongUserIds: toBelongFilter(options.belongUserId),
       pageSize,
       type: type.value,
       costTypeId: options.costTypeId,
@@ -320,7 +323,7 @@ export const useRecord = () => {
       beginDate: options.beginDate ? dayStartTs(options.beginDate) : '',
       endDate: options.endDate ? dayEndTs(options.endDate) : '',
       userId: options.userId,
-      belongUserId: options.belongUserId,
+      belongUserIds: toBelongFilter(options.belongUserId),
       type: type.value,
       costTypeId: options.costTypeId,
       payMethodId: options.payMethodId,

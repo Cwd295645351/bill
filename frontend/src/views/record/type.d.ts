@@ -26,8 +26,8 @@ export interface Information {
   payMethodId?: string
   /** 报销进度（支出数据） */
   reimbursement?: number
-  /** 归属人（支出数据） */
-  belongUserId: string
+  /** 归属人 id 列表：「全部」为空数组，多人按账本成员顺序 */
+  belongUserIds: string[]
   belongUserName?: string
   /** 收入类型（收入数据） */
   incomesTypeId?: string

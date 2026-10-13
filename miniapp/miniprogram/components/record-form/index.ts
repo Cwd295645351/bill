@@ -21,9 +21,37 @@ const emptyPref = (): RecordPref => ({
   costTypeName: '',
   incomesTypeId: '',
   incomesTypeName: '',
-  belongUserId: '',
   belongUserName: ''
 })
+
+interface BillMember {
+  id: string
+  name: string
+}
+
+/** 按账本成员顺序重排名单并拼出名字；不在账本里的 id 会被去掉。这只是表单预览，保存后以服务端为准 */
+function normalizeBelong(users: BillMember[], ids: string[]) {
+  const picked = new Set(ids.map(String))
+  const ordered = users.filter((user) => picked.has(String(user.id)))
+  return {
+    belongUserIds: ordered.map((user) => String(user.id)),
+    belongUserName: ordered.length ? ordered.map((user) => user.name).join('、') : '全部'
+  }
+}
+
+/** 平铺标签：支出带「全部」（id 为空串），收入只有成员 */
+function belongTags(users: BillMember[], ids: string[], type: number) {
+  const picked = new Set(ids.map(String))
+  const tags = users.map((user) => ({ id: String(user.id), name: user.name, on: picked.has(String(user.id)) }))
+  if (type === 1) tags.unshift({ id: '', name: '全部', on: ids.length === 0 })
+  return tags
+}
+
+/** 收入的默认归属人：上次是本账本的单人就用他，否则用自己 */
+function incomeDefault(users: BillMember[], prefIds: string[] | undefined, selfId: string): string[] {
+  if (prefIds && prefIds.length === 1 && users.some((user) => String(user.id) === String(prefIds[0]))) return [String(prefIds[0])]
+  return users.some((user) => String(user.id) === String(selfId)) ? [String(selfId)] : []
+}
 
 /** 本地待上传或已上传成功的照片 */
 export interface LocalPhoto {
@@ -46,14 +74,13 @@ Component({
     contentTag: '',
     suggestions: [] as any[],
     removingSuggestion: false,
-    belongUserId: '',
+    /** 归属人名单，「全部」为空数组 */
+    belongUserIds: [] as string[],
     belongUserName: '全部',
+    belongTags: [] as Array<{ id: string; name: string; on: boolean }>,
     categoryId: '',
     categoryName: '',
     categories: [] as any[],
-    userNames: ['全部'] as string[],
-    userIds: [''] as string[],
-    showUsers: false,
     recordId: '',
     reimbursement: 0,
     showKeyboard: false,
@@ -81,10 +108,8 @@ Component({
       if ((this as any)._synced === key) return
       ;(this as any)._synced = key
 
-      const users = bill.users || []
-      const userNames = ['全部'].concat(users.map((item: any) => item.name))
-      const userIds = [''].concat(users.map((item: any) => item.id))
-      const patch: any = { userNames, userIds }
+      const users: BillMember[] = bill.users || []
+      const patch: any = {}
 
       if (initial && initial.id) {
         const type = initial.type === 2 ? 2 : 1
@@ -92,7 +117,8 @@ Component({
         patch.amount = initial.money != null ? String(initial.money) : ''
         patch.date = toDayText(initial.dateText) || toDayText(initial.date)
         patch.rawRemark = initial.remark || ''
-        patch.belongUserId = initial.belongUserId || ''
+        // 编辑时原样回填，不改归属人保存时名单不变
+        patch.belongUserIds = Array.isArray(initial.belongUserIds) ? initial.belongUserIds.map(String) : []
         patch.belongUserName = initial.belongUserName || '全部'
         patch.recordId = initial.id
         patch.reimbursement = initial.reimbursement || 0
@@ -109,17 +135,15 @@ Component({
         patch.photos = this.data.photos || []
         const pref = getLastPref()
         const me = getUser()
-        if (pref && (pref.belongUserId || pref.belongUserName)) {
-          patch.belongUserId = pref.belongUserId || ''
-          patch.belongUserName = pref.belongUserName || '全部'
-        } else if (me) {
-          const mine = users.find((item: any) => item.id === me.userId)
-          if (mine) {
-            patch.belongUserId = mine.id
-            patch.belongUserName = mine.name
-          }
-        }
+        const selfId = me ? String(me.userId) : ''
         const type = this.data.type === 2 ? 2 : 1
+        const prefIds = pref ? pref.belongUserIds : undefined
+        let ids: string[]
+        if (type === 2) ids = incomeDefault(users, prefIds, selfId)
+        else if (prefIds) ids = prefIds
+        else ids = incomeDefault(users, undefined, selfId)
+        // 上次名单里已不在账本的人会被去掉，名字随之重算，避免保存时被服务端拒绝
+        Object.assign(patch, normalizeBelong(users, ids))
         if (pref) {
           patch.categoryId = type === 2 ? pref.incomesTypeId : pref.costTypeId
           patch.categoryName = type === 2 ? pref.incomesTypeName : pref.costTypeName
@@ -133,6 +157,7 @@ Component({
         patch.categoryName = ''
       }
       patch.categories = categories
+      patch.belongTags = belongTags(users, patch.belongUserIds || [], type)
       const me = getUser()
       const mine = !!me && String(initial && initial.userId) === String(me.userId)
       patch.canDelete = this.data.mode === 'edit' && mine
@@ -174,6 +199,39 @@ Component({
       }
       this.refreshSuggestions(categoryId, categoryName, '')
       this.setData({ type, categories, showKeyboard: false })
+      this.applyTypeToBelong(type)
+    },
+
+    /** 切到收入时，「全部」或多人改为自己并提示；只有一人时保留 */
+    applyTypeToBelong(type: number) {
+      const users: BillMember[] = (this.data.bill as any).users || []
+      let ids = this.data.belongUserIds
+      if (type === 2 && ids.length !== 1) {
+        const me = getUser()
+        ids = incomeDefault(users, undefined, me ? String(me.userId) : '')
+        wx.showToast({ title: '收入只能选一名归属人，已改为自己', icon: 'none' })
+        this.setData(normalizeBelong(users, ids))
+      }
+      this.setData({ belongTags: belongTags(users, this.data.belongUserIds, type) })
+    },
+
+    /** 点归属人标签：支出时「全部」与成员互斥、成员可多选；收入时单选 */
+    onToggleBelong(e: WechatMiniprogram.TouchEvent) {
+      const id = String(e.currentTarget.dataset.id || '')
+      const users: BillMember[] = (this.data.bill as any).users || []
+      const type = this.data.type
+      let ids: string[]
+      if (type === 2) {
+        if (!id) return
+        ids = [id]
+      } else if (!id) {
+        ids = []
+      } else {
+        const current = this.data.belongUserIds
+        ids = current.includes(id) ? current.filter((item: string) => item !== id) : current.concat(id)
+      }
+      const next = normalizeBelong(users, ids)
+      this.setData({ ...next, belongTags: belongTags(users, next.belongUserIds, type), showKeyboard: false })
     },
 
     onSelectCat(e: WechatMiniprogram.CustomEvent) {
@@ -248,24 +306,6 @@ Component({
       this.setData({ remark: raw.slice(0, 150) })
     },
 
-    openUsers() {
-      this.setData({ showUsers: true, showKeyboard: false })
-    },
-
-    closeUsers() {
-      this.setData({ showUsers: false })
-    },
-
-    onUser(e: WechatMiniprogram.CustomEvent) {
-      const raw = e.detail.index
-      const index = Array.isArray(raw) ? raw[0] : raw
-      this.setData({
-        belongUserId: this.data.userIds[index] || '',
-        belongUserName: this.data.userNames[index] || '全部',
-        showUsers: false
-      })
-    },
-
     mergePref(): RecordPref {
       const prev = getLastPref() || emptyPref()
       if (this.data.type === 1) {
@@ -274,7 +314,7 @@ Component({
           costTypeName: this.data.categoryName,
           incomesTypeId: prev.incomesTypeId,
           incomesTypeName: prev.incomesTypeName,
-          belongUserId: this.data.belongUserId,
+          belongUserIds: this.data.belongUserIds,
           belongUserName: this.data.belongUserName
         }
       }
@@ -283,7 +323,7 @@ Component({
         costTypeName: prev.costTypeName,
         incomesTypeId: this.data.categoryId,
         incomesTypeName: this.data.categoryName,
-        belongUserId: this.data.belongUserId,
+        belongUserIds: this.data.belongUserIds,
         belongUserName: this.data.belongUserName
       }
     },
@@ -298,6 +338,10 @@ Component({
         wx.showToast({ title: '请选择分类', icon: 'none' })
         return null
       }
+      if (this.data.type === 2 && this.data.belongUserIds.length !== 1) {
+        wx.showToast({ title: '收入必须选一名归属人', icon: 'none' })
+        return null
+      }
       const bill = this.data.bill as any
       const dateText = this.data.recordId ? toDayText(this.data.date) : (this.data.date || today())
       if (this.data.recordId && !dateText) {
@@ -309,7 +353,7 @@ Component({
         date: dayStartTs(dateText),
         money,
         type: this.data.type,
-        belongUserId: this.data.belongUserId,
+        belongUserIds: this.data.belongUserIds,
         remark: composeRemark(this.data.contentTag, this.data.remark)
       }
       if (this.data.recordId) payload.id = this.data.recordId

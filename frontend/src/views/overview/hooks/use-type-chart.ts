@@ -18,9 +18,6 @@ interface ChartSlot {
   userId: string
 }
 
-/** 归属为空表示公共支出 */
-const isPublicBelong = (belongUserId: string | null | undefined) => belongUserId == null || belongUserId === ''
-
 export const useTypeChart = (options: { colorOptions: string[] }) => {
   const { colorOptions } = options
 
@@ -111,7 +108,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     }
 
     if (slot.key !== '全部' && slot.userId) {
-      searchParams.belongUserId = [slot.userId, '']
+      searchParams.belongUserIds = [slot.userId, '']
     }
 
     const [err, res] = await getRecordList({ data: searchParams })
@@ -122,7 +119,8 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       detailList.value = datas
         .filter((item: any) => {
           if (slot.key === '全部') return true
-          return item.belongUserId === slot.userId || isPublicBelong(item.belongUserId)
+          const ids: string[] = item.belongUserIds || []
+          return ids.length === 0 || ids.includes(slot.userId)
         })
         .map((item: any) => {
           item.userName = users.value.find((u: any) => u.id === item.userId)?.name || item.userName || '未知'

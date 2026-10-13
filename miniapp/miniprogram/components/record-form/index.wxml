@@ -51,7 +51,18 @@
       <picker mode="date" value="{{ date }}" bindchange="onDate" bindtap="closeKeyboard">
         <van-cell title="日期" value="{{ date }}" is-link />
       </picker>
-      <van-cell title="归属人" value="{{ belongUserName || '全部' }}" is-link bind:click="openUsers" />
+    </view>
+    <view class="belong">
+      <view class="belong-title">归属人</view>
+      <view class="belong-tags">
+        <view
+          class="belong-tag {{ item.on ? 'on' : '' }}"
+          wx:for="{{ belongTags }}"
+          wx:key="id"
+          data-id="{{ item.id }}"
+          bindtap="onToggleBelong"
+        >{{ item.name }}</view>
+      </view>
     </view>
     <view wx:if="{{ canDelete }}" class="danger" bindtap="onDelete">删除这条记录</view>
   </scroll-view>
@@ -59,8 +70,4 @@
     <view wx:if="{{ mode === 'add' }}" class="again" hover-class="again-hover" bindtap="onAgain">再记一笔</view>
     <view class="ok" hover-class="ok-hover" bindtap="onConfirm">{{ mode === 'add' ? '完成' : '保存' }}</view>
   </view>
-  <money-keyboard wx:if="{{ showKeyboard }}" show-again="{{ false }}" confirm-text="完成" bind:key="onKey" bind:confirm="closeKeyboard" />
-  <van-popup show="{{ showUsers }}" position="bottom" bind:close="closeUsers">
-    <van-picker columns="{{ userNames }}" show-toolbar title="归属人" bind:confirm="onUser" bind:cancel="closeUsers" />
-  </van-popup>
-</view>
+  <money-keyboard wx:if="{{ showKeyboard }}" show-again="{{ false }}" confirm-text="完成" bind:key="onKey" bind:confirm="closeKeyboard" /></view>

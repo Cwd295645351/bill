@@ -6,7 +6,7 @@ import { PROD_BASE_URL } from './env.local'
  * trial / release：读取本地 miniapp/.env 的 MINIAPP_BASE_URL（经 sync-env 写入 env.local.ts，不入库）。
  */
 const HOSTS: Record<string, string> = {
-  develop: 'http://localhost:3000',
+  develop: 'http://10.133.128.51:3000',
   trial: PROD_BASE_URL,
   release: PROD_BASE_URL
 }

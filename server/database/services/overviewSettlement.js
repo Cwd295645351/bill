@@ -6,11 +6,10 @@
 /** 元转分。0.1 元这类二进制小数先四舍五入到分 */
 const toCents = (yuan) => Math.round(Number(yuan) * 100)
 
+const { isPublicBelong, isMultiBelong, splitBelongIds, BELONG_NAME_SEPARATOR } = require('./belongUsers')
+
 /** 分转元，保留两位 */
 const fromCents = (cents) => Number((cents / 100).toFixed(2))
-
-/** 空归属视为「全部」 */
-const isPublicBelong = (belongUserId) => belongUserId == null || belongUserId === ''
 
 /** 转账文案：甲 → 乙 转 100.00 元 */
 const formatLine = (fromName, toName, cents) => `${fromName} → ${toName} 转 ${(cents / 100).toFixed(2)} 元`
@@ -99,7 +98,7 @@ const addSlice = (bucket, costTypeId, name, cents) => {
  * @param {Array<{userId: string, name: string}>} input.members 已按 bill_users.id 升序
  * @param {Array} input.rules 已启用的概览规则
  * @param {Array<{ruleId: string, quantity: number, belongUserId: string}>} input.quantityInputs
- * @param {Array} input.transactions 区间内未删除的记账
+ * @param {Array} input.transactions 区间内未删除的记账；belongUserId 为数据库原值，多人时是按 bill_users.id 升序的逗号串
  * @returns {object} 结算结果
  */
 const buildSettlement = ({ members, rules, quantityInputs, transactions }) => {
@@ -139,11 +138,25 @@ const buildSettlement = ({ members, rules, quantityInputs, transactions }) => {
       return
     }
     if (rule.ruleType === 'cost_type' && rule.costTypeId) {
+      /** 多人行按组合汇总后再在组内平均分，同一组合只取整一次 */
+      const groupCents = new Map()
       rows.forEach((row) => {
         if (Number(row.type) !== 1) return
         if (row.costTypeId !== rule.costTypeId) return
-        if (isPublicBelong(row.belongUserId) || !memberIds.has(row.belongUserId)) return
+        if (isPublicBelong(row.belongUserId)) return
+        if (isMultiBelong(row.belongUserId)) {
+          groupCents.set(row.belongUserId, (groupCents.get(row.belongUserId) || 0) + toCents(row.money))
+          return
+        }
+        if (!memberIds.has(row.belongUserId)) return
         deductionCents[row.belongUserId] += toCents(row.money)
+      })
+      groupCents.forEach((cents, key) => {
+        const groupIds = splitBelongIds(key).filter((id) => memberIds.has(id))
+        const shares = allocatePublic(cents, groupIds.map(() => 1))
+        groupIds.forEach((id, index) => {
+          deductionCents[id] += shares[index]
+        })
       })
     }
   })
@@ -180,6 +193,8 @@ const buildSettlement = ({ members, rules, quantityInputs, transactions }) => {
   })
   /** 公共支出先记下，等全部加总后再分一次，避免逐笔四舍五入把零头叠大 */
   const publicRows = []
+  /** 多人支出按归属人组合分组，组内同样先加总再分一次；Map 保持首次出现顺序 */
+  const multiGroups = new Map()
 
   rows.forEach((row) => {
     if (Number(row.type) !== 1) return
@@ -192,6 +207,12 @@ const buildSettlement = ({ members, rules, quantityInputs, transactions }) => {
 
     if (isPublicBelong(row.belongUserId)) {
       publicRows.push(row)
+      return
+    }
+
+    if (isMultiBelong(row.belongUserId)) {
+      if (!multiGroups.has(row.belongUserId)) multiGroups.set(row.belongUserId, [])
+      multiGroups.get(row.belongUserId).push(row)
       return
     }
 
@@ -214,6 +235,28 @@ const buildSettlement = ({ members, rules, quantityInputs, transactions }) => {
       const share = shares[index] || 0
       borne[member.userId] += share
       addSlice(memberSlices[member.userId], row.costTypeId, row.costTypeName, share)
+    })
+  })
+
+  multiGroups.forEach((groupRows, key) => {
+    const groupIds = splitBelongIds(key)
+    const groupNames = String(groupRows[0].belongUserName || '').split(BELONG_NAME_SEPARATOR)
+    groupIds.forEach((id, index) => ensureParty(id, groupNames[index]))
+    let groupWeights = groupIds.map((id) => (memberIds.has(id) ? Math.max(effectiveCents[id], 0) : 0))
+    if (groupWeights.every((weight) => weight === 0)) groupWeights = groupIds.map(() => 1)
+
+    const groupCents = groupRows.map((row) => toCents(row.money))
+    const groupTotal = groupCents.reduce((sum, cents) => sum + cents, 0)
+    const groupTarget = allocatePublic(groupTotal, groupWeights)
+    const groupShareRows = groupCents.map((cents) => allocatePublic(cents, groupWeights))
+    reconcileToTarget(groupShareRows, groupTarget)
+    groupRows.forEach((row, rowIndex) => {
+      const shares = groupShareRows[rowIndex]
+      groupIds.forEach((id, index) => {
+        const share = shares[index] || 0
+        if (borne[id] != null) borne[id] += share
+        if (memberIds.has(id)) addSlice(memberSlices[id], row.costTypeId, row.costTypeName, share)
+      })
     })
   })
 

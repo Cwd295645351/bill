@@ -2,6 +2,7 @@ const { Transaction, BillUser, BillOverviewRule, User } = require('../../databas
 const dayjs = require('dayjs')
 const { Op } = require('sequelize')
 const { buildSettlement } = require('../../database/services/overviewSettlement')
+const { toBelongResponse } = require('../../database/services/belongUsers')
 
 /** 金额保留两位小数（返回 number） */
 const fixMoney = (n) => Number(Number(n).toFixed(2))
@@ -71,9 +72,7 @@ exports.getBlance = async (data, userId) => {
     }
   })
 
-  belongUserCosts.forEach((item) => {
-    item.money = fixMoney(item.money)
-  })
+  belongUserCosts = belongUserCosts.map((item) => toBelongResponse({ ...item, money: fixMoney(item.money) }))
   Object.keys(costTypeRank).forEach((key) => {
     costTypeRank[key].forEach((item) => {
       item.money = fixMoney(item.money)

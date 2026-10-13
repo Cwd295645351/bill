@@ -29,7 +29,8 @@ export interface RecordPref {
   costTypeName: string
   incomesTypeId: string
   incomesTypeName: string
-  belongUserId: string
+  /** 上次的归属人名单，「全部」为空数组；缺省表示没有记住归属人 */
+  belongUserIds?: string[]
   belongUserName: string
 }
 
@@ -116,7 +117,13 @@ export function setLastPref(pref: RecordPref) {
 
 export function getLastPref(): RecordPref | null {
   const pref = wx.getStorageSync(LAST_PREF)
-  return pref && pref.costTypeId !== undefined ? (pref as RecordPref) : null
+  if (!pref || pref.costTypeId === undefined) return null
+  if (Array.isArray(pref.belongUserIds)) return pref as RecordPref
+  // 旧版本只存了单个 belongUserId：有 id 为单人，只有名字（全部）为空名单，都没有则视为未记住
+  const { belongUserId, ...rest } = pref
+  if (belongUserId) return { ...rest, belongUserIds: [String(belongUserId)] }
+  if (pref.belongUserName) return { ...rest, belongUserIds: [] }
+  return { ...rest, belongUserIds: undefined }
 }
 
 export function setBillDict(billId: string, bill: any) {

@@ -166,7 +166,7 @@ Page({
       pageIndex,
       pageSize: PAGE_SIZE,
       remark: this.data.remark,
-      belongUserId: this.data.belongUserId,
+      belongUserIds: this.data.belongUserId ? [this.data.belongUserId] : [],
       condition: this.data.conditionId,
       rangeMoney: Number(this.data.rangeMoney || 0)
     }

@@ -1,23 +1,27 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0
-Bump rationale: 仓库已新增微信小程序端 `miniapp/`。原则 II / IV / V 与模块落点
-  补齐第四端边界、登录绑定不变量与密钥/域名约定。证据来自 readme.md、
-  deploy/README.md、miniapp 页面清单与 server 的 wxLogin/wxBind / user_wechats。
-  不削弱既有 PC / Mobile H5 / API 约束。
+Version change: 1.1.0 → 1.2.0
+Bump rationale: 功能 004-multi-belong-users 需要改写原则 III 的归属人规则：
+  支出扩展为可选多名成员，收入收紧为只能选一名成员。属于对既有原则的实质性
+  扩充，不删除原则、不改变治理流程，按 MINOR 处理。历史数据中不存在归属「全部」
+  的收入，收紧收入规则不会让任何已有记录失效，因此不视为 MAJOR。
 
 Principles amended:
-  II.  多端边界不可混用（原「三端」扩为 PC / Mobile H5 / Miniapp / API）
-  IV.  公开契约向后兼容（小程序与 Web 共用 /api，不经 Nginx 托管静态页）
-  V.   密钥与部署约束（WX_APPID / WX_SECRET、miniapp/.env、合法域名）
+  III. 账本隔离与记账权限（归属人规则：支出可多选、收入仅单人、全员勾选不等于「全部」）
+
+Added sections: 无
+Removed sections: 无
 
 Templates reviewed for alignment:
   ✅ .specify/templates/plan-template.md — Constitution Check 对照原则 I–V 仍有效
-  ✅ .specify/templates/spec-template.md — 无宪章专用占位符，无需修改
-  ✅ .specify/templates/tasks-template.md — 任务可按端（PC / Mobile / Miniapp / API）拆分
+  ✅ .specify/templates/spec-template.md — 无归属人相关内容，无需修改
+  ✅ .specify/templates/tasks-template.md — 无归属人相关内容，无需修改
 
-Follow-up TODOs: docs/用户手册.md 尚未记载小程序入口；改小程序用户可见行为时须同步手册。
+Follow-up TODOs:
+  - docs/用户手册.md 3.2「记账人与归属人」仍写「可选某个成员，也可选『全部』」，
+    须在 004 实现时按其 FR-019 同步更新。
+  - docs/用户手册.md 尚未记载小程序入口；改小程序用户可见行为时须同步手册。
 -->
 
 # 记亿由薪 Constitution
@@ -62,7 +66,10 @@ Follow-up TODOs: docs/用户手册.md 尚未记载小程序入口；改小程序
 
 - 不同账本的成员、类型、预算、计划、明细互不影响。
 - **记账人**由系统记录，不可改；只有记账人本人可以编辑或删除自己录入的明细。
-- **归属人**决定这笔钱算在谁头上，可选某个成员或「全部」。
+- **归属人**决定这笔钱算在谁头上：
+  - 支出可选「全部」、一名成员或多名成员，「全部」与成员互斥。多名成员是保存时确定的名单，不随之后成员加入而改变；勾选全部成员不等于「全部」。
+  - 收入只能归属一名成员，不提供「全部」，也不能多选。
+  - 归属多名成员的支出，分账时只在这几个人之间分摊，未被选中的成员不承担。
 - 加入账本走分享码；创建者与成员权限以用户手册「权限与数据规则」为准。
 - 小程序首次使用须用**已有账号密码**绑定微信（`/wxBind`），之后静默登录（`/wxLogin`）。不提供小程序内注册。
 - 一个账号只绑定一个微信（`user_wechats` 中 `user_id` 与 `openid` 均唯一），产品不提供解绑；换绑由管理员改库，规格不得自行增加解绑入口。
@@ -120,4 +127,4 @@ Follow-up TODOs: docs/用户手册.md 尚未记载小程序入口；改小程序
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 1.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-08
+**Version**: 1.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-13

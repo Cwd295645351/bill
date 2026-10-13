@@ -17,7 +17,7 @@
         </div>
       </div>
       <div class="detail">
-        <div class="detail-item" v-for="item in incomeDetails" :key="item.belongUserId + '_' + item.userId + '_' + item.type">
+        <div class="detail-item" v-for="item in incomeDetails" :key="item.belongUserIds.join(',') + '_' + item.userId + '_' + item.type">
           ({{ item.userName }}) {{ item.belongUserName }}收入：<span class="color-green">{{ item.money.toFixed(2) }}</span>
         </div>
       </div>

@@ -113,8 +113,8 @@ export interface BudgetDetail {
 
 /** 收支项 */
 export interface RecordItem {
-  /** 归属人 id */
-  belongUserId: string
+  /** 归属人 id 列表：「全部」为空数组，多人按账本成员顺序 */
+  belongUserIds: string[]
   /** 归属人名称 */
   belongUserName: string
   /** 账本id */

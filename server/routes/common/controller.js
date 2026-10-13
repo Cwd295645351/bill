@@ -61,6 +61,7 @@ const verifyPassword = async (username, password) => {
     const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
     username = xssData(username)
     const hashedPassword = xssData(genPassword(decryptoPassword))
+    console.log('hashedPassword', hashedPassword)
     const res = await User.findOne({
       where: { username, password: hashedPassword },
       attributes: USER_ATTRS

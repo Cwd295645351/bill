@@ -1,6 +1,6 @@
 # 记账管理系统部署文档
 
-**Vue 3（PC + 移动端）+ Koa 2 + MySQL + Redis**，通过 Nginx 托管静态资源并反向代理 API。
+**Vue 3（电脑端）+ Koa 2 + MySQL + Redis**，通过 Nginx 托管静态资源并反向代理 API。微信小程序不经 Nginx 托管。
 
 适用于 **Ubuntu 22.04 LTS**（腾讯云等）。其他发行版请将 `apt` 换成对应包管理器。
 
@@ -28,12 +28,11 @@
 
 ## 1. 架构与目录
 
-仓库由三个独立包组成：
+仓库里要部署到这台服务器的是电脑端和后端：
 
 | 本地目录 | 说明 | 服务器落点 |
 |----------|------|------------|
 | `frontend/` | PC 端，**源码留在本地** | `frontend/dist` → `/var/www/bill/pc/` |
-| `mobile/` | 移动端 H5，**源码留在本地** | `mobile/dist` → `/var/www/bill/mobile/` |
 | `server/` | 后端 API（Koa 2） | `~/bill/server/`，PM2 进程 `bill-manage`，端口 `3000` |
 | `deploy/nginx-linux.conf` | Nginx 模板 | `~/bill/nginx-linux.conf`，再拷到 `/etc/nginx/conf.d/bill.conf` |
 
@@ -42,7 +41,6 @@
 ```
 开发机（源码仓库，例如 E:\my-codes\bill）
 ├── frontend/                 # 只在本地构建
-├── mobile/
 ├── server/
 └── deploy/nginx-linux.conf
 
@@ -52,18 +50,16 @@
 │   ├── backup/               # mysqldump
 │   └── nginx-linux.conf      # 从本地 deploy/ 上传
 ├── /var/www/bill/
-│   ├── pc/                   # 本地 frontend/dist
-│   └── mobile/               # 本地 mobile/dist
+│   └── pc/                   # 本地 frontend/dist
 └── /etc/nginx/conf.d/bill.conf
 ```
 
 访问关系：
 
 - `https://你的域名/pc/` → `/var/www/bill/pc/`
-- `https://你的域名/mobile/` → `/var/www/bill/mobile/`
 - `https://你的域名/api/v1/...` → Nginx 反代到 `127.0.0.1:3000`
 
-生产环境前端与 API **同源**：`frontend/.env.production` 中 `VITE_BASEURL=""`，`mobile/public/config.js` 中 `baseURL: ''`（回落到 `location.origin`），请求走 `/api`，由 Nginx 转发，无需再让 Koa 提供静态页。
+生产环境前端与 API **同源**：`frontend/.env.production` 中 `VITE_BASEURL=""`，请求走 `/api`，由 Nginx 转发，无需再让 Koa 提供静态页。
 
 运行时依赖：
 
@@ -170,7 +166,7 @@ sudo systemctl status nginx
 
 ```bash
 mkdir -p ~/bill/server ~/bill/backup
-sudo mkdir -p /var/www/bill/pc /var/www/bill/mobile
+sudo mkdir -p /var/www/bill/pc
 # /var/www 属 root，改给当前用户后 SFTP 才能上传
 sudo chown -R "$USER:$USER" /var/www/bill
 ```
@@ -179,7 +175,7 @@ sudo chown -R "$USER:$USER" /var/www/bill
 
 - 本地 `server/`（不要带 `node_modules`、`logs`）→ `~/bill/server/`
 - 本地 `deploy/nginx-linux.conf` → `~/bill/nginx-linux.conf`
-- 前端 `dist` 见第 9 节 → `/var/www/bill/pc/`、`/var/www/bill/mobile/`
+- 前端 `dist` 见第 9 节 → `/var/www/bill/pc/`
 
 依赖在服务器上执行：
 
@@ -214,29 +210,26 @@ REDIS_PORT=6379
 
 ## 9. 本地构建并推送前端
 
-在**开发机**上构建，不要把 `frontend/`、`mobile/` 源码放到服务器。
+在**开发机**上构建，不要把 `frontend/` 源码放到服务器。
 
-仓库根目录的 `pnpm run install_all` **只安装** `frontend` 和 `server`，移动端需单独安装。
+仓库根目录的 `pnpm run install_all` 会安装 `frontend`、`server` 和 `miniapp`。本页只构建电脑端。
 
 ```bash
 # 以下均在本地仓库根目录执行
 pnpm install --prefix frontend
-pnpm install --prefix mobile
 
 cd frontend && pnpm build   # 产物 frontend/dist
-cd ../mobile && pnpm build  # 产物 mobile/dist
 ```
 
 构建前确认生产配置：
 
 - PC：`frontend/.env.production` 保持 `VITE_BASEURL=""`、`VITE_VERSION="v1"`
-- 移动端：`mobile/public/config.js` 保持 `baseURL: ''`、`version: 'v1'`
-- 两个前端的 Vite `base` 均为 `./`，可挂在 `/pc/`、`/mobile/` 子路径下
+- 电脑端 Vite `base` 为 `./`，可挂在 `/pc/` 子路径下
 
-把 `dist` 推到 `/var/www/bill/pc/`、`/var/www/bill/mobile/`（与 `deploy/nginx-linux.conf` 一致）。目录已在第 7 节建好则跳过：
+把 `dist` 推到 `/var/www/bill/pc/`（与 `deploy/nginx-linux.conf` 一致）。目录已在第 7 节建好则跳过：
 
 ```bash
-sudo mkdir -p /var/www/bill/pc /var/www/bill/mobile
+sudo mkdir -p /var/www/bill/pc
 sudo chown -R "$USER:$USER" /var/www/bill
 ```
 
@@ -245,10 +238,9 @@ sudo chown -R "$USER:$USER" /var/www/bill
 ```bash
 # 在开发机仓库根目录执行，公网 IP 换成实际值
 rsync -a --delete frontend/dist/ ubuntu@公网IP:/var/www/bill/pc/
-rsync -a --delete mobile/dist/   ubuntu@公网IP:/var/www/bill/mobile/
 ```
 
-也可用 Tabby SFTP：本地 `frontend/dist/*` → `/var/www/bill/pc/`，本地 `mobile/dist/*` → `/var/www/bill/mobile/`。上传后确认目录里有 `index.html`。
+也可用 Tabby SFTP：本地 `frontend/dist/*` → `/var/www/bill/pc/`。上传后确认目录里有 `index.html`。
 
 ## 10. 启动后端（PM2）
 
@@ -291,7 +283,6 @@ npx pm2 startup          # 开机自启，按提示复制执行生成的命令
 - `80` → `301` 跳转到 HTTPS
 - `443` 提供站点
 - `/pc/` → `/var/www/bill/pc/`
-- `/mobile/` → `/var/www/bill/mobile/`
 - `/api/` → `http://127.0.0.1:3000`（**不要**改成 `http://localhost:3000/` 带尾斜杠的写法，否则会把 `/api` 前缀剥掉）
 
 将本地 `deploy/nginx-linux.conf` 先传到 `~/bill/nginx-linux.conf`，再拷进 Nginx 配置目录：
@@ -348,8 +339,7 @@ ssl_certificate_key /etc/letsencrypt/live/your_domain.com/privkey.pem;
 ## 13. 验证部署
 
 1. 浏览器打开 `https://你的域名/pc/`，应看到 PC 端页面。
-2. 打开 `https://你的域名/mobile/`，应看到移动端页面。
-3. 开发者工具 → Network：登录等请求应为 `/api/v1/common/...`，状态码正常。
+2. 开发者工具 → Network：登录等请求应为 `/api/v1/common/...`，状态码正常。
 4. 出 404 / 502 时检查：
    - `sudo nginx -t` 与站点是否生效
    - `npx pm2 status`（在 `~/bill/server` 下）进程是否 online
@@ -364,7 +354,6 @@ ssl_certificate_key /etc/letsencrypt/live/your_domain.com/privkey.pem;
 ```bash
 # 前端：开发机仓库根目录重新 pnpm build，再覆盖静态目录
 rsync -a --delete frontend/dist/ ubuntu@公网IP:/var/www/bill/pc/
-rsync -a --delete mobile/dist/   ubuntu@公网IP:/var/www/bill/mobile/
 
 # 后端：更新 ~/bill/server 后
 cd ~/bill/server
@@ -434,8 +423,8 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 | 问题现象 | 可能原因 | 解决方法 |
 |----------|----------|----------|
 | 访问 IP 仍是 Nginx 默认页 | `conf.d/bill.conf` 未生效，或 default 站点占用 | 检查配置、关掉 default、`nginx -t` 后 reload |
-| 打开根路径 `/` 没有页面 | 站点只挂了 `/pc/` 和 `/mobile/` | 访问 `/pc/` 或 `/mobile/` |
-| 前端空白 / 静态资源 404 | `dist` 未同步到 `/var/www/bill/pc` 或 `/var/www/bill/mobile` | 确认有 `index.html`，且 Nginx 可读（目录属主为 ubuntu 即可） |
+| 打开根路径 `/` 没有页面 | 站点只挂了 `/pc/` | 访问 `/pc/` |
+| 前端空白 / 静态资源 404 | `dist` 未同步到 `/var/www/bill/pc` | 确认有 `index.html`，且 Nginx 可读（目录属主为 ubuntu 即可） |
 | API 502 Bad Gateway | 后端未启动或端口不是 3000 | `npx pm2 status`、看 `~/bill/server/logs` |
 | API 404 且路径少了 `/api` | `proxy_pass` 写成了 `http://localhost:3000/`（带尾斜杠） | 使用仓库模板：`proxy_pass http://bill_api;` |
 | MySQL connect failed，进程退出 | `.env` 中 `MYSQL_USER` / `MYSQL_PASSWORD` 错误或 MySQL 未启动 | 修正后重启，`systemctl status mysql` |
@@ -444,4 +433,4 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 
 ---
 
-部署完成后，PC 走 `/pc/`，移动端走 `/mobile/`，API 走同源 `/api/v1/`。
+部署完成后，PC 走 `/pc/`，API 走同源 `/api/v1/`。

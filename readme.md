@@ -14,7 +14,7 @@
 
 `server` 为后端服务，使用 `koa2` 框架进行开发
 
-`miniapp` 为微信小程序（原生 + TypeScript + Vant Weapp），与移动端 H5 并存，面向家庭成员记账。用微信开发者工具打开 `miniapp/` 目录，在工具里执行「工具 -> 构建 npm」后编译。开发版直连本机；体验版和正式版的接口根地址写在 `miniapp/.env` 的 `MINIAPP_BASE_URL`（参考 `miniapp/.env.example`），然后在 `miniapp` 目录执行 `npm run sync-env`。该文件和生成的 `env.local.ts` 都不提交。
+`miniapp` 为微信小程序（原生 + TypeScript + Vant Weapp），面向家庭成员记账。用微信开发者工具打开 `miniapp/` 目录，在工具里执行「工具 -> 构建 npm」后编译。开发版直连本机；体验版和正式版的接口根地址写在 `miniapp/.env` 的 `MINIAPP_BASE_URL`（参考 `miniapp/.env.example`），然后在 `miniapp` 目录执行 `npm run sync-env`。该文件和生成的 `env.local.ts` 都不提交。
 
 ## 二、安装依赖
 
@@ -54,7 +54,6 @@ AI_API_KEY=替换为新密钥
 
 ```bash
 cd frontend && pnpm build   # 产物在 frontend/dist
-cd mobile && pnpm build     # 产物在 mobile/dist
 ```
 
 2. 将构建产物部署到服务器（路径与 `deploy/nginx-linux.conf` 一致，可按需调整）：
@@ -62,7 +61,6 @@ cd mobile && pnpm build     # 产物在 mobile/dist
 | 来源 | 部署目录（示例） |
 |------|------------------|
 | `frontend/dist/*` | `/var/www/bill/pc/` |
-| `mobile/dist/*` | `/var/www/bill/mobile/` |
 
 3. 在 `~/bill/server/.env` 或进程环境变量中配置 `AI_API_KEY`、`JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`、`MYSQL_USER`、`MYSQL_PASSWORD`，再启动后端（默认端口 3000，进程名 `bill-manage`）：
 
@@ -74,7 +72,7 @@ cd ~/bill/server && pnpm run prd
    - **Linux**：见 [deploy/linux.md](deploy/linux.md)，配置模板 [deploy/nginx-linux.conf](deploy/nginx-linux.conf)。
    - **Windows**：见 [deploy/windows.md](deploy/windows.md)，配置复制到 `nginx/conf/bill.conf`，静态文件放到 `nginx/html/bill/`。
 
-访问地址：PC 为 `/pc/`，移动端为 `/mobile/`，API 为 `/api/v1/...`。生产环境 `VITE_BASEURL` 为空字符串时，浏览器与 Nginx 同源访问 `/api`，无需再经 Koa 提供静态页面。
+访问地址：PC 为 `/pc/`，API 为 `/api/v1/...`。生产环境 `VITE_BASEURL` 为空字符串时，浏览器与 Nginx 同源访问 `/api`，无需再经 Koa 提供静态页面。
 
 ## node版本
 

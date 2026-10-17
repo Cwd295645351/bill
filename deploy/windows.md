@@ -5,9 +5,8 @@
 ## 架构要点
 
 - PC：`frontend/dist` → Nginx `/pc/`
-- 移动端：`mobile/dist` → Nginx `/mobile/`
 - API：Koa（`server`，默认 `127.0.0.1:3000`）→ Nginx `/api/`
-- 生产前端 `VITE_BASEURL=""` / 移动端 `baseURL: ''`，与 Nginx 同源，不要把 `/api` 前缀用 `proxy_pass .../` 剥掉
+- 生产前端 `VITE_BASEURL=""`，与 Nginx 同源，不要把 `/api` 前缀用 `proxy_pass .../` 剥掉
 
 ## 目录结构
 
@@ -20,8 +19,7 @@ nginx/                          ← 例如 D:\tools\nginx
 │   └── bill.conf               ← 从本项目 deploy/nginx.conf 复制过来
 ├── html/
 │   └── bill/
-│       ├── pc/                 ← frontend/dist 全部文件
-│       └── mobile/             ← mobile/dist 全部文件
+│       └── pc/                 ← frontend/dist 全部文件
 ├── ssl/                        ← ssl 证书文件（模板使用 localhost.pem / localhost.key）
 ├── logs/
 └── nginx.exe
@@ -35,7 +33,6 @@ nginx/                          ← 例如 D:\tools\nginx
 
 ```bash
 cd E:/my-codes/bill/frontend && pnpm build
-cd E:/my-codes/bill/mobile && pnpm build
 ```
 
 **2. 复制静态文件到 nginx**
@@ -43,9 +40,7 @@ cd E:/my-codes/bill/mobile && pnpm build
 ```bash
 # 将 D:\tools\nginx 替换为你的 nginx 安装路径
 mkdir D:\tools\nginx\html\bill\pc
-mkdir D:\tools\nginx\html\bill\mobile
 xcopy /E /Y E:\my-codes\bill\frontend\dist\* D:\tools\nginx\html\bill\pc\
-xcopy /E /Y E:\my-codes\bill\mobile\dist\* D:\tools\nginx\html\bill\mobile\
 ```
 
 **3. 启用站点配置**
@@ -95,7 +90,6 @@ nginx.exe -s stop
 | 端 | 地址 |
 |----|------|
 | PC | https://localhost/pc/ |
-| 移动端 | https://localhost/mobile/ |
 | API | https://localhost/api/v1/... |
 
-根路径 `/` 没有页面，请走 `/pc/` 或 `/mobile/`。
+根路径 `/` 没有页面，请走 `/pc/`。

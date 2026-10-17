@@ -1,27 +1,28 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.1.0 → 1.2.0
-Bump rationale: 功能 004-multi-belong-users 需要改写原则 III 的归属人规则：
-  支出扩展为可选多名成员，收入收紧为只能选一名成员。属于对既有原则的实质性
-  扩充，不删除原则、不改变治理流程，按 MINOR 处理。历史数据中不存在归属「全部」
-  的收入，收紧收入规则不会让任何已有记录失效，因此不视为 MAJOR。
+Version change: 1.2.0 → 2.0.0
+Bump rationale: 原则 II 从「必须保留的客户端」中删除移动端 H5，原则 IV 从部署合同中
+  删除 `/mobile/`。这是对客户端集合和公开路径的删除性重定义，已有「手机网页必须
+  继续提供」的约束不再成立，按 MAJOR 处理。原则本身仍保留，治理流程未改。
 
 Principles amended:
-  III. 账本隔离与记账权限（归属人规则：支出可多选、收入仅单人、全员勾选不等于「全部」）
+  II. 多端边界不可混用（移除移动端 H5；手机记账只保留微信小程序）
+  IV. 公开契约向后兼容（生产静态资源不再包含 `/mobile/`；该路径直接关停）
 
 Added sections: 无
 Removed sections: 无
 
 Templates reviewed for alignment:
-  ✅ .specify/templates/plan-template.md — Constitution Check 对照原则 I–V 仍有效
-  ✅ .specify/templates/spec-template.md — 无归属人相关内容，无需修改
-  ✅ .specify/templates/tasks-template.md — 无归属人相关内容，无需修改
+  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V；
+     其中 Mobile 示例是通用脚手架，不是本项目的 H5 合同，无需修改
+  ✅ .specify/templates/spec-template.md — 无本项目 H5 路径，无需修改
+  ✅ .specify/templates/tasks-template.md — 无本项目 H5 路径，无需修改
 
 Follow-up TODOs:
-  - docs/用户手册.md 3.2「记账人与归属人」仍写「可选某个成员，也可选『全部』」，
-    须在 004 实现时按其 FR-019 同步更新。
-  - docs/用户手册.md 尚未记载小程序入口；改小程序用户可见行为时须同步手册。
+  - specs/005-remove-mobile-web/spec.md 的 Assumptions 已改为：宪章 2.0.0 已去掉手机网页，按该宪章直接关停。
+  - docs/用户手册.md、readme.md、deploy 文档已去掉手机网页入口。
+  - 线上重载 Nginx 并删除服务器上的手机网页静态目录，仍需按 quickstart 在部署时执行。
 -->
 
 # 记亿由薪 Constitution
@@ -43,22 +44,22 @@ Follow-up TODOs:
 
 ### II. 多端边界不可混用
 
-必须保留现有客户端分工，禁止无故引入平行技术栈或把一端的职责塞进另一端。
+必须保留现有客户端分工，禁止无故引入平行技术栈或把一端的职责塞进另一端。手机浏览器中的记账网页（移动端 H5）已经退出产品，不得恢复。
 
 | 端 | 目录 | 职责 |
 |----|------|------|
 | PC | `frontend/` | Vue 3 + Vite + TypeScript，功能完整 |
-| 移动端 H5 | `mobile/` | 以记账为主；**不支持注册** |
-| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp，与 H5 并存，面向家庭成员记账；**不支持注册** |
+| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp，面向家庭成员记账；**不支持注册** |
 | 后端 | `server/` | Koa2 + MySQL + Redis，公开 API |
 
-- PC / Mobile 前端按页面模块组织：每个页面自带 `api.ts` / `router.ts`，框架自动收集路由。新增页面必须遵循这一约定。
-- 小程序页面落在 `miniapp/miniprogram/pages/`，用微信开发者工具打开 `miniapp/`，执行「工具 -> 构建 npm」后编译。不要把小程序做成第二套 H5，也不要用小程序去实现 PC 专属能力。
-- 小程序当前能力与 H5 同级：账本查看/进入/加入、记账增改查、账号绑定。概览、预算、计划、类型配置仍以 PC 为准。
-- 规格必须写明改 PC、Mobile、Miniapp、API 中的哪一端；未点名的端默认不改。
-- 日常补记可在手机（H5 或小程序）完成；统计、分账、预算和类型配置请在电脑上操作。
+- PC 前端按页面模块组织：每个页面自带 `api.ts` / `router.ts`，框架自动收集路由。新增页面必须遵循这一约定。
+- 小程序页面落在 `miniapp/miniprogram/pages/`，用微信开发者工具打开 `miniapp/`，执行「工具 -> 构建 npm」后编译。不要把小程序做成另一套浏览器网页，也不要用小程序去实现 PC 专属能力。
+- 小程序当前能力：账本查看/进入/加入、记账增改查、账号绑定。概览、预算、计划、类型配置仍以 PC 为准。
+- 规格必须写明改 PC、Miniapp、API 中的哪一端；未点名的端默认不改。不再存在 Mobile 端。
+- 日常补记在微信小程序或电脑上完成；统计、分账、预算和类型配置在电脑上操作。
+- 不得新增另一套手机浏览器记账入口，也不得把已关停的移动端 H5 加回产品。
 
-**理由：** 四端部署路径和能力边界已经写进 README、用户手册与 Nginx / 微信公众平台配置，混用会造成功能回退和错误入口。
+**理由：** 客户端只剩电脑网页、微信小程序和后端。恢复手机网页，或把一端的职责塞进另一端，会造成功能回退和错误入口。
 
 ### III. 账本隔离与记账权限
 
@@ -81,12 +82,13 @@ Follow-up TODOs:
 对外 HTTP 契约与静态资源路径是部署合同，变更必须向后兼容，除非规格显式批准破坏性升级。
 
 - API 前缀为 `/api/v1`。
-- 生产静态资源：PC 为 `/pc/`，移动端 H5 为 `/mobile/`，API 由 Nginx 反代 `/api`。
+- 生产静态资源：PC 为 `/pc/`，API 由 Nginx 反代 `/api`。
+- `/mobile/` 已退出部署合同。该路径必须直接关停：不提供记账页面，不保留说明页，不跳转到 `/pc/` 或小程序。此关停是已批准的破坏性变更，不再要求向后兼容。
 - 小程序**不经 Nginx 托管静态页**，只请求同一套 `/api`。体验版/正式版的接口根地址必须是已备案的 HTTPS 域名（不含路径和末尾斜杠），并在微信公众平台配置为 request 合法域名。
 - 扩展现有 JSON 接口时，优先新增可选字段/参数，禁止无故改响应形状或删字段。
 - 数据库变更必须可回滚；禁止在无迁移方案的情况下改表。
 
-**理由：** PC、Mobile 与 Miniapp 同时依赖同一套 API，破坏性变更会让三端一起坏掉。
+**理由：** 电脑网页与小程序同时依赖同一套 API，破坏性变更会让两端一起坏掉。`/mobile/` 不再是这条合同的一部分。
 
 ### V. 密钥与部署约束
 
@@ -106,8 +108,8 @@ Follow-up TODOs:
 
 - 后端：`server/routes/<模块>` 负责路由，业务放 `server/database/services`。小程序登录绑定走 `server/routes/common` 的 `/wxLogin`、`/wxBind`。
 - PC 改动落在 `frontend/src/views/<页面>` 及其 `api.ts`。
-- 移动端 H5 改动落在 `mobile/src/views/<页面>`。
 - 小程序改动落在 `miniapp/miniprogram/pages/<页面>`，请求封装放 `miniapp/miniprogram/apis` 与 `utils`。
+- 移动端 H5（`mobile/`）不再维护。规划不得把新功能放进该目录，也不得恢复其入口。
 - 现有模块：账本（bill）、记账（transaction/record）、类型（billtype）、概览（overview）、预算（budget）、计划（plan）、资产（asset）、AI 解析（ai）、微信绑定（user_wechats）。
 
 ## 规格驱动工作流
@@ -127,4 +129,4 @@ Follow-up TODOs:
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 1.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-13
+**Version**: 2.0.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-17

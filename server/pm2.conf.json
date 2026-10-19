@@ -2,7 +2,7 @@
   
   "apps" : [{
     "name": "bill-manage",
-    "script": "server.js",
+    "script": "dist/server.js",
     "instances": 1,
     "cwd": "./",
     "ignore_watch": [
@@ -11,7 +11,6 @@
     "autorestart": true,
     "watch": true,
     "max_memory_restart": "500M",
-    "interpreter": "node_modules/babel-cli/bin/babel-node.js",
     "err_file": "logs/err.log",
     "out_file": "logs/out.log",
     "log_date_format": "YYYY-MM-DD HH:mm:ss",

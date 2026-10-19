@@ -1,28 +1,22 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.2.0 → 2.0.0
-Bump rationale: 原则 II 从「必须保留的客户端」中删除移动端 H5，原则 IV 从部署合同中
-  删除 `/mobile/`。这是对客户端集合和公开路径的删除性重定义，已有「手机网页必须
-  继续提供」的约束不再成立，按 MAJOR 处理。原则本身仍保留，治理流程未改。
+Version change: 2.0.0 → 2.1.0
+Bump rationale: MINOR。原则 II 的后端职责补充源码语言为 TypeScript，运行时仍是
+  Node.js + Koa 2 + MySQL + Redis。不改变三端分工，不改原则 I、III、IV、V。
 
 Principles amended:
-  II. 多端边界不可混用（移除移动端 H5；手机记账只保留微信小程序）
-  IV. 公开契约向后兼容（生产静态资源不再包含 `/mobile/`；该路径直接关停）
+  II. 多端边界不可混用（后端职责写明 TypeScript 源码；运行时栈不变）
 
 Added sections: 无
 Removed sections: 无
 
 Templates reviewed for alignment:
-  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V；
-     其中 Mobile 示例是通用脚手架，不是本项目的 H5 合同，无需修改
-  ✅ .specify/templates/spec-template.md — 无本项目 H5 路径，无需修改
-  ✅ .specify/templates/tasks-template.md — 无本项目 H5 路径，无需修改
+  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V，无需修改
+  ✅ .specify/templates/spec-template.md — 无源码语言合同，无需修改
+  ✅ .specify/templates/tasks-template.md — 无源码语言合同，无需修改
 
-Follow-up TODOs:
-  - specs/005-remove-mobile-web/spec.md 的 Assumptions 已改为：宪章 2.0.0 已去掉手机网页，按该宪章直接关停。
-  - docs/用户手册.md、readme.md、deploy 文档已去掉手机网页入口。
-  - 线上重载 Nginx 并删除服务器上的手机网页静态目录，仍需按 quickstart 在部署时执行。
+Follow-up TODOs: 无
 -->
 
 # 记亿由薪 Constitution
@@ -50,7 +44,7 @@ Follow-up TODOs:
 |----|------|------|
 | PC | `frontend/` | Vue 3 + Vite + TypeScript，功能完整 |
 | 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp，面向家庭成员记账；**不支持注册** |
-| 后端 | `server/` | Koa2 + MySQL + Redis，公开 API |
+| 后端 | `server/` | TypeScript 源码，运行时 Node.js + Koa 2 + MySQL + Redis，公开 API |
 
 - PC 前端按页面模块组织：每个页面自带 `api.ts` / `router.ts`，框架自动收集路由。新增页面必须遵循这一约定。
 - 小程序页面落在 `miniapp/miniprogram/pages/`，用微信开发者工具打开 `miniapp/`，执行「工具 -> 构建 npm」后编译。不要把小程序做成另一套浏览器网页，也不要用小程序去实现 PC 专属能力。
@@ -129,4 +123,4 @@ Follow-up TODOs:
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 2.0.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-17
+**Version**: 2.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-18

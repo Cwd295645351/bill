@@ -1,4 +1,5 @@
-# pnpm 11/12 在此读取构建脚本策略（不再读 package.json#pnpm 和 .npmrc）。
-# nodemon 仅开发用，明确禁止其 install 脚本，避免 ERR_PNPM_IGNORED_BUILDS。
+# pnpm 10.15+ / 11 / 12 在此读取构建脚本策略（不再读 package.json#pnpm 和 .npmrc）。
+# 未出现在下面的依赖若带 install 脚本，pnpm install 会因 ERR_PNPM_IGNORED_BUILDS 失败。
+# esbuild 是 tsx 的依赖，安装脚本只负责放好当前平台的可执行文件。
 allowBuilds:
-  nodemon: false
+  esbuild: true

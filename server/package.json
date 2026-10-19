@@ -3,11 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "start": "node bin/www",
-    "dev": "cross-env NODE_ENV=dev nodemon bin/www ",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc",
+    "dev": "cross-env NODE_ENV=dev tsx watch bin/www.ts",
+    "start": "node dist/bin/www.js",
     "prd": "cross-env NODE_ENV=production pm2 start pm2.conf.json",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "db:init": "node -e \"require('./database/index').connectDB().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})\""
+    "db:init": "node -e \"require('./dist/database/index').connectDB().then(()=>process.exit(0)).catch(e=>{console.error(e);process.exit(1)})\""
   },
   "dependencies": {
     "ali-oss": "^6.23.0",
@@ -35,8 +37,17 @@
     "uuid": "^9.0.1",
     "xss": "^1.0.14"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  },
   "devDependencies": {
+    "@types/debug": "^4.1.13",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/koa": "^2.15.2",
+    "@types/koa-router": "^7.4.9",
+    "@types/node": "^26.6.5",
     "cross-env": "^7.0.3",
-    "nodemon": "^1.19.1"
+    "tsx": "^4.23.15",
+    "typescript": "5"
   }
 }

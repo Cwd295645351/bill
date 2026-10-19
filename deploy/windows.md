@@ -62,10 +62,11 @@ include bill.conf;
 ```bash
 cd E:/my-codes/bill/server
 pnpm install
+pnpm run build
 pnpm run prd
 ```
 
-进程名：`bill-manage`（见 `server/pm2.conf.json`）。
+`pnpm run build` 编译失败时不要执行 `pnpm run prd`。进程名：`bill-manage`（见 `server/pm2.conf.json`，入口 `dist/server.js`）。
 
 **5. 启动 / 重载 Nginx**
 

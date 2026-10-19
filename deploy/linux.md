@@ -64,7 +64,7 @@
 运行时依赖：
 
 - **MySQL**：业务数据（库名默认 `bill`，启动时会自动建库并 `sync` 表结构）
-- **Redis**：Session 存储（`~/bill/server/app.js` 通过 `koa-redis` 连接）
+- **Redis**：Session 存储（源码 `~/bill/server/app.ts` 通过 `koa-redis` 连接；运行的是编译结果）
 
 Node 版本：**18 及以上**，包管理器：**pnpm**。
 
@@ -200,7 +200,7 @@ REDIS_HOST=127.0.0.1
 REDIS_PORT=6379
 ```
 
-首次启动时 `~/bill/server/database/index.js` 会：
+首次启动时，编译产物会执行源码 `~/bill/server/database/index.ts` 里的连接逻辑：
 
 1. `CREATE DATABASE IF NOT EXISTS bill`
 2. `sequelize.authenticate()`
@@ -249,16 +249,17 @@ rsync -a --delete frontend/dist/ ubuntu@公网IP:/var/www/bill/pc/
 ```bash
 cd ~/bill/server
 pnpm install
+pnpm run build        # 编译失败就不要启动
 
 # 可选：先手动跑一次确认能连上 MySQL / Redis
-pnpm start            # 等价于 node bin/www，默认端口 3000
+pnpm start            # 等价于 node dist/bin/www.js，默认端口 3000
 # 正常后 Ctrl+C 停止
 
-# 生产守护进程（进程名 bill-manage，入口 server.js → bin/www）
+# 生产守护进程（进程名 bill-manage，入口 dist/server.js → dist/bin/www.js）
 pnpm run prd
 ```
 
-`pnpm run prd` 实际执行：`cross-env NODE_ENV=production pm2 start pm2.conf.json`。
+`pnpm run prd` 实际执行：`cross-env NODE_ENV=production pm2 start pm2.conf.json`。编译失败时不要执行这一步。
 
 常用命令：
 
@@ -272,7 +273,7 @@ npx pm2 startup          # 开机自启，按提示复制执行生成的命令
 
 日志文件：`~/bill/server/logs/err.log`、`~/bill/server/logs/out.log`；生产访问日志：`~/bill/server/logs/access.log`。
 
-> 不要用 `pm2 start app.js --name koa-api`。正确入口是 `server.js`，进程名是 `bill-manage`。
+> 不要把源码直接交给 pm2。正确入口是 `dist/server.js`（拉起 `dist/bin/www.js`），进程名是 `bill-manage`。源码在 `app.ts`、`server.ts`。
 
 ## 11. 配置 Nginx
 
@@ -358,6 +359,7 @@ rsync -a --delete frontend/dist/ ubuntu@公网IP:/var/www/bill/pc/
 # 后端：更新 ~/bill/server 后
 cd ~/bill/server
 pnpm install
+pnpm run build        # 编译失败就不要重启
 npx pm2 restart bill-manage
 ```
 

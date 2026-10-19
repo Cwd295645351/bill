@@ -10,6 +10,7 @@ export const useAddInfo = (getList: Function) => {
 
   const $addForm = ref()
   const btnLoading = ref(false)
+  const addVisible = ref(false)
 
   const info = ref<PlanForm>({
     billId: '',
@@ -34,6 +35,7 @@ export const useAddInfo = (getList: Function) => {
         if (err) return
         if (res.retCode === 0) {
           ElMessage.success('新增计划成功')
+          addVisible.value = false
           getList()
         } else {
           ElMessage.error('新增计划失败，' + res.message)
@@ -44,5 +46,5 @@ export const useAddInfo = (getList: Function) => {
     })
   }
 
-  return { $addForm, info, btnLoading, reset, submitAdd }
+  return { $addForm, info, btnLoading, addVisible, reset, submitAdd }
 }

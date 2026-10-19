@@ -2,7 +2,7 @@
   <div class="plan-module">
     <!-- 新增弹窗按钮 -->
     <div class="tool-container">
-      <el-popover placement="right-start" :width="240" trigger="click" @before-enter="reset">
+      <el-popover v-model:visible="addVisible" placement="right-start" :width="240" trigger="click" @before-enter="reset">
         <template #reference>
           <div class="item">新增</div>
         </template>
@@ -14,7 +14,8 @@
             <el-input v-model="info.context" clearable placeholder="请输入"></el-input>
           </el-form-item>
           <el-form-item prop="priority" required size="small" label="优先级">
-            <el-select style="width: 100%" v-model="info.priority" placeholder="请选择">
+            <!-- 下拉挂在弹层内部，避免点选项被当成外部点击而关闭弹窗 -->
+            <el-select style="width: 100%" v-model="info.priority" placeholder="请选择" :teleported="false">
               <el-option label="高" :value="1"></el-option>
               <el-option label="中" :value="2"></el-option>
               <el-option label="低" :value="3"></el-option>
@@ -83,7 +84,7 @@ import { useEditInfo } from './hooks/use-edit-info'
 import { useDeleteInfo } from './hooks/use-delete-info'
 
 const { getList, planList } = useList()
-const { $addForm, info, btnLoading, reset, submitAdd } = useAddInfo(getList)
+const { $addForm, info, btnLoading, addVisible, reset, submitAdd } = useAddInfo(getList)
 const { editDialog, $editForm, editInfo, btnLoading: editLoading, showEdit, submitEdit } = useEditInfo(getList)
 const { deleteDialog, showDelete, submitDelete } = useDeleteInfo(getList)
 

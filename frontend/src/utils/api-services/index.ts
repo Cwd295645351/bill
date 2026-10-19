@@ -12,3 +12,4 @@ export const OVERVIEW = generator(`/api/${version}/overview`) // 概览网关
 export const PLAN = generator(`/api/${version}/plan`) // 计划网关
 export const BILLTYPE = generator(`/api/${version}/billtype`) // 类型管理网关
 export const AI = generator(`/api/${version}/ai`) // AI 解析网关
+export const ASSET = generator(`/api/${version}/asset`) // 家庭资产网关

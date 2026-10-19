@@ -1,7 +1,6 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Asset, AssetRecord } from '../../database/index'
+import { Asset, Member } from '../../database/index'
 import dayjs from 'dayjs'
-import { Op } from 'sequelize'
 import { getLatestSnapshotsBefore } from '../../database/services/assetRecordService'
 
 /** 获取资产概览（首页顶部摘要 + 变化柱状图）
@@ -32,9 +31,10 @@ export const getAssetOverview = async ({ billId, memberId }: Row) => {
 
   const assets = await Asset.findAll({ where: query })
   if (!assets.length) {
+    const referenceDate = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
     return [null, {
       netAmount: 0, assetAmount: 0, debtAmount: 0,
-      referenceDate: '', totalChange: 0, categoryChanges: []
+      referenceDate, totalChange: 0, categoryChanges: []
     }]
   }
 
@@ -77,12 +77,15 @@ export const getAssetOverview = async ({ billId, memberId }: Row) => {
   const prevSnapshots = await getLatestSnapshotsBefore(assetIds, refTimestamp)
 
   const prevByType: Record<string, number> = {}
+  let prevAssetAmount = 0
   prevSnapshots.forEach((snap: Row) => {
     const asset = assets.find((a: Row) => a.id === snap.assetId)
     if (!asset) return
     const type = asset.type || ''
+    const amount = Math.abs(Number(snap.amount) || 0)
     if (!prevByType[type]) prevByType[type] = 0
-    prevByType[type] += Math.abs(Number(snap.amount) || 0)
+    prevByType[type] += amount
+    if (!asset.isDebt) prevAssetAmount += amount
   })
 
   // 构造各类型变化数据
@@ -99,9 +102,8 @@ export const getAssetOverview = async ({ billId, memberId }: Row) => {
     }
   })
 
-  const prevTotal = Object.values(prevByType).reduce((s: number, v: number) => s + v, 0)
-  const currentTotal = assetAmount + debtAmount
-  const totalChange = currentTotal - prevTotal
+  // 总资产变化只比较非负债，负债单独出现在分类变化里
+  const totalChange = assetAmount - prevAssetAmount
 
   return [null, {
     netAmount,
@@ -114,76 +116,85 @@ export const getAssetOverview = async ({ billId, memberId }: Row) => {
 }
 
 /**
- * 获取桑基图数据
+ * 获取桑基图数据。负债只从左侧汇入总资产，类型节点使用中文名。
  */
 export const getSankeyData = async ({ billId, memberId }: Row) => {
-  const query: WhereBag = { isDel: false }
-  if (billId) query.billId = billId
+  if (!billId) return ['账本id不能为空', null]
+  const query: WhereBag = { billId, isDel: false }
   if (memberId) query.memberId = memberId
 
-  const assets = await Asset.findAll({ where: query })
+  const assets = await Asset.findAll({
+    where: query,
+    include: [{ model: Member, as: 'member' }]
+  })
 
+  const typeName: Record<string, string> = {
+    living: '流动资金',
+    steady: '固定资产',
+    longterm: '投资理财',
+    receivable: '应收款'
+  }
   let totalAsset = 0
   let totalDebt = 0
-  const typeMap: Record<string, number> = {}
-  const nodes: { name?: string }[] = []
-  const links: { source?: string; target?: string; value: number }[] = []
+  const typeAmount: Record<string, number> = {}
+  const nodes: { id: string; name: string; memberName?: string; detail?: string; kind: string }[] = []
+  const links: { source: string; target: string; value: number }[] = []
+  const debtNames: string[] = []
+  const debtMembers = new Set<string>()
 
   assets.forEach((asset: Row) => {
-    const amount = Number(asset.latestAmount) || 0
-    const type = String(asset.type || '')
+    const amount = Math.abs(Number(asset.latestAmount) || 0)
+    if (amount <= 0) return
+    const memberName = asset.member?.name ? String(asset.member.name) : ''
     if (asset.isDebt) {
-      totalDebt += Math.abs(amount)
-    } else {
-      totalAsset += amount
+      totalDebt += amount
+      if (asset.name) debtNames.push(String(asset.name))
+      if (memberName) debtMembers.add(memberName)
+      return
     }
-
-    if (!typeMap[type]) typeMap[type] = 0
-    typeMap[type] += amount
-
-    nodes.push({ name: asset.name || '' })
-    links.push({ source: type, target: asset.name || '', value: Math.abs(amount) })
+    const label = typeName[String(asset.type || '')] || String(asset.type || '')
+    totalAsset += amount
+    typeAmount[label] = (typeAmount[label] || 0) + amount
+    const id = `a-${asset.id}`
+    nodes.push({ id, name: asset.name || '', memberName, kind: 'asset' })
+    links.push({ source: `t-${label}`, target: id, value: amount })
   })
 
-  const netAsset = totalAsset - totalDebt
-
-  const summaryNodes: { name: string }[] = [
-    { name: '净资产' },
-    { name: '负债' },
-    { name: '总资产' },
-    { name: '流动资金' },
-    { name: '固定资金' },
-    { name: '投资理财' },
-    { name: '应收款' }
-  ]
-
-  const summaryLinks: { source: string; target: string; value: number }[] = [
-    { source: '净资产', target: '总资产', value: netAsset },
-    { source: '负债', target: '总资产', value: totalDebt }
-  ]
-
-  Object.keys(typeMap).forEach((type) => {
-    summaryLinks.push({ source: '总资产', target: type, value: Math.abs(typeMap[type]) })
-  })
-
-  return [
-    null,
+  const netWorth = totalAsset - totalDebt
+  nodes.unshift(
+    { id: 'net', name: '净资产', kind: 'summary' },
     {
-      nodes: [...new Set([...summaryNodes, ...nodes].map((n) => n.name))].map((name) => ({ name })),
-      links: [...summaryLinks, ...links].filter((l) => l.value > 0)
-    }
-  ]
+      id: 'debt',
+      name: '负债',
+      kind: 'summary',
+      detail: debtNames.join('、'),
+      memberName: debtMembers.size === 1 ? [...debtMembers][0] : ''
+    },
+    { id: 'total', name: '总资产', kind: 'summary' }
+  )
+  Object.keys(typeAmount).forEach((label) => {
+    if (typeAmount[label] <= 0) return
+    nodes.push({ id: `t-${label}`, name: label, kind: 'type' })
+    links.push({ source: 'total', target: `t-${label}`, value: typeAmount[label] })
+  })
+  if (netWorth > 0) links.push({ source: 'net', target: 'total', value: netWorth })
+  if (totalDebt > 0) links.push({ source: 'debt', target: 'total', value: totalDebt })
+
+  return [null, { nodes, links: links.filter((link) => link.value > 0) }]
 }
 
 /**
  * 获取四笔钱配置概览
  */
 export const getFourMoneySummary = async ({ billId, memberId }: Row) => {
-  const query: WhereBag = { isDel: false }
-  if (billId) query.billId = billId
+  if (!billId) return ['账本id不能为空', null]
+  const query: WhereBag = { billId, isDel: false }
   if (memberId) query.memberId = memberId
 
-  const assets = await Asset.findAll({ where: query })
+  const assets = await Asset.findAll({
+    where: query,
+    include: [{ model: Member, as: 'member' }]
+  })
 
   const summary: Record<string, {
     name: string
@@ -226,71 +237,98 @@ export const getFourMoneySummary = async ({ billId, memberId }: Row) => {
  * 获取资产月历数据
  */
 export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
-  const query: WhereBag = { isDel: false }
-  if (billId) query.billId = billId
+  if (!billId) return ['账本id不能为空', null]
+  const yearNum = Number(year) || dayjs().year()
+  const query: WhereBag = { billId, isDel: false }
   if (memberId) query.memberId = memberId
 
   const assets = await Asset.findAll({ where: query })
-  const assetIds = assets.map((a: Row) => a.id)
+  const assetIds = assets
+    .map((asset: Row) => asset.id)
+    .filter((id: string | undefined): id is string => Boolean(id))
 
-  const result: Record<string, { current: number; yearChange: number; lastUpdate: string; monthlyData: number[] }> = {
-    '流动资金': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '投资理财': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '固定资产': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '应收款': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '总资产': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '总负债': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) },
-    '总净资产': { current: 0, yearChange: 0, lastUpdate: '', monthlyData: new Array(12).fill(0) }
+  const typeName: Record<string, string> = {
+    living: '流动资金',
+    steady: '固定资产',
+    longterm: '投资理财',
+    receivable: '应收款'
   }
+  const categoryKeys = ['流动资金', '投资理财', '固定资产', '应收款', '总资产', '总负债', '总净资产']
+  const blank = () => ({
+    current: null as number | null,
+    yearChange: null as number | null,
+    lastUpdate: '',
+    monthlyData: Array.from({ length: 12 }, () => null as number | null)
+  })
+  const result: Record<string, ReturnType<typeof blank>> = {}
+  categoryKeys.forEach((key) => {
+    result[key] = blank()
+  })
 
-  for (let m = 0; m < 12; m++) {
-    const monthEnd = dayjs(`${year}-${m + 1}-01`).endOf('month').valueOf()
+  const now = dayjs()
+  const lastMonth = yearNum === now.year() ? now.month() : 11
 
-    const latest = await getLatestSnapshotsBefore(assetIds, monthEnd)
+  for (let m = 0; m <= lastMonth; m++) {
+    const monthEnd = dayjs(`${yearNum}-${String(m + 1).padStart(2, '0')}-01`).endOf('month').valueOf()
+    const latest = assetIds.length ? await getLatestSnapshotsBefore(assetIds, monthEnd) : []
+    const sums: Record<string, number> = {}
+    const seen: Record<string, boolean> = {}
+    const lastByKey: Record<string, string> = {}
+    let assetSum = 0
+    let debtSum = 0
+    let seenAsset = false
+    let seenDebt = false
 
     latest.forEach((snap: Row) => {
-      const asset = assets.find((a: Row) => a.id === snap.assetId)
+      const asset = assets.find((item: Row) => item.id === snap.assetId)
       if (!asset) return
-
-      const amt = Number(snap.amount) || 0
-      const type = asset.type || ''
-      const cell = result[type]
-
-      if (cell) cell.monthlyData[m] += amt
-
+      const amount = Math.abs(Number(snap.amount) || 0)
+      const dateStr = dayjs(Number(snap.date)).format('YYYY-MM-DD')
+      const touch = (key: string) => {
+        if (!lastByKey[key] || dateStr > lastByKey[key]) lastByKey[key] = dateStr
+      }
       if (asset.isDebt) {
-        result['总负债'].monthlyData[m] += Math.abs(amt)
-      } else {
-        result['总资产'].monthlyData[m] += amt
+        debtSum += amount
+        seenDebt = true
+        touch('总负债')
+        touch('总净资产')
+        return
       }
-
-      const dateStr = dayjs(snap.date).format('YYYY-MM-DD')
-      if (cell && (!cell.lastUpdate || dateStr > cell.lastUpdate)) {
-        cell.lastUpdate = dateStr
+      const label = typeName[String(asset.type || '')]
+      if (label) {
+        sums[label] = (sums[label] || 0) + amount
+        seen[label] = true
+        touch(label)
       }
-      // 同步更新汇总类别的 lastUpdate
-      if (asset.isDebt) {
-        if (!result['总负债'].lastUpdate || dateStr > result['总负债'].lastUpdate) {
-          result['总负债'].lastUpdate = dateStr
-        }
-      } else {
-        if (!result['总资产'].lastUpdate || dateStr > result['总资产'].lastUpdate) {
-          result['总资产'].lastUpdate = dateStr
-        }
-      }
-      if (!result['总净资产'].lastUpdate || dateStr > result['总净资产'].lastUpdate) {
-        result['总净资产'].lastUpdate = dateStr
-      }
+      assetSum += amount
+      seenAsset = true
+      touch('总资产')
+      touch('总净资产')
     })
 
-    result['总净资产'].monthlyData[m] = result['总资产'].monthlyData[m] - result['总负债'].monthlyData[m]
+    categoryKeys.slice(0, 4).forEach((label) => {
+      result[label].monthlyData[m] = seen[label] ? sums[label] || 0 : null
+    })
+    result['总资产'].monthlyData[m] = seenAsset ? assetSum : null
+    result['总负债'].monthlyData[m] = seenDebt ? debtSum : null
+    result['总净资产'].monthlyData[m] = seenAsset || seenDebt ? assetSum - debtSum : null
+
+    Object.keys(lastByKey).forEach((key) => {
+      if (result[key].monthlyData[m] == null) return
+      if (!result[key].lastUpdate || lastByKey[key] > result[key].lastUpdate) {
+        result[key].lastUpdate = lastByKey[key]
+      }
+    })
   }
 
-  Object.keys(result).forEach(key => {
-    const data = result[key].monthlyData
-    const currentMonth = new Date().getFullYear() == year ? new Date().getMonth() : 11
-    result[key].current = data[currentMonth]
-    result[key].yearChange = result[key].current - data[0]
+  const roundCell = (value: number) => Math.round(value * 100) / 100
+  categoryKeys.forEach((key) => {
+    const current = result[key].monthlyData[lastMonth]
+    const january = result[key].monthlyData[0]
+    result[key].current = current == null ? null : roundCell(current)
+    // 较年初只和 1 月比。1 月没有盘点时按 0，不能拿本月自己当基准，否则差额会变成 0
+    result[key].yearChange = current == null ? null : roundCell(current - (january ?? 0))
+    result[key].monthlyData = result[key].monthlyData.map((value) => (value == null ? null : roundCell(value)))
   })
 
   return [null, result]

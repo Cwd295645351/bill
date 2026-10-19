@@ -1,6 +1,16 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Asset, AssetRecord } from '../../database/index'
+import { AssetRecord } from '../../database/index'
 import { Op } from 'sequelize'
+import { toTimestamp } from '../../utils/dateUtil'
+import { placeRecordDate, recomputeLatestAmount } from '../../database/services/assetRecordService'
+
+/** 盘点金额必须大于 0 */
+const readAmount = (amount: unknown): [string, null] | [null, number] => {
+  if (amount === undefined || amount === null || amount === '') return ['金额不能为空', null]
+  const value = Number(amount)
+  if (!Number.isFinite(value) || value <= 0) return ['盘点金额必须大于0', null]
+  return [null, value]
+}
 
 /** 添加资产记录
  * @param {string} assetId 资产id
@@ -10,25 +20,20 @@ import { Op } from 'sequelize'
  */
 export const addAssetRecord = async ({ assetId, amount, date }: Row) => {
   if (!assetId) return ['资产id不能为空', null]
-  if (amount === undefined || amount === null) return ['金额不能为空', null]
-  if (!date) return ['日期不能为空', null]
+  const [amountErr, value] = readAmount(amount)
+  if (amountErr || value == null) return [amountErr, null]
+  const ts = toTimestamp(date as string | number)
+  if (ts == null) return ['日期不能为空', null]
 
+  const placed = await placeRecordDate(String(assetId), ts)
   const record = await AssetRecord.create({
     assetId,
-    amount,
-    date: date
+    amount: value,
+    date: placed
   })
-
   if (!record) return ['盘点记录创建失败', null]
-
-  const [affected] = await Asset.update(
-    { latestAmount: amount, lastUpdatedDate: date },
-    { where: { id: assetId, isDel: false } }
-  )
-  const updateRes = affected ? await Asset.findByPk(assetId) : null
-
-  if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
-
+  const latest = await recomputeLatestAmount(String(assetId))
+  if (!latest) return ['资产主表更新失败，资产可能已被删除', null]
   return [null, record]
 }
 
@@ -42,27 +47,17 @@ export const addAssetRecord = async ({ assetId, amount, date }: Row) => {
 export const editAssetRecord = async ({ id, assetId, amount, date }: Row) => {
   if (!id) return ['资产记录id不能为空', null]
   if (!assetId) return ['资产id不能为空', null]
-  if (amount === undefined || amount === null) return ['金额不能为空', null]
-  if (!date) return ['日期不能为空', null]
+  const [amountErr, value] = readAmount(amount)
+  if (amountErr || value == null) return [amountErr, null]
+  const ts = toTimestamp(date as string | number)
+  if (ts == null) return ['日期不能为空', null]
 
-  const [affected] = await AssetRecord.update({ amount, date }, { where: { id, isDel: false } })
+  const placed = await placeRecordDate(String(assetId), ts, String(id))
+  const [affected] = await AssetRecord.update({ amount: value, date: placed }, { where: { id, isDel: false } })
   const res = affected ? await AssetRecord.findByPk(id) : null
   if (!res) return ['编辑资产记录失败，资产记录可能已被删除', null]
-
-  const latestRecord = await AssetRecord.findOne({ 
-    where: { assetId, isDel: false },
-    order: [['date', 'DESC']]
-  })
-
-  if (latestRecord) {
-    const [assetAffected] = await Asset.update(
-      { latestAmount: latestRecord.amount, lastUpdatedDate: latestRecord.date },
-      { where: { id: assetId, isDel: false } }
-    )
-    const updateRes = assetAffected ? await Asset.findByPk(assetId) : null
-    if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
-  }
-
+  const latest = await recomputeLatestAmount(String(assetId))
+  if (!latest) return ['资产主表更新失败，资产可能已被删除', null]
   return [null, res]
 }
 
@@ -83,18 +78,8 @@ export const delAssetRecord = async ({ id }: Row) => {
 
   const [affected] = await AssetRecord.update({ isDel: true }, { where: { id, isDel: false } })
   if (!affected) return ['删除资产记录失败，资产记录可能已被删除', null]
-
-  const latestRecord = await AssetRecord.findOne({ where: { assetId, isDel: false }, order: [['date', 'DESC']] })
-  
-  if (latestRecord) {
-    const [assetAffected] = await Asset.update(
-      { latestAmount: latestRecord.amount, lastUpdatedDate: latestRecord.date },
-      { where: { id: assetId, isDel: false } }
-    )
-    const updateRes = assetAffected ? await Asset.findByPk(assetId) : null
-    if (!updateRes) return ['资产主表更新失败，资产可能已被删除', null]
-  }
-
+  const latest = await recomputeLatestAmount(String(assetId))
+  if (!latest) return ['资产主表更新失败，资产可能已被删除', null]
   return [null, true]
 }
 

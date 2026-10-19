@@ -1,6 +1,7 @@
-import type { Row } from '../../types/domain'
-import { sequelize, AssetRecord } from '../index'
+import type { Row, WhereBag } from '../../types/domain'
+import { sequelize, Asset, AssetRecord } from '../index'
 import { Op, QueryTypes } from 'sequelize'
+import dayjs from 'dayjs'
 
 /**
  * 获取每个资产在指定时间点之前的最新快照（参数化查询，防 SQL 注入）
@@ -48,4 +49,43 @@ const getRecentRecordsGrouped = async (assetIds: (string | null | undefined)[], 
   return map
 }
 
-export { getLatestSnapshotsBefore, getRecentRecordsGrouped }
+/**
+ * 同一自然日内，把时间放在已有盘点之后 1 毫秒，并且不跨出这一天。
+ * 这一天还没有别的盘点时，保留调用方给出的时间。
+ * @param assetId 资产 id
+ * @param dateInput 用户选择的日期时间戳
+ * @param excludeId 修改时排除自己
+ */
+const placeRecordDate = async (assetId: string, dateInput: number, excludeId?: string) => {
+  const start = dayjs(dateInput).startOf('day').valueOf()
+  const end = dayjs(dateInput).endOf('day').valueOf()
+  const where: WhereBag = { assetId, isDel: false, date: { [Op.gte]: start, [Op.lte]: end } }
+  if (excludeId) where.id = { [Op.ne]: excludeId }
+  const latest = await AssetRecord.findOne({ where, order: [['date', 'DESC']] })
+  if (!latest) {
+    const ts = Number(dateInput)
+    if (!Number.isFinite(ts) || ts < start || ts > end) return start
+    return ts
+  }
+  const next = Number(latest.date) + 1
+  return next > end ? end : next
+}
+
+/**
+ * 按未删除盘点的日期从新到旧，重算当前金额和最近更新日期。
+ * @param assetId 资产 id
+ */
+const recomputeLatestAmount = async (assetId: string) => {
+  const latest = await AssetRecord.findOne({
+    where: { assetId, isDel: false },
+    order: [['date', 'DESC']]
+  })
+  if (!latest) return null
+  await Asset.update(
+    { latestAmount: latest.amount, lastUpdatedDate: latest.date },
+    { where: { id: assetId, isDel: false } }
+  )
+  return latest
+}
+
+export { getLatestSnapshotsBefore, getRecentRecordsGrouped, placeRecordDate, recomputeLatestAmount }

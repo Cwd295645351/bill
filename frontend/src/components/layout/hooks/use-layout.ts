@@ -28,6 +28,7 @@ export const useLayout = () => {
     { label: '概览', value: 'overview', route: '/layout/overview' },
     { label: '预算', value: 'budget', route: '/layout/budget' },
     { label: '计划', value: 'plan', route: '/layout/plan' },
+    { label: '资产', value: 'asset', route: '/layout/asset' },
     // { label: '设置', value: 'setting', route: '/layout/record' }
   ]
   const menus = ref<Menu[]>(billsMenu)

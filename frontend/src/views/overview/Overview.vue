@@ -29,18 +29,6 @@
           <el-form-item prop="endDate" required size="small" label="结束时间">
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="x" type="date" placeholder="结束时间"> </el-date-picker>
           </el-form-item>
-          <template v-for="rule in quantityRules" :key="rule.id">
-            <template v-if="belongCondition.quantityInputs[rule.id]">
-              <el-form-item size="small" :label="rule.name">
-                <el-input v-model="belongCondition.quantityInputs[rule.id].quantity" :placeholder="`请输入${rule.name}`" />
-              </el-form-item>
-              <el-form-item size="small" :label="`${rule.name}归属`">
-                <el-select style="width: 100%" v-model="belongCondition.quantityInputs[rule.id].belongUserId" placeholder="选择归属人">
-                  <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
-                </el-select>
-              </el-form-item>
-            </template>
-          </template>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
           </el-form-item>
@@ -54,22 +42,44 @@
       <el-scrollbar height="100%">
         <div class="per-year-container">
           <div class="per-year-chart" id="perYearChart"></div>
-          <div class="table-container">
-            <div class="line bold">
-              <div class="line-item year">年份</div>
-              <div class="line-item" v-for="item in perYearCostDatas.type" :key="item">{{ item }}</div>
-              <div class="line-item total">总消费</div>
-              <div class="line-item total">总支出</div>
-            </div>
-            <div class="line" v-for="(item, index) in perYearCostDatas.datas" :key="item.name" :style="{ 'background-color': colorOptions[index] }">
-              <div class="line-item year bold">{{ item.name }}</div>
-              <div class="line-item" v-for="(ite, idx) in item.datas" :key="idx">
-                {{ ite }}
-              </div>
-              <div class="line-item total">{{ item.consumption ? item.consumption.toFixed(2) : '0.00' }}</div>
-              <div class="line-item total">{{ item.total ? item.total.toFixed(2) : '0.00' }}</div>
-            </div>
-          </div>
+          <el-table :data="perYearCostDatas.datas" :row-style="getRowStyle" border class="per-year-table">
+            <el-table-column prop="name" label="年份" align="center" width="90" fixed="left">
+              <template #default="{ row }">
+                <span class="bold">{{ row.name }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="总消费" align="center" min-width="110">
+              <template #default="{ row }">
+                {{ row.consumption != null ? Number(row.consumption).toFixed(2) : '0.00' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="总支出" align="center" min-width="110">
+              <template #default="{ row }">
+                {{ row.total != null ? Number(row.total).toFixed(2) : '0.00' }}
+              </template>
+            </el-table-column>
+            <el-table-column v-for="member in perYearCostDatas.members" :key="'expense_' + member.userId" :label="`${member.name}支出`" align="center" min-width="110">
+              <template #default="{ row }">
+                {{ row.memberExpenses?.[member.name] != null ? Number(row.memberExpenses[member.name]).toFixed(2) : '0.00' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="总收入" align="center" min-width="110">
+              <template #default="{ row }">
+                {{ row.totalIncome != null ? Number(row.totalIncome).toFixed(2) : '0.00' }}
+              </template>
+            </el-table-column>
+            <el-table-column v-for="member in perYearCostDatas.members" :key="'income_' + member.userId" :label="`${member.name}收入`" align="center" min-width="110">
+              <template #default="{ row }">
+                {{ row.memberIncomes?.[member.name] != null ? Number(row.memberIncomes[member.name]).toFixed(2) : '0.00' }}
+              </template>
+            </el-table-column>
+
+            <el-table-column v-for="(item, idx) in perYearCostDatas.type" :key="item" :label="item" align="center" min-width="105">
+              <template #default="{ row }">
+                {{ row.datas?.[idx] }}
+              </template>
+            </el-table-column>
+          </el-table>
         </div>
         <div class="belong-type-container">
           <div class="belong-type-chart" v-for="i in chartCount" :key="i" :id="'belongTypeChart' + (i - 1)"></div>
@@ -102,6 +112,17 @@ const { users, quantityRules, belongCondition, belongUsers, settlementLines, get
   useTypeChart({ colorOptions })
 /** 明细只展示收入。分账按区间内的支出计算，不看这些行是否出现在屏幕上 */
 const incomeDetails = computed(() => belongUsers.value.details.filter((item) => item.type !== 1))
+
+/** 表格行背景色匹配年度折线/柱状图色彩 */
+const getRowStyle = ({ rowIndex }: { rowIndex: number }) => {
+  if (colorOptions[rowIndex]) {
+    return {
+      backgroundColor: colorOptions[rowIndex],
+      '--el-table-tr-bg-color': colorOptions[rowIndex],
+    }
+  }
+  return {}
+}
 </script>
 <style lang="scss" scoped>
 .overview-module {
@@ -119,7 +140,7 @@ const incomeDetails = computed(() => belongUsers.value.details.filter((item) => 
     color: #18a356;
   }
   .belong-user-module {
-    width: 280px;
+    width: 200px;
     height: 100%;
     margin-right: 10px;
     border-radius: 8px;
@@ -149,7 +170,6 @@ const incomeDetails = computed(() => belongUsers.value.details.filter((item) => 
       flex: 1;
       min-height: 0;
       .detail-item {
-        height: 35px;
         line-height: 35px;
         font-size: 20px;
         border-bottom: 1px dotted #ccc;
@@ -191,7 +211,7 @@ const incomeDetails = computed(() => belongUsers.value.details.filter((item) => 
       box-shadow: 1px 1px 5px #ddd;
       border-radius: 8px;
       width: 100%;
-      height: 50cqh;
+      height: 572px;
       padding: 10px;
       display: flex;
       flex-direction: column;
@@ -201,37 +221,21 @@ const incomeDetails = computed(() => belongUsers.value.details.filter((item) => 
         width: 100%;
         margin-bottom: 20px;
       }
-      .table-container {
+      .per-year-table {
         width: 100%;
-        height: 122px;
-        border: 1px solid #aaa;
+        height: 194px;
+        font-size: 16px;
         .bold {
           font-weight: bold;
         }
-
-        .line {
-          height: 30px;
-          line-height: 30px;
-          display: flex;
-          align-items: center;
-          & + .line {
-            border-top: 1px solid #aaa;
-          }
-          .line-item {
-            flex: 1;
-            min-width: auto;
-            height: 100%;
-            text-align: center;
-            &.total {
-              flex: 1.1;
-            }
-            &.year {
-              flex: 0.7;
-            }
-            & + .line-item {
-              border-left: 1px solid #aaa;
-            }
-          }
+        :deep(.el-table__cell) {
+          font-size: 16px;
+          color: #333;
+          padding: 4px 0;
+        }
+        :deep(th.el-table__cell) {
+          color: #333;
+          font-weight: bold;
         }
       }
     }

@@ -15,3 +15,7 @@ export const createOverviewRule = BILLTYPE.post('/overviewRule/create')
 export const editOverviewRule = BILLTYPE.put('/overviewRule/edit')
 export const toggleOverviewRule = BILLTYPE.post('/overviewRule/toggle')
 export const deleteOverviewRule = BILLTYPE.post('/overviewRule/delete')
+
+export const getOverviewRuleYearlyList = BILLTYPE.get('/overviewRule/yearlyList')
+export const saveOverviewRuleYearly = BILLTYPE.post('/overviewRule/saveYearly')
+export const deleteOverviewRuleYearly = BILLTYPE.post('/overviewRule/deleteYearly')

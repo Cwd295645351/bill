@@ -85,6 +85,15 @@
               <span class="rule-meta">{{ formatRuleMeta(item) }}</span>
             </span>
             <div class="type-actions">
+              <el-button
+                v-if="item.ruleType === 'quantity'"
+                type="primary"
+                link
+                size="small"
+                @click="openYearlyDialog(item)"
+              >
+                年度配置
+              </el-button>
               <el-button type="primary" link size="small" @click="openRuleDialog(item)">编辑</el-button>
               <el-button type="danger" link size="small" @click="handleDeleteRule(item)">删除</el-button>
             </div>
@@ -125,6 +134,69 @@
         <el-button size="small" type="primary" :loading="ruleSaving" @click="saveRule">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 数量规则年度配置弹窗 -->
+    <el-dialog
+      v-model="yearlyDialogVisible"
+      :title="`${currentRule?.name || ''} - 年度天数与归属人配置`"
+      width="680px"
+      append-to-body
+    >
+      <div class="yearly-config-tip">
+        配置各年份的实际数量（如香港天数）与扣减归属人。年度收支对账与概览分账将按年份自动读取对应数据。
+      </div>
+
+      <el-form :inline="true" :model="yearlyForm" class="yearly-inline-form">
+        <el-form-item label="年份">
+          <el-input-number v-model="yearlyForm.year" :min="2000" :max="2100" :controls="false" style="width: 90px" />
+        </el-form-item>
+        <el-form-item :label="currentRule?.unitName ? `数量(${currentRule.unitName})` : '数量'">
+          <el-input-number v-model="yearlyForm.quantity" :min="0" :precision="2" :step="1" style="width: 140px" />
+        </el-form-item>
+        <el-form-item label="归属人">
+          <el-select v-model="yearlyForm.belongUserId" placeholder="选择归属人" clearable style="width: 120px">
+            <el-option v-for="u in users" :key="u.id" :label="u.name" :value="u.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" :loading="yearlySaving" @click="saveYearlyItem">保存配置</el-button>
+        </el-form-item>
+      </el-form>
+
+      <el-table :data="yearlyList" v-loading="yearlyLoading" border size="small" style="width: 100%; margin-top: 12px">
+        <el-table-column prop="year" label="年份" width="90" align="center">
+          <template #default="{ row }">{{ row.year }} 年</template>
+        </el-table-column>
+        <el-table-column prop="quantity" :label="currentRule?.unitName ? `实际数量 (${currentRule.unitName})` : '实际数量'" width="120" align="center">
+          <template #default="{ row }">
+            {{ row.quantity }} {{ currentRule?.unitName || '' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="belongUserName" label="扣减归属人" width="120" align="center">
+          <template #default="{ row }">
+            {{ row.belongUserName || '未指定' }}
+          </template>
+        </el-table-column>
+        <el-table-column label="扣减金额预估" min-width="120" align="right">
+          <template #default="{ row }">
+            {{ (row.quantity * Number(currentRule?.unitPrice || 0)).toFixed(2) }} 元
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="110" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="editYearlyItem(row)">编辑</el-button>
+            <el-button type="danger" link size="small" @click="deleteYearlyItem(row)">删除</el-button>
+          </template>
+        </el-table-column>
+        <template #empty>
+          <div style="padding: 16px 0; color: #999">暂无年度配置数据，请在上方添加</div>
+        </template>
+      </el-table>
+
+      <template #footer>
+        <el-button size="small" @click="yearlyDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </el-dialog>
 </template>
 
@@ -135,7 +207,8 @@ import { storeToRefs } from 'pinia'
 import {
   createCostType, editCostType, deleteCostType, toggleCostTypeShow,
   createIncomeType, editIncomeType, deleteIncomeType, toggleIncomeTypeShow,
-  createOverviewRule, editOverviewRule, toggleOverviewRule, deleteOverviewRule
+  createOverviewRule, editOverviewRule, toggleOverviewRule, deleteOverviewRule,
+  getOverviewRuleYearlyList, saveOverviewRuleYearly, deleteOverviewRuleYearly
 } from './api'
 import { getBillDetail } from '../../views/bill/api'
 import type { OverviewRule, OverviewRuleType } from '@/types/bill'
@@ -151,6 +224,7 @@ const activeTab = ref('costType')
 const costTypes = computed(() => (bill.value?.costTypes || []).filter((t: any) => !t.isDel))
 const incomeTypes = computed(() => (bill.value?.incomesTypes || []).filter((t: any) => !t.isDel))
 const overviewRules = computed(() => bill.value?.overviewRules || [])
+const users = computed(() => bill.value?.users || [])
 
 const editingId = ref<string | null>(null)
 const editingName = ref('')
@@ -400,9 +474,125 @@ const handleDeleteRule = async (item: OverviewRule) => {
     // 取消删除
   }
 }
+
+// ===== 数量规则年度配置 =====
+
+const yearlyDialogVisible = ref(false)
+const currentRule = ref<OverviewRule | null>(null)
+const yearlyList = ref<any[]>([])
+const yearlyLoading = ref(false)
+const yearlySaving = ref(false)
+const yearlyForm = ref({
+  year: new Date().getFullYear(),
+  quantity: 0,
+  belongUserId: '',
+})
+
+const openYearlyDialog = async (rule: OverviewRule) => {
+  currentRule.value = rule
+  const defaultUser = users.value[0]?.id || ''
+  yearlyForm.value = {
+    year: new Date().getFullYear(),
+    quantity: 0,
+    belongUserId: defaultUser,
+  }
+  yearlyDialogVisible.value = true
+  await loadYearlyList()
+}
+
+const loadYearlyList = async () => {
+  if (!props.billId || !currentRule.value?.id) return
+  yearlyLoading.value = true
+  const [err, res] = await getOverviewRuleYearlyList({
+    params: { billId: props.billId, ruleId: currentRule.value.id },
+  })
+  yearlyLoading.value = false
+  if (err) return
+  if (res.retCode === 0) {
+    yearlyList.value = res.data || []
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+const saveYearlyItem = async () => {
+  if (!props.billId || !currentRule.value?.id) return
+  if (!yearlyForm.value.year) {
+    ElMessage.warning('请输入年份')
+    return
+  }
+  if (yearlyForm.value.quantity < 0) {
+    ElMessage.warning('数量不能为负')
+    return
+  }
+  yearlySaving.value = true
+  const [err, res] = await saveOverviewRuleYearly({
+    data: {
+      billId: props.billId,
+      ruleId: currentRule.value.id,
+      year: yearlyForm.value.year,
+      quantity: yearlyForm.value.quantity,
+      belongUserId: yearlyForm.value.belongUserId || null,
+    },
+  })
+  yearlySaving.value = false
+  if (err) return
+  if (res.retCode === 0) {
+    ElMessage.success('保存成功')
+    await loadYearlyList()
+  } else {
+    ElMessage.error(res.message)
+  }
+}
+
+const editYearlyItem = (row: any) => {
+  yearlyForm.value = {
+    year: row.year,
+    quantity: row.quantity,
+    belongUserId: row.belongUserId || '',
+  }
+}
+
+const deleteYearlyItem = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确定删除 ${row.year} 年的配置吗？`, '确认删除', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    const [err, res] = await deleteOverviewRuleYearly({
+      data: { id: row.id, billId: props.billId },
+    })
+    if (err) return
+    if (res.retCode === 0) {
+      ElMessage.success('删除成功')
+      await loadYearlyList()
+    } else {
+      ElMessage.error(res.message)
+    }
+  } catch {
+    // 取消
+  }
+}
 </script>
 
 <style scoped lang="scss">
+.yearly-config-tip {
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  background-color: #f4f6fa;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+.yearly-inline-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
 .type-list {
   max-height: 400px;
   overflow-y: auto;

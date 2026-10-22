@@ -1,4 +1,4 @@
-import { ref, watch, computed, nextTick } from 'vue'
+import { ref, watch, computed, nextTick, onBeforeUnmount } from 'vue'
 import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import dayjs from 'dayjs'
@@ -69,7 +69,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       },
     ],
   })
-  const belongTypeCharts = ref<any[]>([])
+  const belongTypeCharts: (echarts.ECharts | null)[] = []
   /** 图表槽位。一名成员时只有「全部」 */
   const chartSlots = ref<ChartSlot[]>([{ key: '全部', name: '全部', userId: '' }])
   const chartCount = computed(() => chartSlots.value.length)
@@ -134,7 +134,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const setPieData = () => {
     const pies = piePayload.value
     if (!pies) return
-    const draw = (slices: SettlementSlice[], chart: any, chartName: string) => {
+    const draw = (slices: SettlementSlice[], chart: echarts.ECharts, chartName: string) => {
       let total = 0
       belongOptions.value.title.text = chartName + '-各支出比例'
       belongOptions.value.series[0].name = chartName
@@ -146,18 +146,18 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       belongOptions.value.title.subtext = '总花费：' + total.toFixed(2)
       chart.setOption(belongOptions.value, true)
     }
-    if (belongTypeCharts.value[0]) draw(pies.all, belongTypeCharts.value[0], '全部')
+    if (belongTypeCharts[0]) draw(pies.all, belongTypeCharts[0], '全部')
     pies.members.forEach((member, index) => {
-      const chart = belongTypeCharts.value[index + 1]
+      const chart = belongTypeCharts[index + 1]
       if (chart) draw(member.slices, chart, member.name)
     })
   }
 
   const disposeCharts = () => {
-    belongTypeCharts.value.forEach((chart) => {
+    belongTypeCharts.forEach((chart) => {
       chart?.dispose()
     })
-    belongTypeCharts.value = []
+    belongTypeCharts.length = 0
   }
 
   /** 按当前槽位初始化饼图。槽位来自最近一次结算 */
@@ -168,7 +168,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       const el = document.getElementById(`belongTypeChart${index}`)
       if (!el) return
       const chart = echarts.init(el)
-      belongTypeCharts.value[index] = chart
+      belongTypeCharts[index] = chart
       chart.on('click', (params: any) => {
         void handleChartClick(params, slot)
       })
@@ -196,17 +196,11 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       return item
     })
 
-    const quantityInputs = Object.entries(belongCondition.value.quantityInputs).map(([ruleId, input]) => ({
-      ruleId,
-      quantity: input.quantity === '' || input.quantity == null ? 0 : Number(input.quantity),
-      belongUserId: input.belongUserId,
-    }))
     const [settleErr, settleRes] = await getSettlement({
       data: {
         billId: billId.value,
         beginDate: params.beginDate,
         endDate: params.endDate,
-        quantityInputs,
       },
     })
     if (settleErr) return
@@ -224,30 +218,10 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     setPieData()
   }
 
-  /** 按当前启用的数量规则同步查询输入，保留已填数量 */
-  const syncQuantityInputs = (billData: Bill) => {
-    const rules = (billData.overviewRules || []).filter((rule) => rule.enabled && rule.ruleType === 'quantity')
-    const next = { ...belongCondition.value.quantityInputs }
-    const validIds = new Set(rules.map((rule) => rule.id))
-    const defaultUserId = billData.users[0]?.id || ''
-    rules.forEach((rule) => {
-      if (!next[rule.id]) {
-        next[rule.id] = { quantity: 0, belongUserId: defaultUserId }
-      } else if (!next[rule.id].belongUserId && defaultUserId) {
-        next[rule.id].belongUserId = defaultUserId
-      }
-    })
-    Object.keys(next).forEach((id) => {
-      if (!validIds.has(id)) delete next[id]
-    })
-    belongCondition.value.quantityInputs = next
-  }
-
   const initData = async (billData: Bill) => {
     belongCondition.value.startDate = dayjs().startOf('year').valueOf()
     belongCondition.value.endDate = dayjs().valueOf()
     users.value = billData.users
-    syncQuantityInputs(billData)
     await getBalanceAndPieData()
   }
 
@@ -260,8 +234,8 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     { immediate: true },
   )
 
-  watch(quantityRules, () => {
-    if (bill.value) syncQuantityInputs(bill.value)
+  onBeforeUnmount(() => {
+    disposeCharts()
   })
 
   return {

@@ -1,5 +1,5 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { BillCostType, BillIncomeType, Bill, BillOverviewRule, Transaction, BillBudget, BillBudgetDetail } from '../../database/index'
+import { BillCostType, BillIncomeType, Bill, BillOverviewRule, BillOverviewRuleYear, BillUser, Transaction, BillBudget, BillBudgetDetail } from '../../database/index'
 import { formatOverviewRule, RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE } from '../../database/services/billService'
 
 const RULE_TYPES = [RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE]
@@ -8,6 +8,16 @@ const RULE_TYPES = [RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE]
 const checkBillCreator = async (billId: string | null | undefined, userId: string | null | undefined) => {
   const bill = await Bill.findOne({ where: { id: billId, creator: userId, isDel: false } })
   return !!bill
+}
+
+/** 检查用户是否为账本成员 */
+const checkBillMember = async (billId: string | null | undefined, userId: string | null | undefined) => {
+  if (!billId || !userId) return false
+  const bill = await Bill.findOne({ where: { id: billId, isDel: false } })
+  if (!bill) return false
+  if (bill.creator === userId || bill.userId === userId) return true
+  const member = await BillUser.findOne({ where: { billId, userId } })
+  return !!member
 }
 
 // ==================== 支出类型 ====================
@@ -280,11 +290,129 @@ const deleteOverviewRule = async ({ id, billId, userId }: Row) => {
     }
     const rule = await BillOverviewRule.findOne({ where: { id, billId } })
     if (!rule) return ['找不到该规则', null]
+    await BillOverviewRuleYear.destroy({ where: { ruleId: id } })
     await BillOverviewRule.destroy({ where: { id, billId } })
     return [null, true]
   } catch (err: unknown) {
     console.error(err)
     return [(err instanceof Error ? err.message : '') || '删除概览规则失败', null]
+  }
+}
+
+/** 查询数量型规则的年度配置列表 */
+const getOverviewRuleYearlyList = async ({ billId, ruleId, year, userId }: Row) => {
+  try {
+    if (!(await checkBillMember(billId, userId))) {
+      return ['无权访问该账本数据', null]
+    }
+    const where: WhereBag = { billId }
+    if (ruleId) where.ruleId = ruleId
+    if (year) where.year = Number(year)
+
+    const list = await BillOverviewRuleYear.findAll({
+      where,
+      order: [['year', 'DESC']]
+    })
+    const billUsers = await BillUser.findAll({ where: { billId } })
+    const userMap = new Map<string, string>()
+    ;(billUsers as Row[]).forEach((u) => {
+      if (u.userId) userMap.set(String(u.userId), u.userName || '')
+    })
+
+    const formatted = (list as Row[]).map((item) => ({
+      id: item.id,
+      billId: item.billId,
+      ruleId: item.ruleId,
+      year: item.year,
+      quantity: Number(item.quantity) || 0,
+      belongUserId: item.belongUserId || '',
+      belongUserName: item.belongUserId ? userMap.get(String(item.belongUserId)) || '' : ''
+    }))
+    return [null, formatted]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '获取年度配置失败', null]
+  }
+}
+
+/** 保存/更新某一年份的规则配置 */
+const saveOverviewRuleYearly = async ({ billId, ruleId, year, quantity, belongUserId, userId }: Row) => {
+  try {
+    if (!(await checkBillMember(billId, userId))) {
+      return ['无权管理该账本数据', null]
+    }
+    if (!ruleId) return ['规则ID不能为空', null]
+    const yearNum = Number(year)
+    if (!Number.isFinite(yearNum) || yearNum < 1970 || yearNum > 2100) {
+      return ['年份不正确', null]
+    }
+    const qtyNum = Number(quantity)
+    if (!Number.isFinite(qtyNum) || qtyNum < 0) {
+      return ['数量不能为负', null]
+    }
+
+    const rule = await BillOverviewRule.findOne({ where: { id: ruleId, billId } })
+    if (!rule) return ['找不到该规则', null]
+    if (rule.ruleType !== RULE_TYPE_QUANTITY) {
+      return ['只有数量型规则可以配置年度数据', null]
+    }
+
+    if (belongUserId) {
+      const user = await BillUser.findOne({ where: { billId, userId: belongUserId } })
+      if (!user) return ['归属人不是该账本成员', null]
+    }
+
+    let record = await BillOverviewRuleYear.findOne({ where: { ruleId, year: yearNum } })
+    if (record) {
+      await BillOverviewRuleYear.update(
+        { quantity: qtyNum, belongUserId: belongUserId || null },
+        { where: { id: record.id } }
+      )
+      record = await BillOverviewRuleYear.findOne({ where: { id: record.id } })
+    } else {
+      record = await BillOverviewRuleYear.create({
+        billId,
+        ruleId,
+        year: yearNum,
+        quantity: qtyNum,
+        belongUserId: belongUserId || null
+      })
+    }
+
+    let belongUserName = ''
+    if (record?.belongUserId) {
+      const u = await BillUser.findOne({ where: { billId, userId: record.belongUserId } })
+      belongUserName = u?.userName || ''
+    }
+
+    return [null, {
+      id: record?.id,
+      billId: record?.billId,
+      ruleId: record?.ruleId,
+      year: record?.year,
+      quantity: Number(record?.quantity) || 0,
+      belongUserId: record?.belongUserId || '',
+      belongUserName
+    }]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '保存年度配置失败', null]
+  }
+}
+
+/** 删除某年份的配置 */
+const deleteOverviewRuleYearly = async ({ id, billId, userId }: Row) => {
+  try {
+    if (!(await checkBillMember(billId, userId))) {
+      return ['无权管理该账本数据', null]
+    }
+    const record = await BillOverviewRuleYear.findOne({ where: { id, billId } })
+    if (!record) return ['找不到该记录', null]
+    await BillOverviewRuleYear.destroy({ where: { id, billId } })
+    return [null, true]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '删除年度配置失败', null]
   }
 }
 
@@ -300,5 +428,8 @@ export {
   createOverviewRule,
   editOverviewRule,
   toggleOverviewRule,
-  deleteOverviewRule
+  deleteOverviewRule,
+  getOverviewRuleYearlyList,
+  saveOverviewRuleYearly,
+  deleteOverviewRuleYearly
 }

@@ -1,5 +1,5 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Transaction, BillUser, BillOverviewRule, User } from '../../database/index'
+import { Transaction, BillUser, BillOverviewRule, BillOverviewRuleYear, User } from '../../database/index'
 import dayjs from 'dayjs'
 import { Op } from 'sequelize'
 import { buildSettlement } from '../../database/services/overviewSettlement'
@@ -104,98 +104,178 @@ export const getBlance = async (data: Row, userId?: string | null | undefined) =
   else return ['查询失败', null]
 }
 
-// 查询过去三年的支出类型
+interface YearGroupInput {
+  name: string
+  datas?: Row[]
+  totalIncome: number
+  memberIncomes: Record<string, number>
+  memberExpenses: Record<string, number>
+}
+
+// 查询近五年的收支概况与支出类型
 export const getCosts = async (billId: string | null | undefined) => {
-  const date = new Date()
-  const lastYear = dayjs(date).subtract(1, 'year')
-  const twoYearBefore = dayjs(date).subtract(2, 'year')
-  const threeYearBefore = dayjs(date).subtract(3, 'year')
+  if (!billId) return ['账本id不能为空', null]
 
-  const params: WhereBag = {
-    billId: billId,
-    type: 1,
-    isDel: false
+  const billUsers = await BillUser.findAll({
+    where: { billId },
+    order: [['id', 'ASC']]
+  })
+  const enabledRules = await BillOverviewRule.findAll({
+    where: { billId, enabled: true }
+  })
+  const memberList = (billUsers as Row[]).map((u) => ({
+    userId: String(u.userId || ''),
+    name: String(u.userName || '')
+  }))
+
+  const now = dayjs()
+  const years: string[] = []
+  for (let i = 0; i < 5; i++) {
+    years.push(now.subtract(i, 'year').format('YYYY'))
   }
-  params.date = { [Op.between]: [lastYear.startOf('year').valueOf(), lastYear.endOf('year').valueOf()] }
-  const lastYearRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
-  params.date = { [Op.between]: [twoYearBefore.startOf('year').valueOf(), twoYearBefore.endOf('year').valueOf()] }
-  const twoYearBeforeRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
-  params.date = { [Op.between]: [threeYearBefore.startOf('year').valueOf(), threeYearBefore.endOf('year').valueOf()] }
-  const threeYearBeforeRes = await Transaction.findAll({ where: params, attributes: ['money', 'costTypeId', 'costTypeName'] })
 
-  const res: Row[] = [
-    { name: lastYear.format('YYYY'), datas: lastYearRes },
-    { name: twoYearBefore.format('YYYY'), datas: twoYearBeforeRes },
-    { name: threeYearBefore.format('YYYY'), datas: threeYearBeforeRes }
-  ]
-  const result = batchDeal(res)
+  const groups: YearGroupInput[] = []
+
+  for (const yearStr of years) {
+    const yearNum = Number(yearStr)
+    const beginDate = dayjs().year(yearNum).startOf('year').valueOf()
+    const endDate = dayjs().year(yearNum).endOf('year').valueOf()
+
+    const txRows = await Transaction.findAll({
+      where: {
+        billId,
+        date: { [Op.between]: [beginDate, endDate] },
+        isDel: false
+      },
+      attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+    })
+
+    const expenseRows = (txRows as Row[]).filter((r) => Number(r.type) === 1)
+    const totalIncome = fixMoney(
+      (txRows as Row[])
+        .filter((r) => Number(r.type) !== 1)
+        .reduce((sum, r) => sum + Number(r.money || 0), 0)
+    )
+
+    // 查询该年保存的数量型规则
+    const savedYears = await BillOverviewRuleYear.findAll({
+      where: { billId, year: yearNum }
+    })
+    const savedMap = new Map<string, { quantity: number; belongUserId: string }>()
+    ;(savedYears as Row[]).forEach((item) => {
+      savedMap.set(String(item.ruleId), {
+        quantity: Number(item.quantity) || 0,
+        belongUserId: item.belongUserId ? String(item.belongUserId) : ''
+      })
+    })
+
+    const quantityInputs = (enabledRules as Row[])
+      .filter((r) => r.ruleType === 'quantity')
+      .map((r) => {
+        const saved = savedMap.get(String(r.id))
+        return {
+          ruleId: String(r.id),
+          quantity: saved ? saved.quantity : 0,
+          belongUserId: saved ? saved.belongUserId : ''
+        }
+      })
+
+    const settlement = buildSettlement({
+      members: memberList,
+      rules: (enabledRules as Row[]).map((r) => ({
+        id: String(r.id),
+        name: r.name,
+        ruleType: r.ruleType,
+        unitPrice: r.unitPrice,
+        costTypeId: r.costTypeId
+      })),
+      quantityInputs,
+      transactions: (txRows as Row[]).map((r) => ({
+        type: r.type,
+        money: r.money,
+        userId: r.userId,
+        belongUserId: r.belongUserId,
+        belongUserName: r.belongUserName,
+        costTypeId: r.costTypeId,
+        costTypeName: r.costTypeName
+      }))
+    })
+
+    const memberIncomes: Record<string, number> = {}
+    const memberExpenses: Record<string, number> = {}
+    settlement.members.forEach((m) => {
+      memberIncomes[m.name] = Number(m.income) || 0
+      memberExpenses[m.name] = Number(m.borne) || 0
+    })
+
+    groups.push({
+      name: yearStr,
+      datas: expenseRows,
+      totalIncome,
+      memberIncomes,
+      memberExpenses
+    })
+  }
+
+  const result = batchDeal(groups, memberList)
   return [null, result]
 }
 
-interface CostPoint {
-  id?: string | number | null
-  name?: string
-  value?: number
-}
-
-const batchDeal = (groups: { name?: string; datas?: Row[] }[]) => {
-  // 对一年的数据进行处理
+const batchDeal = (
+  groups: YearGroupInput[],
+  members: { userId: string; name: string }[]
+) => {
+  // 对一年的支出数据进行汇总
   const deal = (rows: Row[] | undefined) => {
-    const result: CostPoint[] = []
+    const map = new Map<string, { id: string; name: string; value: number }>()
     ;(rows || []).forEach((item) => {
-      const money = Number(item.money)
-      const typeObj = result.find((ite) => ite.id === item.costTypeId)
-      if (typeObj) {
-        typeObj.value = (typeObj.value || 0) + money
+      const money = Number(item.money) || 0
+      const id = String(item.costTypeId || '')
+      const name = String(item.costTypeName || '未分类')
+      if (map.has(id)) {
+        map.get(id)!.value += money
       } else {
-        result.push({ id: item.costTypeId, name: item.costTypeName, value: money })
+        map.set(id, { id, name, value: money })
       }
     })
-    result.forEach((item) => {
-      item.value = fixMoney(item.value)
-    })
-    return result
+    return map
   }
 
-  // 补充剩余的支出类型
-  const completeType = (array: { datas: CostPoint[]; length: number }[], maxLength: number, maxData: CostPoint[]) => {
-    array.forEach((item) => {
-      if (item.length !== maxLength) {
-        const noData = maxData.filter((ite) => !item.datas.find((it) => it.id === ite.id))
-        noData.forEach((ite) => {
-          const obj = Object.assign({}, ite)
-          obj.value = fixMoney(0)
-          item.datas.push(obj)
-        })
+  // 汇总所有年份出现过的支出类型
+  const allTypes = new Map<string, string>()
+  const yearlyMaps = groups.map((g) => {
+    const map = deal(g.datas)
+    map.forEach((item, id) => {
+      if (!allTypes.has(id)) {
+        allTypes.set(id, item.name)
       }
     })
-  }
-  const result = groups.map((item) => {
-    const datas = deal(item.datas)
-    return {
-      name: item.name,
-      datas: datas,
-      length: datas.length
-    }
+    return map
   })
-  const length1 = result[0].length
-  const length2 = result[1].length
-  const length3 = result[2].length
 
-  const maxLength = Math.max(length1, length2, length3)
+  // 按 costTypeId 升序排序
+  const sortedTypeIds = Array.from(allTypes.keys()).sort((a, b) => Number(a) - Number(b))
+  const typeNames = sortedTypeIds.map((id) => allTypes.get(id) || '')
 
-  const maxData = result.find((item) => item.length === maxLength)!.datas
-  completeType(result, maxLength, maxData)
-
-  result.forEach((item) => {
-    item.datas = item.datas.sort((a, b) => Number(a.id) - Number(b.id))
+  const datas = groups.map((g, idx) => {
+    const map = yearlyMaps[idx]
+    const values = sortedTypeIds.map((id) => {
+      const item = map.get(id)
+      return item ? fixMoney(item.value) : 0
+    })
+    return {
+      name: g.name,
+      datas: values,
+      totalIncome: g.totalIncome,
+      memberIncomes: g.memberIncomes,
+      memberExpenses: g.memberExpenses
+    }
   })
 
   return {
-    type: result[0].datas.map((item) => item.name),
-    datas: result.map((item) => {
-      return { name: item.name, datas: item.datas.map((ite) => ite.value) }
-    })
+    type: typeNames,
+    members,
+    datas
   }
 }
 
@@ -248,7 +328,34 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
   for (const item of billUsers as Row[]) {
     if (typeof item.userId === 'string' && item.userId) memberIds.add(item.userId)
   }
-  const [inputErr, quantityInputs] = normalizeQuantityInputs(data.quantityInputs, enabledRules as Row[], memberIds)
+
+  const queryYear = data.beginDate ? dayjs(Number(data.beginDate)).year() : dayjs().year()
+  const savedYears = await BillOverviewRuleYear.findAll({
+    where: { billId: data.billId, year: queryYear }
+  })
+  const savedYearMap = new Map<string, { quantity: number; belongUserId: string }>()
+  ;(savedYears as Row[]).forEach((item) => {
+    savedYearMap.set(String(item.ruleId), {
+      quantity: Number(item.quantity) || 0,
+      belongUserId: item.belongUserId ? String(item.belongUserId) : ''
+    })
+  })
+
+  let rawInputs = data.quantityInputs
+  if (!Array.isArray(rawInputs) || !rawInputs.length) {
+    rawInputs = (enabledRules as Row[])
+      .filter((r) => r.ruleType === 'quantity')
+      .map((r) => {
+        const saved = savedYearMap.get(String(r.id))
+        return {
+          ruleId: r.id,
+          quantity: saved ? saved.quantity : 0,
+          belongUserId: saved ? saved.belongUserId : ''
+        }
+      })
+  }
+
+  const [inputErr, quantityInputs] = normalizeQuantityInputs(rawInputs, enabledRules as Row[], memberIds)
   if (inputErr) return [inputErr, null]
 
   const rows = await Transaction.findAll({

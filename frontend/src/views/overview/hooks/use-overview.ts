@@ -1,4 +1,4 @@
-import { onMounted, ref, watch } from 'vue'
+import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useBillStore } from '@/store'
 import { storeToRefs } from 'pinia'
 import { getThreeYearCost } from '../api'
@@ -10,14 +10,14 @@ export const useOverview = (options: { colorOptions: string[] }) => {
   const store = useBillStore()
   const { bill, billId } = storeToRefs(store)
 
-  const perYearCostDatas = ref<any>({ type: [], datas: [] })
+  const perYearCostDatas = ref<any>({ type: [], members: [], datas: [] })
 
-  /** 年度支出趋势折线图配置 */
-  const perYearOptions = ref<any>({
-    title: { text: '近三年支出趋势' },
+  /** 年度收支趋势柱状图配置（图表仅显示各类支出，不显示收入） */
+  const perYearOptions = {
+    title: { text: '近五年收支趋势' },
     tooltip: { trigger: 'item' },
-    legend: { data: [] },
-    color: [],
+    legend: { data: [] as string[] },
+    color: [] as string[],
     grid: {
       top: 40,
       left: '1%',
@@ -26,31 +26,41 @@ export const useOverview = (options: { colorOptions: string[] }) => {
       containLabel: true,
     },
     xAxis: {
-      type: 'category',
+      type: 'category' as const,
       boundaryGap: true,
       axisLabel: { fontSize: 16, interval: 0 },
-      data: [],
+      data: [] as string[],
     },
-    yAxis: { type: 'value', axisLabel: { fontSize: 16 } },
-    series: [],
-  })
-  /** 年度支出趋势折线图chart */
-  const perYearChart = ref<any>(null)
+    yAxis: { type: 'value' as const, axisLabel: { fontSize: 16 } },
+    series: [] as any[],
+  }
 
-  /** 设置折线图 */
+  /** 年度收支趋势图实例（使用 shallowRef 避免被 Vue 深度响应式 Proxy 代理破坏 ECharts 内部状态） */
+  const perYearChart = shallowRef<echarts.ECharts | null>(null)
+
+  /** 设置柱状图数据 */
   const setYearLineChartData = () => {
-    const options = perYearOptions.value
-    options.xAxis.data = perYearCostDatas.value.type
-    options.legend.data = []
-    options.series = []
-    perYearCostDatas.value.datas.forEach((item: any) => {
-      options.legend.data.push(item.name)
-      options.series.push({ name: item.name, type: 'bar', data: item.datas })
-    })
+    if (!perYearChart.value) return
+    const options = {
+      ...perYearOptions,
+      color: colorOptions,
+      xAxis: {
+        ...perYearOptions.xAxis,
+        data: perYearCostDatas.value.type || [],
+      },
+      legend: {
+        data: (perYearCostDatas.value.datas || []).map((item: any) => item.name),
+      },
+      series: (perYearCostDatas.value.datas || []).map((item: any) => ({
+        name: item.name,
+        type: 'bar',
+        data: item.datas,
+      })),
+    }
     perYearChart.value.setOption(options, true)
   }
 
-  /** 查询过去三年支出概况 */
+  /** 查询近五年收支概况 */
   const getThreeYearCostData = async () => {
     const params = { billId: billId.value }
     const [err, res] = await getThreeYearCost({ params })
@@ -60,17 +70,15 @@ export const useOverview = (options: { colorOptions: string[] }) => {
       perYearCostDatas.value = data
       // 基金的类型下标
       const fundIndex = data.type.findIndex((item: any) => item === '基金')
-      console.log(fundIndex, 'fundIndex')
       data.datas.forEach((item: any) => {
         item.total = item.datas.reduce((prev: string, curr: string) => Number(prev) + Number(curr), 0)
-        // 总消费需要剔除到基金（如无基金类型或没有数据，则消费 = 总支出）
+        // 总消费需要剔除基金（如无基金类型或没有数据，则消费 = 总支出）
         const fundMoney = fundIndex !== -1 && item.datas[fundIndex] !== undefined ? Number(item.datas[fundIndex]) : 0
         item.consumption = item.total - fundMoney
       })
-      console.log(perYearCostDatas.value, 'perYearCostDatas')
       setYearLineChartData()
     } else {
-      ElMessage.error('查询过去三年支出概况失败，' + res.message)
+      ElMessage.error('查询近五年收支概况失败，' + res.message)
     }
   }
 
@@ -83,9 +91,25 @@ export const useOverview = (options: { colorOptions: string[] }) => {
     { immediate: true },
   )
 
+  const handleResize = () => {
+    perYearChart.value?.resize()
+  }
+
   onMounted(() => {
-    perYearChart.value = echarts.init(document.getElementById('perYearChart') as HTMLElement)
-    perYearOptions.value.color = colorOptions
+    const el = document.getElementById('perYearChart')
+    if (el) {
+      perYearChart.value = echarts.init(el)
+    }
+    window.addEventListener('resize', handleResize)
+    if (perYearCostDatas.value.datas?.length) {
+      setYearLineChartData()
+    }
+  })
+
+  onBeforeUnmount(() => {
+    window.removeEventListener('resize', handleResize)
+    perYearChart.value?.dispose()
+    perYearChart.value = null
   })
 
   return { perYearCostDatas }

@@ -1,0 +1,45 @@
+@mixin panel-card {
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 1px 1px 5px #ddd;
+}
+
+@mixin asset-btn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #dcdfe6;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+  color: #333;
+  font-size: 14px;
+
+  &.active {
+    background: rgb(111, 197, 255);
+    border-color: rgb(111, 197, 255);
+    color: #fff;
+  }
+
+  &.primary {
+    background: #409eff;
+    border-color: #409eff;
+    color: #fff;
+  }
+}
+
+@mixin tone {
+  .up { color: #18a356; }
+  .down { color: rgb(247, 79, 79); }
+  .flat { color: #666; }
+}
+
+@mixin seg {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+
+  button {
+    @include asset-btn;
+  }
+}

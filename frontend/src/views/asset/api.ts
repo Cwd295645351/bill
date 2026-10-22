@@ -26,3 +26,10 @@ export const getOverview = service.get('/overview')
 export const getSankey = service.get('/sankey')
 export const getFourMoney = service.get('/four-money')
 export const getMonthlyReport = service.get('/monthly-report')
+
+/** 汇率、年度对账、养老计划 */
+export const getExchangeRate = service.get('/exchange-rate')
+export const saveExchangeRate = service.put('/exchange-rate')
+export const getLedger = service.post('/ledger')
+export const getRetirePlan = service.get('/retire-plan')
+export const saveRetirePlan = service.put('/retire-plan')

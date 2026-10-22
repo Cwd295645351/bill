@@ -3,11 +3,12 @@ import dayjs, { type Dayjs } from 'dayjs'
 import * as echarts from 'echarts'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { getMonthlyReport } from '../api'
-import { formatMoney, roundMoney } from '../shared'
+import { getMonthlyReport, getOverview } from '../api'
+import { formatMoney, roundMoney, shortAmount } from '../shared'
 import type { MonthlyReport } from '../type'
 
-export type TrendRange = 'thisYear' | 'y1' | 'y3' | 'y5' | 'custom'
+export type TrendRange = 'since' | 'thisYear' | 'y1' | 'y3' | 'y5' | 'custom'
+export type TrendGrain = 'month' | 'year'
 export type TrendMetric = 'all' | 'net'
 
 const STACK = [
@@ -21,7 +22,8 @@ const STACK = [
 /** 用各年的月历拼出趋势。不另开趋势接口 */
 export const useTrend = (memberId: Ref<string>) => {
   const { billId } = storeToRefs(useBillStore())
-  const range = ref<TrendRange>('thisYear')
+  const range = ref<TrendRange>('since')
+  const grain = ref<TrendGrain>('month')
   const metric = ref<TrendMetric>('all')
   const start = ref(dayjs().startOf('year').format('YYYY-MM'))
   const end = ref(dayjs().format('YYYY-MM'))
@@ -30,9 +32,14 @@ export const useTrend = (memberId: Ref<string>) => {
   const host = ref<HTMLElement | null>(null)
   let chart: echarts.ECharts | null = null
   const cache = new Map<string, MonthlyReport>()
+  let earliestMonth = ''
 
   const bounds = (): { from: Dayjs; to: Dayjs; capped?: boolean } | null => {
     const now = dayjs().startOf('month')
+    if (range.value === 'since') {
+      const from = earliestMonth ? dayjs(earliestMonth).startOf('month') : now
+      return { from: from.isAfter(now) ? now : from, to: now }
+    }
     if (range.value === 'thisYear') return { from: now.startOf('year'), to: now }
     if (range.value === 'y1') return { from: now.subtract(11, 'month'), to: now }
     if (range.value === 'y3') return { from: now.subtract(35, 'month'), to: now }
@@ -75,6 +82,12 @@ export const useTrend = (memberId: Ref<string>) => {
       return
     }
     if (!billId.value || !host.value) return
+    if (range.value === 'since') {
+      const params: { billId: string; memberId?: string } = { billId: billId.value }
+      if (memberId.value) params.memberId = memberId.value
+      const [err, res] = await getOverview({ params })
+      if (!err && res?.retCode === 0) earliestMonth = res.data?.earliestRecordMonth || ''
+    }
     const labels: string[] = []
     const rows: { year: number; month: number }[] = []
     let cursor = window.from
@@ -116,8 +129,33 @@ export const useTrend = (memberId: Ref<string>) => {
             color: item.color,
             data: rows.map((row) => point(reports.get(row.year) || {}, item.key, row.month)),
           }))
-    const hasValue = series.some((item) => item.data.some((value) => value != null))
-    legend.value = series.map((item) => {
+    let labelsShown = labels
+    let seriesShown = series
+    if (grain.value === 'year') {
+      const groups = new Map<string, number[]>()
+      labels.forEach((label, index) => {
+        const year = label.slice(0, 4)
+        const list = groups.get(year) || []
+        list.push(index)
+        groups.set(year, list)
+      })
+      const picked: number[] = []
+      labelsShown = []
+      groups.forEach((indexes, year) => {
+        let chosen = indexes[indexes.length - 1]
+        for (let i = indexes.length - 1; i >= 0; i -= 1) {
+          if (series.some((item) => item.data[indexes[i]] != null)) {
+            chosen = indexes[i]
+            break
+          }
+        }
+        labelsShown.push(`${year}年`)
+        picked.push(chosen)
+      })
+      seriesShown = series.map((item) => ({ ...item, data: picked.map((index) => item.data[index]) }))
+    }
+    const hasValue = seriesShown.some((item) => item.data.some((value) => value != null))
+    legend.value = seriesShown.map((item) => {
       const numbers = item.data.filter((value): value is number => value != null)
       if (!numbers.length) return { name: item.name, color: item.color, last: null, change: null }
       return { name: item.name, color: item.color, last: numbers[numbers.length - 1], change: numbers[numbers.length - 1] - numbers[0] }
@@ -128,18 +166,51 @@ export const useTrend = (memberId: Ref<string>) => {
       return
     }
     if (window.capped) error.value = '结束日期晚于当前月，只画到当前月'
+    const signedShort = (value: number | null, withPlus = false) => {
+      if (value == null || Number.isNaN(value)) return '—'
+      const text = shortAmount(Math.abs(value))
+      if (value < -0.004) return `-${text}`
+      if (withPlus && value > 0.004) return `+${text}`
+      return text
+    }
+    const hasNegative = seriesShown.some((item) => item.data.some((value) => value != null && value < 0))
     chart.setOption(
       {
         tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => formatMoney(value == null ? null : Number(value)) },
-        legend: { show: false },
-        grid: { left: 88, right: 16, top: 16, bottom: 32 },
-        xAxis: { type: 'category', data: labels },
+        legend: {
+          top: 4,
+          left: 0,
+          right: 0,
+          itemWidth: 14,
+          itemHeight: 12,
+          itemGap: 22,
+          textStyle: {
+            fontSize: 16,
+            lineHeight: 28,
+            color: '#666',
+            rich: {
+              tag: { fontSize: 16, lineHeight: 28, color: '#999', padding: [0, 4, 0, 8] },
+              num: { fontSize: 16, lineHeight: 28, color: '#666' },
+              up: { fontSize: 16, lineHeight: 28, color: '#18a356' },
+              down: { fontSize: 16, lineHeight: 28, color: 'rgb(247, 79, 79)' },
+              flat: { fontSize: 16, lineHeight: 28, color: '#666' },
+            },
+          },
+          formatter: (name: string) => {
+            const item = legend.value.find((row) => row.name === name)
+            if (!item || item.last == null) return `${name} 无`
+            const tone = item.change == null || Math.abs(item.change) < 0.005 ? 'flat' : item.change > 0 ? 'up' : 'down'
+            return `${name}{tag|期末}{num|${signedShort(item.last)}}{tag|变化}{${tone}|${signedShort(item.change, true)}}`
+          },
+        },
+        grid: { left: 88, right: 16, top: seriesShown.length > 2 ? 88 : 52, bottom: labelsShown.length > 18 ? 64 : 32 },
+        xAxis: { type: 'category', data: labelsShown, axisLabel: labelsShown.length > 18 ? { rotate: 45, fontSize: 11 } : {} },
         yAxis: {
           type: 'value',
-          min: series.some((item) => item.data.some((value) => value != null && value < 0)) ? undefined : 0,
-          axisLabel: { formatter: (value: number) => formatMoney(value) },
+          min: hasNegative ? undefined : 0,
+          axisLabel: { formatter: (value: number) => signedShort(value) },
         },
-        series,
+        series: seriesShown.map((item) => ({ ...item, showSymbol: grain.value === 'year' })),
       },
       true,
     )
@@ -150,7 +221,7 @@ export const useTrend = (memberId: Ref<string>) => {
     await render()
   }
 
-  watch([range, metric], () => render())
+  watch([range, metric, grain], () => render())
   const onResize = () => chart?.resize()
   window.addEventListener('resize', onResize)
   const observer = new ResizeObserver(() => chart?.resize())
@@ -164,5 +235,5 @@ export const useTrend = (memberId: Ref<string>) => {
     chart?.dispose()
   })
 
-  return { range, metric, start, end, error, legend, host, render, refresh }
+  return { range, grain, metric, start, end, error, legend, host, render, refresh }
 }

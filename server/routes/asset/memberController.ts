@@ -10,6 +10,7 @@ export const getMemberList = async ({ billId }: Row) => {
 export const addMember = async ({ name, billId }: Row) => {
   const text = String(name || '').trim()
   if (!text) return ['成员名称不能为空', null]
+  if (text.length > 64) return ['成员名称不能超过64个字', null]
   if (!billId) return ['账本id不能为空', null]
   const res = await Member.create({ name: text, billId })
   if (res) return [null, res]
@@ -19,6 +20,7 @@ export const addMember = async ({ name, billId }: Row) => {
 export const editMember = async ({ id, name }: Row) => {
   const text = String(name || '').trim()
   if (!text) return ['成员名称不能为空', null]
+  if (text.length > 64) return ['成员名称不能超过64个字', null]
   if (!id) return ['成员id不能为空', null]
   const [affected] = await Member.update({ name: text }, { where: { id, isDel: false } })
   const res = affected ? await Member.findByPk(id) : null

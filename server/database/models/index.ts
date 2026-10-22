@@ -150,6 +150,26 @@ function initModels(sequelize: Sequelize) {
     { tableName: 'bill_overview_rules' }
   )
 
+  /** 数量型概览规则每年的实际数量与归属人配置（如香港天数每年天数与扣减归属人） */
+  const BillOverviewRuleYear = defineModel(
+    'bill_overview_rule_years',
+    {
+      id: defineId,
+      billId: { type: DataTypes.CHAR(36), allowNull: false, field: 'bill_id' },
+      ruleId: { type: DataTypes.CHAR(36), allowNull: false, field: 'rule_id' },
+      year: { type: DataTypes.INTEGER, allowNull: false },
+      quantity: decimalMoney('quantity', { allowNull: false, defaultValue: 0 }),
+      belongUserId: { type: DataTypes.CHAR(36), allowNull: true, field: 'belong_user_id' }
+    },
+    {
+      tableName: 'bill_overview_rule_years',
+      indexes: [
+        { unique: true, fields: ['rule_id', 'year'], name: 'idx_rule_year_unique' },
+        { fields: ['bill_id', 'year'], name: 'idx_rule_years_bill_year' }
+      ]
+    }
+  )
+
   const BillPlanBuy = defineModel(
     'bill_plan_buys',
     {
@@ -208,7 +228,9 @@ function initModels(sequelize: Sequelize) {
       billId: { type: DataTypes.CHAR(36), allowNull: false, field: 'bill_id' },
       memberId: { type: DataTypes.CHAR(36), allowNull: false, field: 'member_id' },
       type: { type: DataTypes.STRING(32), allowNull: false },
-      fourMoneyType: { type: DataTypes.STRING(32), allowNull: false, field: 'four_money_type' },
+      /** CNY、HKD、USD。创建后不可改。已有行回填人民币 */
+      currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'CNY' },
+      fourMoneyType: { type: DataTypes.STRING(32), allowNull: true, field: 'four_money_type' },
       isDebt: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_debt' },
       latestAmount: decimalMoney('latestAmount', { field: 'latest_amount' }),
       insuranceCategory: { type: DataTypes.STRING(32), allowNull: true, field: 'insurance_category' },
@@ -229,6 +251,31 @@ function initModels(sequelize: Sequelize) {
       isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' }
     },
     { tableName: 'asset_records' }
+  )
+
+  /** 一个账本一套港币、美元汇率。没有这一行表示尚未保存 */
+  const BillExchangeRate = defineModel(
+    'bill_exchange_rates',
+    {
+      billId: { type: DataTypes.CHAR(36), primaryKey: true, field: 'bill_id' },
+      hkdRate: decimalMoney('hkdRate', { field: 'hkd_rate' }),
+      usdRate: decimalMoney('usdRate', { field: 'usd_rate' })
+    },
+    { tableName: 'bill_exchange_rates' }
+  )
+
+  /** 养老计划。member_id 为空表示「全部」，同一范围只有一行 */
+  const AssetRetirePlan = defineModel(
+    'asset_retire_plans',
+    {
+      id: defineId,
+      billId: { type: DataTypes.CHAR(36), allowNull: false, field: 'bill_id' },
+      memberId: { type: DataTypes.CHAR(36), allowNull: true, field: 'member_id' },
+      amount: decimalMoney('amount'),
+      startMonth: { type: DataTypes.STRING(7), allowNull: false, field: 'start_month' },
+      targetMonth: { type: DataTypes.STRING(7), allowNull: true, field: 'target_month' }
+    },
+    { tableName: 'asset_retire_plans' }
   )
 
   const Transaction = defineModel(
@@ -298,6 +345,8 @@ function initModels(sequelize: Sequelize) {
   Bill.hasMany(BillIncomeType, { foreignKey: 'billId', as: 'incomesTypes' })
   Bill.hasMany(BillPayMethod, { foreignKey: 'billId', as: 'payMethods' })
   Bill.hasMany(BillOverviewRule, { foreignKey: 'billId', as: 'overviewRules' })
+  BillOverviewRule.hasMany(BillOverviewRuleYear, { foreignKey: 'ruleId', as: 'yearlyRecords' })
+  BillOverviewRuleYear.belongsTo(BillOverviewRule, { foreignKey: 'ruleId', as: 'rule' })
   Bill.hasMany(BillPlanBuy, { foreignKey: 'billId', as: 'planBuyDetails' })
   Bill.hasMany(BillBudget, { foreignKey: 'billId', as: 'budgets' })
   BillBudget.hasMany(BillBudgetDetail, { foreignKey: 'budgetId', as: 'details' })
@@ -318,12 +367,15 @@ function initModels(sequelize: Sequelize) {
     BillIncomeType,
     BillPayMethod,
     BillOverviewRule,
+    BillOverviewRuleYear,
     BillPlanBuy,
     BillBudget,
     BillBudgetDetail,
     Member,
     Asset,
     AssetRecord,
+    BillExchangeRate,
+    AssetRetirePlan,
     Transaction,
     TransactionImage
   }

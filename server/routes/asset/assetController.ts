@@ -2,6 +2,26 @@ import type { Row, WhereBag } from '../../types/domain'
 import { Asset, AssetRecord, Member } from '../../database/index'
 import { Op } from 'sequelize'
 import { getRecentRecordsGrouped, placeRecordDate, recomputeLatestAmount } from '../../database/services/assetRecordService'
+import { getBillRates, toCny } from '../../database/services/assetFx'
+
+const CURRENCIES = ['CNY', 'HKD', 'USD']
+
+/** 币种只允许人民币、港币、美元。空值用默认值 */
+const readCurrency = (value: unknown, fallback: string): [string, null] | [null, string] => {
+  if (value === undefined || value === null || value === '') return [null, fallback]
+  const code = String(value).toUpperCase()
+  if (!CURRENCIES.includes(code)) return ['币种只能是人民币、港币或美元', null]
+  return [null, code]
+}
+
+/** 年交保费留空表示未填；填写时不能小于 0 */
+const readPremium = (fourMoneyType: unknown, annualPremium: unknown): [string, null] | [null, true] => {
+  if (fourMoneyType !== 'insurance') return [null, true]
+  if (annualPremium === undefined || annualPremium === null || annualPremium === '') return [null, true]
+  const premium = Number(annualPremium)
+  if (!Number.isFinite(premium) || premium < 0) return ['年交保费不能小于0', null]
+  return [null, true]
+}
 
 /** 金额必须大于 0。空值和非法值分开提示 */
 const readPositiveAmount = (value: unknown, emptyMessage: string, invalidMessage: string): [string, null] | [null, number] => {
@@ -55,13 +75,17 @@ export const getAssetList = async ({ billId, memberId, type, fourMoneyType }: Ro
  * @param {number} annualPremium 年交保费
  * @returns {Array} [错误信息, 资产对象]
  */
-export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium }: Row) => {
+export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency }: Row) => {
   if (!name) return ['资产名称不能为空', null]
   if (!billId) return ['账本id不能为空', null]
   if (!memberId) return ['成员id不能为空', null]
   if (!type) return ['资产类型不能为空', null]
-  const moneyType = type === 'debt' ? '' : fourMoneyType
+  const [currencyErr, currencyCode] = readCurrency(currency, 'CNY')
+  if (currencyErr || !currencyCode) return [currencyErr, null]
+  const moneyType = type === 'debt' ? null : fourMoneyType
   if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
+  const [premiumErr] = readPremium(moneyType, annualPremium)
+  if (premiumErr) return [premiumErr, null]
   const [amountErr, amount] = readPositiveAmount(latestAmount, '最新金额不能为空', '最新金额必须大于0')
   if (amountErr || amount == null) return [amountErr, null]
   const member = await Member.findOne({ where: { id: memberId, billId, isDel: false } })
@@ -72,6 +96,7 @@ export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, la
     billId,
     memberId,
     type,
+    currency: currencyCode,
     fourMoneyType: moneyType,
     latestAmount: amount,
     isDebt: type === 'debt',
@@ -100,28 +125,35 @@ export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, la
  * @param {number} annualPremium 年交保费
  * @returns {Array} [错误信息, 资产对象]
  */
-export const editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium }: Row) => {
+export const editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency }: Row) => {
   if (!id) return ['资产id不能为空', null]
   if (!name) return ['资产名称不能为空', null]
   if (!memberId) return ['成员id不能为空', null]
   if (!type) return ['资产类型不能为空', null]
-  const moneyType = type === 'debt' ? '' : fourMoneyType
+  const moneyType = type === 'debt' ? null : fourMoneyType
   if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
+  const [premiumErr] = readPremium(moneyType, annualPremium)
+  if (premiumErr) return [premiumErr, null]
   const [amountErr, amount] = readPositiveAmount(latestAmount, '最新金额不能为空', '最新金额必须大于0')
   if (amountErr || amount == null) return [amountErr, null]
   const current = await Asset.findOne({ where: { id, isDel: false } })
   if (!current) return ['编辑资产失败，资产可能已被删除', null]
+  if (currency !== undefined && currency !== null && currency !== '' && String(currency).toUpperCase() !== String(current.currency || 'CNY')) {
+    return ['要换币种需删除后重新登记', null]
+  }
   const member = await Member.findOne({ where: { id: memberId, billId: current.billId, isDel: false } })
   if (!member) return ['成员不存在', null]
   const amountChanged = Number(current.latestAmount) !== amount
+  // 本来就是负债、只是在四笔钱卡片里改分类时，保留新的四笔钱。改成负债或新登记的负债则清空
+  const storedMoney = type === 'debt' ? (String(current.type) === 'debt' && fourMoneyType ? fourMoneyType : null) : moneyType
   const [affected] = await Asset.update(
     {
       name,
       memberId,
       type,
-      fourMoneyType: moneyType,
+      fourMoneyType: storedMoney,
       isDebt: type === 'debt',
-      ...insurancePatch(moneyType, insuranceCategory, annualPremium)
+      ...insurancePatch(storedMoney, insuranceCategory, annualPremium)
     },
     { where: { id, isDel: false } }
   )
@@ -181,20 +213,24 @@ export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
   if (!allAssets.length) return [null, { assetAmount: 0, debtAmount: 0, netAmount: 0, assetGroups: [], debtGroups: [] }]
 
   const assetIds = allAssets.map((a: Row) => a.id)
+  const rates = await getBillRates(String(billId))
   const recentMap = await getRecentRecordsGrouped(assetIds, 2)
-  const prevMap: Record<string, number | string | null> = {}
+  const prevMap: Record<string, number | null> = {}
   Object.keys(recentMap).forEach((assetId) => {
     const list = recentMap[assetId] || []
-    prevMap[assetId] = list.length >= 2 ? list[1].amount ?? null : null
+    const asset = allAssets.find((item: Row) => item.id === assetId)
+    prevMap[assetId] = list.length >= 2 ? toCny(list[1].amount, asset?.currency, rates) : null
   })
 
-  // 拆分资产与负债
+  const cnyOf = (asset: Row) => toCny(asset.latestAmount, asset.currency, rates)
+
+  // 拆分资产与负债。合计用人民币
   const assetItems = allAssets.filter((a: Row) => !a.isDebt)
   const debtItems = allAssets.filter((a: Row) => a.isDebt)
 
-  const assetAmount = assetItems.reduce((sum: number, a: Row) => sum + Math.abs(Number(a.latestAmount) || 0), 0)
-  const debtAmount = debtItems.reduce((sum: number, a: Row) => sum + Math.abs(Number(a.latestAmount) || 0), 0)
-  const netAmount = assetAmount - debtAmount
+  const assetAmount = assetItems.reduce((sum: number, a: Row) => sum + cnyOf(a), 0)
+  const debtAmount = debtItems.reduce((sum: number, a: Row) => sum + cnyOf(a), 0)
+  const netAmount = Math.round((assetAmount - debtAmount) * 100) / 100
 
   const typeNameMap: Record<string, string> = {
     living: '流动资金',
@@ -220,15 +256,14 @@ export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
       if (!groupMap[key]) {
         groupMap[key] = { type: key, typeName: typeNameMap[key] || key, amount: 0, prevAmount: 0, change: 0, hasPrev: false, assets: [] }
       }
-      const prev = asset.id ? prevMap[asset.id] : null
-      const current = Math.abs(Number(asset.latestAmount) || 0)
-      const prevNumber = prev == null ? null : Math.abs(Number(prev) || 0)
-      const change = prevNumber !== null ? current - prevNumber : 0
-      const changeRate = prevNumber !== null && prevNumber !== 0 ? change / prevNumber : null
+      const prevNumber = asset.id ? prevMap[asset.id] ?? null : null
+      const current = cnyOf(asset)
+      const rawAmount = Math.abs(Number(asset.latestAmount) || 0)
+      const change = prevNumber !== null ? Math.round((current - prevNumber) * 100) / 100 : null
 
       groupMap[key].amount += current
-      // 只累加有上一次盘点的资产。不能因为组内另有一笔没有上一次，就把整组变化清成 0
-      if (prevNumber !== null) {
+      // 只累加有上一次盘点的资产。较上次看的是这一笔自己的上一条，不用总览截至日
+      if (prevNumber !== null && change !== null) {
         groupMap[key].prevAmount += prevNumber
         groupMap[key].change += change
         groupMap[key].hasPrev = true
@@ -241,26 +276,25 @@ export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
         memberName: asset.member?.name || '',
         type: asset.type,
         fourMoneyType: asset.fourMoneyType,
-        latestAmount: asset.latestAmount,
+        currency: asset.currency || 'CNY',
+        rawAmount,
+        latestAmount: current,
         isDebt: Boolean(asset.isDebt),
         insuranceCategory: asset.insuranceCategory || '',
-        annualPremium: asset.annualPremium,
-        prevAmount: prev == null ? null : Number(prev),
+        annualPremium: asset.annualPremium == null ? null : toCny(asset.annualPremium, asset.currency, rates),
+        prevAmount: prevNumber,
         change,
-        changeRate,
         percent: 0
       })
     })
 
     return Object.values(groupMap).map((g) => {
-      const groupChange = g.hasPrev ? g.change : null
-      const groupChangeRate = g.hasPrev && g.prevAmount !== 0 ? g.change / g.prevAmount : null
+      const groupChange = g.hasPrev ? Math.round(g.change * 100) / 100 : null
       return {
         type: g.type,
         typeName: g.typeName,
-        amount: g.amount,
+        amount: Math.round(g.amount * 100) / 100,
         change: groupChange,
-        changeRate: groupChangeRate,
         percent: totalForPercent > 0 ? g.amount / totalForPercent : 0,
         assets: g.assets.map((asset) => ({
           ...asset,

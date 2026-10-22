@@ -89,7 +89,7 @@ export const delAssetRecord = async ({ id }: Row) => {
  * @param {number} endDate 结束日期
  * @returns {Array} [错误信息, 资产记录列表]
  */
-export const getAssetRecords = async ({ assetId, startDate, endDate }: Row) => {
+export const getAssetRecords = async ({ assetId, startDate, endDate, page, pageSize }: Row) => {
   if (!assetId) return ['资产id不能为空', null]
   const query: WhereBag = { assetId, isDel: false }
   if (startDate || endDate) {
@@ -98,6 +98,18 @@ export const getAssetRecords = async ({ assetId, startDate, endDate }: Row) => {
     if (endDate) dateWhere[Op.lte] = endDate
     query.date = dateWhere
   }
-  const res = await AssetRecord.findAll({ where: query, order: [['date', 'DESC']] })
-  return [null, res]
+  const paged = page !== undefined && page !== null && page !== '' || pageSize !== undefined && pageSize !== null && pageSize !== ''
+  if (!paged) {
+    const res = await AssetRecord.findAll({ where: query, order: [['date', 'DESC']] })
+    return [null, res]
+  }
+  const pageNum = Math.max(1, Number(page) || 1)
+  const size = Math.max(1, Number(pageSize) || 10)
+  const result = await AssetRecord.findAndCountAll({
+    where: query,
+    order: [['date', 'DESC']],
+    limit: size,
+    offset: (pageNum - 1) * size
+  })
+  return [null, { list: result.rows, total: result.count, page: pageNum, pageSize: size }]
 }

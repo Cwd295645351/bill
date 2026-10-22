@@ -1,7 +1,9 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Asset, Member } from '../../database/index'
+import { Asset, AssetRecord, Member } from '../../database/index'
+import { Op } from 'sequelize'
 import dayjs from 'dayjs'
 import { getLatestSnapshotsBefore } from '../../database/services/assetRecordService'
+import { getBillRates, toCny } from '../../database/services/assetFx'
 
 /** 获取资产概览（首页顶部摘要 + 变化柱状图）
  * 返回当前资产汇总及与上月末相比的各类型变化数据
@@ -23,95 +25,108 @@ import { getLatestSnapshotsBefore } from '../../database/services/assetRecordSer
  *   }]
  * }]
  */
-export const getAssetOverview = async ({ billId, memberId }: Row) => {
+const typeNameMap: Record<string, string> = {
+  living: '流动资金',
+  steady: '固定资产',
+  longterm: '投资理财',
+  receivable: '应收款',
+  debt: '负债'
+}
+const typeOrder = ['living', 'steady', 'longterm', 'receivable', 'debt']
+
+const round2 = (value: number) => Math.round(value * 100) / 100
+
+/** 当前筛选下的盘点日，以及最早有盘点的月份 */
+const recordSpan = async (assetIds: string[]) => {
+  if (!assetIds.length) return { defaultAsOf: '', earliestRecordMonth: '' }
+  const rows = await AssetRecord.findAll({
+    where: { assetId: { [Op.in]: assetIds }, isDel: false },
+    attributes: ['date'],
+    raw: true
+  })
+  const days = [...new Set((rows as Row[]).map((row) => dayjs(Number(row.date)).format('YYYY-MM-DD')))].sort()
+  const stamps = (rows as Row[]).map((row) => Number(row.date)).filter((value) => Number.isFinite(value))
+  return {
+    defaultAsOf: days.length >= 2 ? days[days.length - 2] : '',
+    earliestRecordMonth: stamps.length ? dayjs(Math.min(...stamps)).format('YYYY-MM') : ''
+  }
+}
+
+export const getAssetOverview = async ({ billId, memberId, asOf }: Row) => {
   if (!billId) return ['账本id不能为空', null]
 
   const query: WhereBag = { billId, isDel: false }
   if (memberId) query.memberId = memberId
 
   const assets = await Asset.findAll({ where: query })
-  if (!assets.length) {
-    const referenceDate = dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')
-    return [null, {
-      netAmount: 0, assetAmount: 0, debtAmount: 0,
-      referenceDate, totalChange: 0, categoryChanges: []
-    }]
-  }
+  const rates = await getBillRates(String(billId))
+  const assetIds = assets.map((item: Row) => item.id).filter((id: string | undefined): id is string => Boolean(id))
+  const span = await recordSpan(assetIds)
+  const asOfText = asOf ? String(asOf) : ''
+  const compare = Boolean(asOfText && dayjs(asOfText).isValid())
 
-  const assetIds = assets.map((a: Row) => a.id)
-
-  // 当前汇总
   let assetAmount = 0
   let debtAmount = 0
   const currentByType: Record<string, number> = {}
-
-  const typeNameMap: Record<string, string> = {
-    living: '流动资金',
-    steady: '固定资产',
-    longterm: '投资理财',
-    receivable: '应收款',
-    debt: '负债'
-  }
-
-  assets.forEach((a: Row) => {
-    const type = a.type || ''
-    const latest = Math.abs(Number(a.latestAmount) || 0)
-    if (!currentByType[type]) currentByType[type] = 0
-    currentByType[type] += latest
-
-    if (a.isDebt) {
-      debtAmount += latest
-    } else {
-      assetAmount += Number(a.latestAmount) || 0
-    }
+  assets.forEach((asset: Row) => {
+    const type = String(asset.type || '')
+    const latest = toCny(asset.latestAmount, asset.currency, rates)
+    currentByType[type] = (currentByType[type] || 0) + latest
+    if (asset.isDebt) debtAmount += latest
+    else assetAmount += latest
   })
-
-  const netAmount = assetAmount - debtAmount
-
-  // 上月末基准日期
-  const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month')
-  const referenceDate = lastMonthEnd.format('YYYY-MM-DD')
-  const refTimestamp = lastMonthEnd.valueOf()
-
-  // 聚合查询：获取每个资产在上月末时的最新快照
-  const prevSnapshots = await getLatestSnapshotsBefore(assetIds, refTimestamp)
 
   const prevByType: Record<string, number> = {}
   let prevAssetAmount = 0
-  prevSnapshots.forEach((snap: Row) => {
-    const asset = assets.find((a: Row) => a.id === snap.assetId)
-    if (!asset) return
-    const type = asset.type || ''
-    const amount = Math.abs(Number(snap.amount) || 0)
-    if (!prevByType[type]) prevByType[type] = 0
-    prevByType[type] += amount
-    if (!asset.isDebt) prevAssetAmount += amount
+  let prevDebtAmount = 0
+  if (compare && assetIds.length) {
+    const snaps = await getLatestSnapshotsBefore(assetIds, dayjs(asOfText).endOf('day').valueOf())
+    snaps.forEach((snap: Row) => {
+      const asset = assets.find((item: Row) => item.id === snap.assetId)
+      if (!asset) return
+      const type = String(asset.type || '')
+      const amount = toCny(snap.amount, asset.currency, rates)
+      prevByType[type] = (prevByType[type] || 0) + amount
+      if (asset.isDebt) prevDebtAmount += amount
+      else prevAssetAmount += amount
+    })
+  } else if (!compare && assetIds.length) {
+    // 不传截至日时，变化仍相对上月末，避免旧调用方突然改口径
+    const lastMonthEnd = dayjs().subtract(1, 'month').endOf('month')
+    const snaps = await getLatestSnapshotsBefore(assetIds, lastMonthEnd.valueOf())
+    snaps.forEach((snap: Row) => {
+      const asset = assets.find((item: Row) => item.id === snap.assetId)
+      if (!asset || asset.isDebt) return
+      prevAssetAmount += toCny(snap.amount, asset.currency, rates)
+      const type = String(asset.type || '')
+      prevByType[type] = (prevByType[type] || 0) + toCny(snap.amount, asset.currency, rates)
+    })
+  }
+
+  const categoryChanges = typeOrder.map((type) => {
+    const current = round2(currentByType[type] || 0)
+    const prev = round2(prevByType[type] || 0)
+    return { type, typeName: typeNameMap[type], current, prev, change: round2(current - prev) }
   })
 
-  // 构造各类型变化数据
-  const allTypes = [...new Set([...Object.keys(currentByType), ...Object.keys(prevByType)])]
-  const categoryChanges = allTypes.map((type) => {
-    const current = currentByType[type] || 0
-    const prev = prevByType[type] || 0
-    return {
-      type,
-      typeName: typeNameMap[type] || type,
-      current,
-      prev,
-      change: current - prev
-    }
-  })
-
-  // 总资产变化只比较非负债，负债单独出现在分类变化里
-  const totalChange = assetAmount - prevAssetAmount
+  assetAmount = round2(assetAmount)
+  debtAmount = round2(debtAmount)
+  const totalChange = compare || !asOfText ? round2(assetAmount - round2(prevAssetAmount)) : 0
+  const debtChange = compare ? round2(debtAmount - round2(prevDebtAmount)) : 0
 
   return [null, {
-    netAmount,
+    netAmount: round2(assetAmount - debtAmount),
     assetAmount,
     debtAmount,
-    referenceDate,
+    referenceDate: compare ? asOfText : (span.defaultAsOf || dayjs().subtract(1, 'month').endOf('month').format('YYYY-MM-DD')),
     totalChange,
-    categoryChanges
+    debtChange,
+    categoryChanges,
+    defaultAsOf: span.defaultAsOf,
+    earliestRecordMonth: span.earliestRecordMonth,
+    hkdRate: rates.hkdRate,
+    usdRate: rates.usdRate,
+    ratesSaved: rates.saved
   }]
 }
 
@@ -127,6 +142,7 @@ export const getSankeyData = async ({ billId, memberId }: Row) => {
     where: query,
     include: [{ model: Member, as: 'member' }]
   })
+  const rates = await getBillRates(String(billId))
 
   const typeName: Record<string, string> = {
     living: '流动资金',
@@ -137,13 +153,14 @@ export const getSankeyData = async ({ billId, memberId }: Row) => {
   let totalAsset = 0
   let totalDebt = 0
   const typeAmount: Record<string, number> = {}
-  const nodes: { id: string; name: string; memberName?: string; detail?: string; kind: string }[] = []
+  const nodes: { id: string; name: string; memberName?: string; detail?: string; kind: string; currency?: string; rawAmount?: number }[] = []
   const links: { source: string; target: string; value: number }[] = []
   const debtNames: string[] = []
   const debtMembers = new Set<string>()
 
   assets.forEach((asset: Row) => {
-    const amount = Math.abs(Number(asset.latestAmount) || 0)
+    const rawAmount = Math.abs(Number(asset.latestAmount) || 0)
+    const amount = toCny(asset.latestAmount, asset.currency, rates)
     if (amount <= 0) return
     const memberName = asset.member?.name ? String(asset.member.name) : ''
     if (asset.isDebt) {
@@ -156,7 +173,7 @@ export const getSankeyData = async ({ billId, memberId }: Row) => {
     totalAsset += amount
     typeAmount[label] = (typeAmount[label] || 0) + amount
     const id = `a-${asset.id}`
-    nodes.push({ id, name: asset.name || '', memberName, kind: 'asset' })
+    nodes.push({ id, name: asset.name || '', memberName, kind: 'asset', currency: asset.currency || 'CNY', rawAmount })
     links.push({ source: `t-${label}`, target: id, value: amount })
   })
 
@@ -195,6 +212,7 @@ export const getFourMoneySummary = async ({ billId, memberId }: Row) => {
     where: query,
     include: [{ model: Member, as: 'member' }]
   })
+  const rates = await getBillRates(String(billId))
 
   const summary: Record<string, {
     name: string
@@ -213,20 +231,35 @@ export const getFourMoneySummary = async ({ billId, memberId }: Row) => {
   assets.forEach((asset: Row) => {
     const type = asset.fourMoneyType
     const bucket = type ? summary[type] : undefined
-    if (bucket) {
-      bucket.amount += Number(asset.latestAmount) || 0
-      bucket.count += 1
-      bucket.assets.push(asset)
+    if (!bucket) return
+    const amount = toCny(asset.latestAmount, asset.currency, rates)
+    bucket.amount = round2(bucket.amount + amount)
+    bucket.count += 1
+    const row: Row = {
+      id: asset.id,
+      name: asset.name,
+      type: asset.type,
+      fourMoneyType: type,
+      latestAmount: amount,
+      rawAmount: Math.abs(Number(asset.latestAmount) || 0),
+      currency: asset.currency || 'CNY',
+      isDebt: Boolean(asset.isDebt),
+      memberId: asset.memberId,
+      member: { name: asset.member?.name || '' },
+      insuranceCategory: asset.insuranceCategory || '',
+      annualPremium: asset.annualPremium == null ? null : toCny(asset.annualPremium, asset.currency, rates)
+    }
+    bucket.assets.push(row)
 
-      if (type === 'insurance') {
-        const insurance = summary.insurance
-        insurance.totalPremium = (insurance.totalPremium || 0) + (Number(asset.annualPremium) || 0)
-        const cat = asset.insuranceCategory || '其他'
-        const categories = insurance.categories || {}
-        insurance.categories = categories
-        if (!categories[cat]) categories[cat] = 0
-        categories[cat] += 1
-      }
+    if (type === 'insurance') {
+      const insurance = summary.insurance
+      const premium = asset.annualPremium == null ? 0 : toCny(asset.annualPremium, asset.currency, rates)
+      insurance.totalPremium = round2((insurance.totalPremium || 0) + premium)
+      const cat = asset.insuranceCategory || '其他'
+      const categories = insurance.categories || {}
+      insurance.categories = categories
+      if (!categories[cat]) categories[cat] = 0
+      categories[cat] += 1
     }
   })
 
@@ -243,6 +276,7 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
   if (memberId) query.memberId = memberId
 
   const assets = await Asset.findAll({ where: query })
+  const rates = await getBillRates(String(billId))
   const assetIds = assets
     .map((asset: Row) => asset.id)
     .filter((id: string | undefined): id is string => Boolean(id))
@@ -282,7 +316,7 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
     latest.forEach((snap: Row) => {
       const asset = assets.find((item: Row) => item.id === snap.assetId)
       if (!asset) return
-      const amount = Math.abs(Number(snap.amount) || 0)
+      const amount = toCny(snap.amount, asset.currency, rates)
       const dateStr = dayjs(Number(snap.date)).format('YYYY-MM-DD')
       const touch = (key: string) => {
         if (!lastByKey[key] || dateStr > lastByKey[key]) lastByKey[key] = dateStr

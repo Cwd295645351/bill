@@ -78,7 +78,7 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
           {
             type: 'sankey',
             left: 24,
-            right: 120,
+            right: 140,
             top: 16,
             bottom: 16,
             nodeWidth: 16,
@@ -102,7 +102,7 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
                 label: {
                   formatter: `${badge}${node.name}${detail}${valueText}`,
                   color: '#333',
-                  fontSize: 12,
+                  fontSize: 16,
                   rich: {
                     badge: {
                       backgroundColor: memberColor(node.memberName || ''),
@@ -143,8 +143,14 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
   watch(mode, draw)
   const onResize = () => chart?.resize()
   window.addEventListener('resize', onResize)
+  const observer = new ResizeObserver(() => chart?.resize())
+  watch(host, (el) => {
+    observer.disconnect()
+    if (el) observer.observe(el)
+  })
   onBeforeUnmount(() => {
     window.removeEventListener('resize', onResize)
+    observer.disconnect()
     chart?.dispose()
   })
 

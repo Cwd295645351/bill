@@ -57,6 +57,17 @@ export interface Row {
   member?: { name?: string }
   memberName?: string
   fourMoneyType?: string
+  currency?: string
+  hkdRate?: number | string
+  usdRate?: number | string
+  asOf?: string
+  page?: number | string
+  rawAmount?: number
+  startMonth?: string | null
+  targetMonth?: string | null
+  incomeYears?: number | string
+  expenseYears?: number | string
+  skipIdle?: boolean | string
   latestAmount?: number | string
   insuranceCategory?: string | null
   annualPremium?: number | string | null
@@ -148,7 +159,7 @@ export interface Row {
   hasNewer?: boolean
   total?: number
   typeName?: string
-  change?: number
+  change?: number | null
   changeRate?: number | null
   percent?: number
   prevAmount?: number | null

@@ -6,8 +6,8 @@ import layoutRoute from '@/components/layout/router'
 
 const routes: Array<RouteRecordRaw> = [{ path: '/', redirect: '/login' }]
 
-// 读取 views 页面钟定义的路由
-const routeModules: any = import.meta.glob('@/views/**/router.ts', { eager: true })
+// 读取 views 页面中定义的路由
+const routeModules: any = import.meta.glob('../views/**/router.ts', { eager: true })
 const childRoutes = Object.keys(routeModules)
   .map((path: string) => routeModules[path].default)
   .flat()

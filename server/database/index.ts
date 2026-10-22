@@ -2,6 +2,7 @@ import { Sequelize } from 'sequelize'
 import { MYSQL_CONF } from '../config/db'
 import initModels from './models'
 import { ensureEncryptionKey, type EncryptionStore } from './ensureEncryption'
+import { ensureAssetSchema } from './ensureAssetSchema'
 
 const sequelize = new Sequelize(MYSQL_CONF.database, MYSQL_CONF.username, MYSQL_CONF.password, {
   host: MYSQL_CONF.host,
@@ -35,6 +36,7 @@ const connectDB = async () => {
     await ensureDatabase()
     await sequelize.authenticate()
     await sequelize.sync()
+    await ensureAssetSchema(sequelize)
     await ensureEncryptionKey(models.Encryption as unknown as EncryptionStore)
     console.log('MySQL connect success')
   } catch (err) {
@@ -53,12 +55,15 @@ export const {
   BillIncomeType,
   BillPayMethod,
   BillOverviewRule,
+  BillOverviewRuleYear,
   BillPlanBuy,
   BillBudget,
   BillBudgetDetail,
   Member,
   Asset,
   AssetRecord,
+  BillExchangeRate,
+  AssetRetirePlan,
   Transaction,
   TransactionImage
 } = models

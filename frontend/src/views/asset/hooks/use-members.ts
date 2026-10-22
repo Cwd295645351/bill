@@ -12,6 +12,18 @@ export const useMembers = () => {
   const visible = ref(false)
   const draftName = ref('')
   const saving = ref(false)
+  // 正在编辑的名称单独存放，避免输入时被原名覆盖
+  const drafts = ref<Record<string, string>>({})
+
+  const draftOf = (member: AssetMember) => drafts.value[member.id] ?? member.name
+
+  const setDraft = (id: string, name: string) => {
+    drafts.value[id] = name
+  }
+
+  const clearDraft = (id: string) => {
+    delete drafts.value[id]
+  }
 
   const load = async () => {
     if (!billId.value) {
@@ -28,6 +40,7 @@ export const useMembers = () => {
 
   const open = () => {
     draftName.value = ''
+    drafts.value = {}
     visible.value = true
   }
 
@@ -50,13 +63,30 @@ export const useMembers = () => {
 
   const rename = async (member: AssetMember, name: string) => {
     const text = name.trim()
-    if (!text || text === member.name) return
+    if (!text) {
+      ElMessage.warning('成员名称不能为空')
+      clearDraft(member.id)
+      return false
+    }
+    if (text.length > 64) {
+      ElMessage.warning('成员名称不能超过64个字')
+      return false
+    }
+    if (text === member.name) {
+      clearDraft(member.id)
+      return false
+    }
     const [err, res] = await editMember({ data: { id: member.id, name: text } })
     if (err || !res || res.retCode !== 0) {
       ElMessage.error(res?.message || '编辑成员失败')
-      return
+      clearDraft(member.id)
+      return false
     }
+    member.name = text
+    ElMessage.success('已修改成员名称')
     await load()
+    clearDraft(member.id)
+    return true
   }
 
   const hide = async (member: AssetMember) => {
@@ -76,7 +106,7 @@ export const useMembers = () => {
 
   watch(billId, load, { immediate: true })
 
-  return { members, visible, draftName, saving, open, create, rename, hide, load }
+  return { members, visible, draftName, saving, open, create, rename, draftOf, setDraft, hide, load }
 }
 
 export type MemberFilter = Ref<string>

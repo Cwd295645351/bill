@@ -220,9 +220,15 @@ const buildSettlement = ({
   const paid: Record<string, number> = {}
   const borne: Record<string, number> = {}
   const names: Record<string, string> = {}
+  const exclusiveBorne: Record<string, number> = {}
+  const sharedBorne: Record<string, number> = {}
+  const publicBorne: Record<string, number> = {}
   memberList.forEach((member: SettlementMember) => {
     paid[member.userId] = 0
     borne[member.userId] = 0
+    exclusiveBorne[member.userId] = 0
+    sharedBorne[member.userId] = 0
+    publicBorne[member.userId] = 0
     names[member.userId] = member.name
   })
 
@@ -267,6 +273,7 @@ const buildSettlement = ({
     const belongId = row.belongUserId
     ensureParty(belongId, row.belongUserName)
     if (borne[belongId] != null) borne[belongId] += cents
+    if (exclusiveBorne[belongId] != null) exclusiveBorne[belongId] += cents
     if (memberIds.has(belongId)) {
       addSlice(memberSlices[belongId], row.costTypeId, row.costTypeName, cents)
     }
@@ -282,6 +289,7 @@ const buildSettlement = ({
     memberList.forEach((member: SettlementMember, index: number) => {
       const share = shares[index] || 0
       borne[member.userId] += share
+      publicBorne[member.userId] += share
       addSlice(memberSlices[member.userId], row.costTypeId, row.costTypeName, share)
     })
   })
@@ -303,6 +311,7 @@ const buildSettlement = ({
       groupIds.forEach((id, index) => {
         const share = shares[index] || 0
         if (borne[id] != null) borne[id] += share
+        if (sharedBorne[id] != null) sharedBorne[id] += share
         if (memberIds.has(id)) addSlice(memberSlices[id], row.costTypeId, row.costTypeName, share)
       })
     })
@@ -368,10 +377,14 @@ const buildSettlement = ({
     members: memberList.map((member: SettlementMember) => ({
       userId: member.userId,
       name: member.name,
+      income: fromCents(incomeCents[member.userId] || 0),
       effectiveIncome: fromCents(effectiveCents[member.userId] || 0),
       weight: equalSplit ? 1 : fromCents(Math.max(effectiveCents[member.userId] || 0, 0)),
       paid: fromCents(paid[member.userId] || 0),
       borne: fromCents(borne[member.userId] || 0),
+      exclusive: fromCents(exclusiveBorne[member.userId] || 0),
+      sharedShare: fromCents(sharedBorne[member.userId] || 0),
+      publicShare: fromCents(publicBorne[member.userId] || 0),
       net: fromCents((paid[member.userId] || 0) - (borne[member.userId] || 0))
     })),
     lines,

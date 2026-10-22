@@ -21,6 +21,8 @@ export interface AssetForm {
   latestAmount: string
   insuranceCategory: string
   annualPremium: string
+  /** CNY、HKD、USD */
+  currency: string
 }
 
 /** 单笔资产在总览里的一行 */
@@ -32,12 +34,14 @@ export interface AssetRow {
   type: string
   fourMoneyType: string
   latestAmount: number
+  /** 原币金额。编辑和盘点用这个，避免把人民币写回原币 */
+  rawAmount?: number
+  currency?: string
   isDebt?: boolean
   insuranceCategory?: string
   annualPremium?: number | null
   prevAmount: number | null
-  change: number
-  changeRate: number | null
+  change: number | null
   percent: number
 }
 
@@ -47,7 +51,6 @@ export interface AssetGroup {
   typeName: string
   amount: number
   change: number | null
-  changeRate: number | null
   percent: number
   assets: AssetRow[]
 }
@@ -76,7 +79,14 @@ export interface AssetOverview {
   debtAmount: number
   referenceDate: string
   totalChange: number
+  debtChange?: number
   categoryChanges: CategoryChange[]
+  /** 上一个盘点日。没有则为空 */
+  defaultAsOf?: string
+  earliestRecordMonth?: string
+  hkdRate?: number
+  usdRate?: number
+  ratesSaved?: boolean
 }
 
 /** 一条盘点 */
@@ -92,6 +102,10 @@ export interface FourMoneyAsset {
   id: string
   name: string
   latestAmount: number
+  rawAmount?: number
+  currency?: string
+  type?: string
+  fourMoneyType?: string
   isDebt: boolean
   memberId?: string
   member?: { name?: string }

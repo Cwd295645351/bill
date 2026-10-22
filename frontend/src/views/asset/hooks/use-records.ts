@@ -11,21 +11,26 @@ export const useRecords = (reload: () => Promise<void>) => {
   const editingId = ref('')
   const amount = ref('')
   const date = ref<number | ''>('')
-  const startDate = ref<number | ''>('')
-  const endDate = ref<number | ''>('')
   const saving = ref(false)
+  const page = ref(1)
+  const total = ref(0)
+  const pageSize = 10
 
   const load = async () => {
     if (!asset.value) return
-    const params: { assetId: string; startDate?: number; endDate?: number } = { assetId: asset.value.id }
-    if (startDate.value) params.startDate = dayjs(Number(startDate.value)).startOf('day').valueOf()
-    if (endDate.value) params.endDate = dayjs(Number(endDate.value)).endOf('day').valueOf()
-    const [err, res] = await getRecords({ params })
+    const [err, res] = await getRecords({ params: { assetId: asset.value.id, page: page.value, pageSize } })
     if (err || !res || res.retCode !== 0) {
       ElMessage.error(res?.message || '读取盘点失败')
       return
     }
-    records.value = res.data || []
+    const data = res.data
+    if (Array.isArray(data)) {
+      records.value = data
+      total.value = data.length
+      return
+    }
+    records.value = data?.list || []
+    total.value = Number(data?.total) || 0
   }
 
   const open = async (row: AssetRow) => {
@@ -33,8 +38,7 @@ export const useRecords = (reload: () => Promise<void>) => {
     editingId.value = ''
     amount.value = ''
     date.value = Date.now()
-    startDate.value = ''
-    endDate.value = ''
+    page.value = 1
     visible.value = true
     await load()
   }
@@ -72,12 +76,13 @@ export const useRecords = (reload: () => Promise<void>) => {
       return
     }
     beginCreate()
+    page.value = 1
     await load()
     await reload()
   }
 
   const remove = async (item: AssetRecordItem) => {
-    if (records.value.length <= 1) {
+    if (total.value <= 1) {
       ElMessage.warning('只剩一条记录时不能删除')
       return
     }
@@ -100,8 +105,9 @@ export const useRecords = (reload: () => Promise<void>) => {
     amount,
     date,
     saving,
-    startDate,
-    endDate,
+    page,
+    total,
+    pageSize,
     load,
     open,
     beginEdit,

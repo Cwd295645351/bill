@@ -1,8 +1,8 @@
 import { ref, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { getFourMoney } from '../api'
-import type { FourMoneySummary } from '../type'
+import { editAsset, getFourMoney } from '../api'
+import type { FourMoneyAsset, FourMoneySummary } from '../type'
 
 /** 四笔钱。负债仍落在所选分类里，不从卡片中剔除 */
 export const useFourMoney = (memberId: Ref<string>) => {
@@ -25,5 +25,28 @@ export const useFourMoney = (memberId: Ref<string>) => {
     summary.value = res.data || {}
   }
 
-  return { summary, order, load }
+  /** 只改四笔钱。金额用原币，避免被当成金额变化而新增盘点 */
+  const move = async (item: FourMoneyAsset, fourMoneyType: string) => {
+    const [err, res] = await editAsset({
+      data: {
+        id: item.id,
+        name: item.name,
+        memberId: item.memberId,
+        type: item.type,
+        fourMoneyType,
+        latestAmount: item.rawAmount ?? item.latestAmount,
+        currency: item.currency || 'CNY',
+        insuranceCategory: fourMoneyType === 'insurance' ? '' : '',
+        annualPremium: '',
+      },
+    })
+    if (err || !res || res.retCode !== 0) {
+      ElMessage.error(res?.message || '修改分类失败')
+      return false
+    }
+    await load()
+    return true
+  }
+
+  return { summary, order, load, move }
 }

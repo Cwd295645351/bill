@@ -6,6 +6,9 @@ import * as MEMBER from './memberController'
 import * as ASSET from './assetController'
 import * as RECORD from './recordController'
 import * as STATISTICS from './statisticsController'
+import * as EXCHANGE from './exchangeController'
+import * as LEDGER from './ledgerController'
+import * as RETIRE from './retireController'
 import VERSION from '../../config/version'
 import { assertBillMember, billIdOfAsset, billIdOfMember, billIdOfRecord } from './billAccess'
 
@@ -151,8 +154,9 @@ router.delete('/record', async (ctx: HttpContext) => {
 router.get('/overview', async (ctx: HttpContext) => {
   const billId = queryString(ctx.query.billId)
   const memberId = queryString(ctx.query.memberId)
+  const asOf = queryString(ctx.query.asOf)
   if (!(await guard(ctx, billId))) return
-  const [err, res] = await STATISTICS.getAssetOverview({ billId, memberId })
+  const [err, res] = await STATISTICS.getAssetOverview({ billId, memberId, asOf })
   if (res) ctx.body = new ResModel(res, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -182,6 +186,49 @@ router.get('/monthly-report', async (ctx: HttpContext) => {
   if (!(await guard(ctx, billId))) return
   const [err, res] = await STATISTICS.getMonthlyReport({ billId, year: year || new Date().getFullYear(), memberId })
   if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.get('/exchange-rate', async (ctx: HttpContext) => {
+  const billId = queryString(ctx.query.billId)
+  if (!(await guard(ctx, billId))) return
+  const [err, res] = await EXCHANGE.getExchangeRate({ billId })
+  if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.put('/exchange-rate', async (ctx: HttpContext) => {
+  const data = readBody(ctx)
+  xssData(data)
+  if (!(await guard(ctx, queryString(data.billId)))) return
+  const [err, res] = await EXCHANGE.saveExchangeRate(data)
+  if (res) ctx.body = new ResModel(res, '保存成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.post('/ledger', async (ctx: HttpContext) => {
+  const data = readBody(ctx)
+  xssData(data)
+  if (!(await guard(ctx, queryString(data.billId)))) return
+  const [err, res] = await LEDGER.getLedger(data)
+  if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.get('/retire-plan', async (ctx: HttpContext) => {
+  const billId = queryString(ctx.query.billId)
+  if (!(await guard(ctx, billId))) return
+  const [err, res] = await RETIRE.readRetirePlan(asInput(ctx.query))
+  if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
+router.put('/retire-plan', async (ctx: HttpContext) => {
+  const data = readBody(ctx)
+  xssData(data)
+  if (!(await guard(ctx, queryString(data.billId)))) return
+  const [err, res] = await RETIRE.writeRetirePlan(data)
+  if (res) ctx.body = new ResModel(res, '保存成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
 

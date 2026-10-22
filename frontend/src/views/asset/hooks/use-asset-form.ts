@@ -13,6 +13,7 @@ const emptyForm = (): AssetForm => ({
   latestAmount: '',
   insuranceCategory: '',
   annualPremium: '',
+  currency: 'CNY',
 })
 
 /** 登记和编辑。金额数值没变时，服务端不会新增盘点 */
@@ -34,16 +35,17 @@ export const useAssetForm = (reload: () => Promise<void>) => {
   }
 
   const openEdit = (row: AssetRow) => {
-    originAmount.value = Number(row.latestAmount)
+    originAmount.value = Number(row.rawAmount ?? row.latestAmount)
     Object.assign(form, emptyForm(), {
       id: row.id,
       name: row.name,
       memberId: row.memberId,
       type: row.type,
       fourMoneyType: row.fourMoneyType,
-      latestAmount: String(row.latestAmount ?? ''),
+      latestAmount: String(row.rawAmount ?? row.latestAmount ?? ''),
       insuranceCategory: row.insuranceCategory || '',
       annualPremium: row.annualPremium == null ? '' : String(row.annualPremium),
+      currency: row.currency || 'CNY',
     })
     visible.value = true
   }
@@ -66,6 +68,13 @@ export const useAssetForm = (reload: () => Promise<void>) => {
       ElMessage.warning('请选择四笔钱')
       return
     }
+    if (form.fourMoneyType === 'insurance' && form.annualPremium !== '') {
+      const premium = Number(form.annualPremium)
+      if (!Number.isFinite(premium) || premium < 0) {
+        ElMessage.warning('年交保费不能小于0')
+        return
+      }
+    }
     const moneyType = form.type === 'debt' ? '' : form.fourMoneyType
     const payload = {
       id: form.id || undefined,
@@ -75,6 +84,7 @@ export const useAssetForm = (reload: () => Promise<void>) => {
       type: form.type,
       fourMoneyType: moneyType,
       latestAmount: amount,
+      currency: form.currency || 'CNY',
       insuranceCategory: moneyType === 'insurance' ? form.insuranceCategory : '',
       annualPremium: moneyType === 'insurance' ? form.annualPremium : '',
     }

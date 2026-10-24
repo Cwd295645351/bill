@@ -1,14 +1,22 @@
 <template>
-  <el-dialog v-model="visible" :title="form.id ? '编辑资产' : '登记资产'" width="520px">
+  <el-dialog v-model="visible" :title="form.id ? '编辑资产' : '登记资产'" width="460px">
     <el-form label-position="top">
-      <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
+      <div class="two">
+        <el-form-item label="名称"><el-input v-model="form.name" /></el-form-item>
+        <el-form-item label="币种">
+          <el-select v-model="form.currency" :disabled="Boolean(form.id)" style="width: 100%">
+            <el-option v-for="item in currencies" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+          <p v-if="form.id" class="hint">币种登记后不能修改。要换币种，请删除后重新登记。</p>
+        </el-form-item>
+      </div>
       <div class="two">
         <el-form-item label="成员">
           <el-select v-model="form.memberId" style="width: 100%">
             <el-option v-for="member in members" :key="member.id" :label="member.name" :value="member.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="资产类型">
+        <el-form-item label="资产属性">
           <el-select v-model="form.type" style="width: 100%">
             <el-option v-for="item in assetTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
@@ -22,12 +30,6 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="'当前金额（' + currencyLabel(form.currency) + '）'"><el-input v-model="form.latestAmount" /></el-form-item>
-        <el-form-item label="币种">
-          <el-select v-model="form.currency" :disabled="Boolean(form.id)" style="width: 100%">
-            <el-option v-for="item in currencies" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-          <p v-if="form.id" class="hint">要换币种需删除后重新登记。</p>
-        </el-form-item>
       </div>
       <div v-show="form.type !== 'debt' && form.fourMoneyType === 'insurance'" class="two">
         <el-form-item label="险种"><el-input v-model="form.insuranceCategory" /></el-form-item>
@@ -35,9 +37,11 @@
       </div>
       <p v-if="amountUnchanged" class="hint">金额未变化，保存后不会新增盘点。</p>
       <p class="hint">金额必须大于 0。清掉资产请删除，不要把金额改成 0。</p>
+      <p v-if="error" class="hint error">{{ error }}</p>
     </el-form>
     <template #footer>
       <el-button v-if="form.id" @click="remove">删除</el-button>
+      <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
   </el-dialog>
@@ -56,7 +60,21 @@ const props = defineProps<{
 const assetTypes = ASSET_TYPES
 const fourTypes = FOUR_TYPES
 const currencies = CURRENCIES
-const { visible, saving, form, amountUnchanged, openCreate, openEdit, save, remove } = useAssetForm(() => props.reload())
+const assetForm = useAssetForm(() => props.reload())
+const {
+  visible,
+  saving,
+  form,
+  error,
+  amountUnchanged,
+  openEdit,
+  save,
+  remove,
+} = assetForm
+
+const openCreate = (memberId: string) => {
+  assetForm.openCreate(memberId || props.members[0]?.id || '')
+}
 
 defineExpose({
   openCreate,
@@ -79,5 +97,9 @@ defineExpose({
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+
+  &.error {
+    color: rgb(247, 79, 79);
+  }
 }
 </style>

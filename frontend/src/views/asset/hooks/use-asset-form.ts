@@ -22,6 +22,7 @@ export const useAssetForm = (reload: () => Promise<void>) => {
   const visible = ref(false)
   const saving = ref(false)
   const form = reactive<AssetForm>(emptyForm())
+  const error = ref('')
   const originAmount = ref<number | null>(null)
   const amountUnchanged = computed(() => {
     if (!form.id || originAmount.value == null) return false
@@ -31,6 +32,7 @@ export const useAssetForm = (reload: () => Promise<void>) => {
   const openCreate = (memberId: string) => {
     originAmount.value = null
     Object.assign(form, emptyForm(), { memberId })
+    error.value = ''
     visible.value = true
   }
 
@@ -47,35 +49,21 @@ export const useAssetForm = (reload: () => Promise<void>) => {
       annualPremium: row.annualPremium == null ? '' : String(row.annualPremium),
       currency: row.currency || 'CNY',
     })
+    error.value = ''
     visible.value = true
   }
 
   const save = async () => {
-    if (!form.name.trim()) {
-      ElMessage.warning('资产名称不能为空')
-      return
-    }
-    if (!form.memberId) {
-      ElMessage.warning('请选择成员')
-      return
-    }
+    if (!form.name.trim()) return showFormError('资产名称不能为空')
+    if (!form.memberId) return showFormError('请选择成员')
     const amount = Number(form.latestAmount)
-    if (!form.latestAmount || !Number.isFinite(amount) || amount <= 0) {
-      ElMessage.warning('最新金额必须大于0')
-      return
-    }
-    if (form.type !== 'debt' && !form.fourMoneyType) {
-      ElMessage.warning('请选择四笔钱')
-      return
-    }
-    if (form.fourMoneyType === 'insurance' && form.annualPremium !== '') {
-      const premium = Number(form.annualPremium)
-      if (!Number.isFinite(premium) || premium < 0) {
-        ElMessage.warning('年交保费不能小于0')
-        return
-      }
-    }
+    if (!form.latestAmount.trim() || !Number.isFinite(amount) || amount <= 0) return showFormError('最新金额必须大于0')
+    if (form.type !== 'debt' && !form.fourMoneyType) return showFormError('请选择四笔钱')
     const moneyType = form.type === 'debt' ? '' : form.fourMoneyType
+    if (moneyType === 'insurance' && form.annualPremium !== '') {
+      const premium = Number(form.annualPremium)
+      if (!Number.isFinite(premium)) return showFormError('年交保费必须是数字')
+    }
     const payload = {
       id: form.id || undefined,
       name: form.name.trim(),
@@ -93,7 +81,7 @@ export const useAssetForm = (reload: () => Promise<void>) => {
     const [err, res] = await request
     saving.value = false
     if (err || !res || res.retCode !== 0) {
-      ElMessage.error(res?.message || '保存失败')
+      showFormError(res?.message || '保存失败')
       return
     }
     visible.value = false
@@ -111,5 +99,9 @@ export const useAssetForm = (reload: () => Promise<void>) => {
     await reload()
   }
 
-  return { visible, saving, form, amountUnchanged, openCreate, openEdit, save, remove }
+  const showFormError = (message: string) => {
+    error.value = message
+  }
+
+  return { visible, saving, form, error, amountUnchanged, openCreate, openEdit, save, remove, showFormError }
 }

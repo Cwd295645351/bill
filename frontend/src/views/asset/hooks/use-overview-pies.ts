@@ -25,14 +25,13 @@ export const useOverviewPies = () => {
   const option = (slices: PieSlice[]) => ({
     tooltip: {
       trigger: 'item',
-      formatter: (item: { name: string; value: number; percent: number }) =>
-        `${item.name}<br/>${formatMoney(item.value)}（${Number(item.percent).toFixed(2)}%）`,
+      formatter: (item: { name: string; value: number; percent: number }) => `${item.name}<br/>${formatMoney(item.value)}（${Number(item.percent).toFixed(2)}%）`,
     },
     series: [
       {
         type: 'pie',
         // 直径留出外侧空间，两行标签才不会压在扇区上
-        radius: '70%',
+        radius: '50%',
         center: ['50%', '52%'],
         data: slices
           .filter((item) => item.amount > 0)
@@ -42,8 +41,7 @@ export const useOverviewPies = () => {
             itemStyle: { color: item.color },
           })),
         label: {
-          formatter: (item: { name: string; value: number; percent: number }) =>
-            `${item.name}(${Number(item.percent).toFixed(2)}%)\n${shortAmount(item.value)}`,
+          formatter: (item: { name: string; value: number; percent: number }) => `${item.name}\n${shortAmount(item.value)}\n(${Number(item.percent).toFixed(2)}%)`,
           color: 'inherit',
           fontSize: 13,
           lineHeight: 18,

@@ -1,34 +1,57 @@
 <template>
   <el-dialog v-model="visible" :title="asset ? asset.name + ' 盘点' : '盘点'" width="640px">
-    <p v-if="asset" class="hint">
-      四笔钱 {{ fourLabel(asset.fourMoneyType) }}，资产属性 {{ typeLabel(asset.type) }}，币种 {{ currencyLabel(asset.currency) }}。这三项不能在这里修改。
-    </p>
+    <div v-if="asset" class="three">
+      <el-form-item label="四笔钱"><el-input :model-value="fourLabel(asset.fourMoneyType)" disabled /></el-form-item>
+      <el-form-item label="资产属性"><el-input :model-value="typeLabel(asset.type)" disabled /></el-form-item>
+      <el-form-item label="币种"><el-input :model-value="currencyLabel(asset.currency)" disabled /></el-form-item>
+    </div>
+    <table class="record-table">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>金额（{{ currencyLabel(asset?.currency) }}）</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-if="!records.length"><td colspan="3">还没有盘点</td></tr>
+        <tr v-for="item in records" :key="item.id">
+          <td>{{ formatDay(item.date) }}</td>
+          <td>{{ formatMoney(item.amount) }}</td>
+          <td class="ops">
+            <button type="button" class="link" @click="beginEdit(item)">编辑</button>
+            <button type="button" class="link danger" :disabled="total <= 1" @click="remove(item)">删除</button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>共 {{ total }} 条</span>
+      <el-pagination
+        layout="prev, pager, next"
+        :total="total"
+        :page-size="pageSize"
+        :current-page="page"
+        @current-change="onPage"
+      />
+    </div>
+    <p class="hint">只剩一条盘点时不能删除。打开了修改却没保存就关闭，原来的金额和日期不变。</p>
+    <p v-if="listError" class="hint error">{{ listError }}</p>
+    <template #footer>
+      <el-button @click="visible = false">关闭</el-button>
+      <el-button type="primary" @click="beginCreate">记一笔盘点</el-button>
+    </template>
+  </el-dialog>
+
+  <el-dialog v-model="formVisible" :title="editingId ? '编辑盘点' : '记一笔盘点'" width="460px" append-to-body>
     <div class="two">
-      <el-form-item label="金额"><el-input v-model="amount" /></el-form-item>
+      <el-form-item :label="'金额（' + currencyLabel(asset?.currency) + '）'"><el-input v-model="amount" /></el-form-item>
       <el-form-item label="日期"><el-date-picker v-model="date" type="date" value-format="x" style="width: 100%" /></el-form-item>
     </div>
-    <el-table :data="records" size="small">
-      <el-table-column label="日期"><template #default="{ row }">{{ formatDay(row.date) }}</template></el-table-column>
-      <el-table-column label="金额"><template #default="{ row }">{{ formatMoney(row.amount) }}</template></el-table-column>
-      <el-table-column label="操作" width="140" align="right">
-        <template #default="{ row }">
-          <el-button link type="primary" @click="beginEdit(row)">编辑</el-button>
-          <el-button link type="danger" :disabled="total <= 1" @click="remove(row)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-pagination
-      v-if="total > pageSize"
-      layout="prev, pager, next, total"
-      :total="total"
-      :page-size="pageSize"
-      :current-page="page"
-      @current-change="onPage"
-    />
-    <p class="hint">共 {{ total }} 条。只剩一条盘点时不能删除。打开了修改却没保存就关闭，原来的金额和日期不变。</p>
+    <p v-if="error" class="hint error">{{ error }}</p>
     <template #footer>
-      <el-button v-if="editingId" @click="beginCreate">取消修改</el-button>
-      <el-button type="primary" :loading="saving" @click="save">{{ editingId ? '保存这条记录' : '记一笔盘点' }}</el-button>
+      <el-button @click="formVisible = false">取消</el-button>
+      <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
   </el-dialog>
 </template>
@@ -44,11 +67,14 @@ const props = defineProps<{
 
 const recordsApi = useRecords(() => props.reload())
 const visible = recordsApi.visible
+const formVisible = recordsApi.formVisible
 const asset = recordsApi.asset
 const records = recordsApi.records
 const editingId = recordsApi.editingId
 const amount = recordsApi.amount
 const date = recordsApi.date
+const error = recordsApi.error
+const listError = recordsApi.listError
 const saving = recordsApi.saving
 const page = recordsApi.page
 const total = recordsApi.total
@@ -74,9 +100,69 @@ defineExpose({ open: recordsApi.open })
   gap: 12px;
 }
 
+.three {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.record-table {
+  width: 100%;
+  font-size: 14px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 0;
+    border-bottom: 1px solid #f2f2f2;
+    text-align: left;
+  }
+
+  th:last-child,
+  .ops {
+    text-align: right;
+  }
+}
+
+.ops .link + .link {
+  margin-left: 12px;
+}
+
+.link {
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: rgb(64, 158, 255);
+  font-size: 14px;
+  cursor: pointer;
+
+  &.danger {
+    color: rgb(247, 79, 79);
+  }
+
+  &:disabled {
+    color: #c0c4cc;
+    cursor: not-allowed;
+  }
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 12px 0 4px;
+  font-size: 13px;
+  color: #606266;
+}
+
 .hint {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+
+  &.error {
+    color: rgb(247, 79, 79);
+  }
 }
 </style>

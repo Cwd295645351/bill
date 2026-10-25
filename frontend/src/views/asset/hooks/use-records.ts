@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import dayjs from 'dayjs'
+import { ElMessageBox } from 'element-plus'
 import { addRecord, delRecord, editRecord, getRecords } from '../api'
 import type { AssetRecordItem, AssetRow } from '../type'
 
@@ -68,8 +69,8 @@ export const useRecords = (reload: () => Promise<void>) => {
   const save = async () => {
     if (!asset.value) return
     const value = Number(amount.value)
-    if (!amount.value || !Number.isFinite(value) || value <= 0) {
-      error.value = '盘点金额必须大于0'
+    if (!amount.value.trim() || !Number.isFinite(value) || value < 0) {
+      error.value = '盘点金额必须大于等于0'
       return
     }
     if (!date.value) {
@@ -97,6 +98,15 @@ export const useRecords = (reload: () => Promise<void>) => {
   const remove = async (item: AssetRecordItem) => {
     if (total.value <= 1) {
       listError.value = '只剩一条盘点时不能删除'
+      return
+    }
+    try {
+      await ElMessageBox.confirm('确定删除这条记录吗', '确认删除', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+    } catch {
       return
     }
     const [err, res] = await delRecord({ params: { id: item.id } })

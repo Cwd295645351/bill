@@ -70,7 +70,7 @@
     </div>
 
     <div class="groups">
-      <div class="sheet-head">
+      <div v-if="hasOverviewRows" class="sheet-head">
         <span>名称</span><span>占本组</span><span>当前金额</span><span>换算</span><span>较上次盘点</span><span></span>
       </div>
       <div v-for="group in orderedGroups" :id="'group-' + group.type" :key="group.type" class="group" :class="{ located: locatedType === group.type }">
@@ -92,13 +92,23 @@
               <span :class="changeClass(member.change)">{{ changeText(member.change) }}</span>
               <span></span>
             </div>
-            <div v-for="row in member.assets" :key="row.id" class="asset-row" @click="recordDialog?.open(row)">
+            <div
+              v-for="row in member.assets"
+              :key="row.id"
+              class="asset-row"
+              :class="cycleClass(row)"
+              :title="row.isDebt ? undefined : turnaroundLabel(row.turnaroundCycle)"
+              @click="recordDialog?.open(row)"
+            >
               <span>{{ row.name }}</span>
               <span>{{ percentText(row.percent) }}</span>
               <span>{{ formatMoney(row.latestAmount) }}<em v-if="rawNote(row.currency, row.rawAmount)" class="fx">{{ rawNote(row.currency, row.rawAmount) }}</em></span>
               <span>{{ shortAmount(row.latestAmount) }}</span>
               <span :class="changeClass(row.prevAmount == null ? null : row.change)">{{ row.prevAmount == null ? '—' : changeText(row.change) }}</span>
-              <span class="row-actions"><button type="button" class="link" @click.stop="formDialog?.openEdit(row)">编辑</button></span>
+              <span class="row-actions">
+                <button type="button" class="link" @click.stop="formDialog?.openEdit(row)">编辑</button>
+                <button type="button" class="link danger" :disabled="deletingId === row.id" @click.stop="deleteAsset(row)">删除</button>
+              </span>
             </div>
           </template>
         </template>
@@ -181,9 +191,10 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, ref, toRef, watch, type Ref } from 'vue'
 import { storeToRefs } from 'pinia'
+import { ElMessageBox } from 'element-plus'
 import { useBillStore } from '@/store'
-import { saveExchangeRate } from '../api'
-import { changeClass, changeText, compactDelta, formatMoney, fourLabel, rawNote, shortAmount } from '../shared'
+import { delAsset, saveExchangeRate } from '../api'
+import { changeClass, changeText, compactDelta, formatMoney, fourLabel, rawNote, shortAmount, turnaroundLabel, TURNAROUND_TYPES } from '../shared'
 import { useOverview } from '../hooks/use-overview'
 import { useOverviewPies } from '../hooks/use-overview-pies'
 import { useLedger } from '../hooks/use-ledger'
@@ -204,6 +215,13 @@ const emit = defineEmits<{
 }>()
 
 const typeOrder = ['流动资金', '投资理财', '固定资产', '应收款', '负债']
+const turnaroundOrder = TURNAROUND_TYPES.map((item) => item.value)
+const turnaroundClasses: Record<string, string> = {
+  'T+0': 'cycle-t0',
+  'T+1': 'cycle-t1',
+  长期: 'cycle-longterm',
+  不可提现: 'cycle-nonwithdrawable',
+}
 const fourPieColors: Record<string, string> = { 活钱: '#5b8ff9', 稳健: '#5ad8a6', 长期: '#f6bd16' }
 const typePieColors: Record<string, string> = { 流动资金: '#5b8ff9', 投资理财: '#5ad8a6', 固定资产: '#f6bd16', 应收款: '#6dc8ec', 负债: '#f08bb4' }
 
@@ -218,6 +236,7 @@ const ledgerYears = ledger.years
 const ledgerResult = ledger.result
 const openGroups = ref<Record<string, boolean>>({})
 const locatedType = ref('')
+const deletingId = ref('')
 const formDialog = ref<InstanceType<typeof AssetFormDialog> | null>(null)
 const recordDialog = ref<InstanceType<typeof AssetRecordDialog> | null>(null)
 
@@ -248,6 +267,8 @@ const fourChart = computed(() => {
   }))
   return { items, total: items.reduce((sum, item) => sum + item.amount, 0) }
 })
+const hasOverviewRows = computed(() => [...(stats.value.assetGroups || []), ...(stats.value.debtGroups || [])].some((group) => group.assets.length > 0))
+const cycleClass = (row: AssetRow) => (row.isDebt ? '' : turnaroundClasses[row.turnaroundCycle || 'T+0'] || turnaroundClasses['T+0'])
 const orderedGroups = computed(() => {
   const rows = [...(stats.value.assetGroups || []), ...(stats.value.debtGroups || [])]
   return typeOrder
@@ -275,7 +296,13 @@ const orderedGroups = computed(() => {
             amount,
             change,
             percent: shareOfGroup(amount),
-            assets: assets.map((row) => ({ ...row, percent: shareOfGroup(Number(row.latestAmount) || 0) })),
+            assets: assets
+              .map((row) => ({ ...row, percent: shareOfGroup(Number(row.latestAmount) || 0) }))
+              .sort((left, right) => {
+                const leftRank = Math.max(0, turnaroundOrder.indexOf(left.turnaroundCycle || 'T+0'))
+                const rightRank = Math.max(0, turnaroundOrder.indexOf(right.turnaroundCycle || 'T+0'))
+                return leftRank - rightRank
+              }),
           }
         })
         .sort((left, right) => left.memberName.localeCompare(right.memberName, 'zh'))
@@ -305,6 +332,25 @@ const openRates = () => {
 const reload = async () => {
   await Promise.all([loadOverview(), ledger.load()])
   await paintOverviewCharts()
+}
+const deleteAsset = async (row: AssetRow) => {
+  try {
+    await ElMessageBox.confirm(
+      '资产项目与历史记录将同时删除，无法恢复，确认要删除吗？',
+      '确认删除',
+      { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' },
+    )
+  } catch {
+    return
+  }
+  deletingId.value = row.id
+  const [err, res] = await delAsset({ params: { id: row.id } })
+  deletingId.value = ''
+  if (err || !res || res.retCode !== 0) {
+    ElMessage.error(res?.message || '删除失败')
+    return
+  }
+  await reload()
 }
 const saveRates = async () => {
   const [err, res] = await saveExchangeRate({ data: { billId: billId.value, hkdRate: hkdInput.value, usdRate: usdInput.value } })
@@ -635,12 +681,37 @@ watch([() => props.active, memberId, billId, revision], async () => {
       border-top: 1px solid #f2f2f2;
       cursor: pointer;
 
-      &:hover {
-        background: #f8fbff;
+      &.cycle-t0 {
+        background: #e9f4fd;
+
+        &:hover { filter: brightness(0.98); }
+      }
+
+      &.cycle-t1 {
+        background: #e7f6ec;
+
+        &:hover { filter: brightness(0.98); }
+      }
+
+      &.cycle-longterm {
+        background: #fff5d8;
+
+        &:hover { filter: brightness(0.98); }
+      }
+
+      &.cycle-nonwithdrawable {
+        background: #f2edfb;
+
+        &:hover { filter: brightness(0.98); }
       }
 
       span:first-child {
         padding-left: 28px;
+      }
+
+      .row-actions {
+        display: flex;
+        gap: 8px;
       }
     }
 
@@ -660,6 +731,15 @@ watch([() => props.active, memberId, billId, revision], async () => {
       cursor: pointer;
       padding: 0;
       font-size: 13px;
+
+      &.danger {
+        color: rgb(247, 79, 79);
+      }
+
+      &:disabled {
+        color: #c0c4cc;
+        cursor: not-allowed;
+      }
     }
   }
 

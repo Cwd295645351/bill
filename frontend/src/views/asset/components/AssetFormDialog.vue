@@ -7,7 +7,6 @@
           <el-select v-model="form.currency" :disabled="Boolean(form.id)" style="width: 100%">
             <el-option v-for="item in currencies" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <p v-if="form.id" class="hint">币种登记后不能修改。要换币种，请删除后重新登记。</p>
         </el-form-item>
       </div>
       <div class="two">
@@ -20,7 +19,6 @@
           <el-select v-model="form.type" style="width: 100%">
             <el-option v-for="item in assetTypes" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
-          <p v-if="form.type === 'debt'" class="hint">类型为负债时计入负债，不计入总资产。</p>
         </el-form-item>
       </div>
       <div class="two" :class="{ single: form.type === 'debt' }">
@@ -31,16 +29,27 @@
         </el-form-item>
         <el-form-item :label="'当前金额（' + currencyLabel(form.currency) + '）'"><el-input v-model="form.latestAmount" /></el-form-item>
       </div>
+      <div v-show="form.type !== 'debt'" class="two">
+        <el-form-item label="渠道">
+          <el-select v-model="form.channel" style="width: 100%">
+            <el-option v-for="item in channelTypes" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="周转周期">
+          <el-select v-model="form.turnaroundCycle" style="width: 100%">
+            <el-option v-for="item in turnaroundTypes" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+      </div>
       <div v-show="form.type !== 'debt' && form.fourMoneyType === 'insurance'" class="two">
         <el-form-item label="险种"><el-input v-model="form.insuranceCategory" /></el-form-item>
         <el-form-item :label="'年交保费（' + currencyLabel(form.currency) + '）'"><el-input v-model="form.annualPremium" /></el-form-item>
       </div>
       <p v-if="amountUnchanged" class="hint">金额未变化，保存后不会新增盘点。</p>
-      <p class="hint">金额必须大于 0。清掉资产请删除，不要把金额改成 0。</p>
+      <p class="hint">金额允许为 0，但不能小于 0。</p>
       <p v-if="error" class="hint error">{{ error }}</p>
     </el-form>
     <template #footer>
-      <el-button v-if="form.id" @click="remove">删除</el-button>
       <el-button @click="visible = false">取消</el-button>
       <el-button type="primary" :loading="saving" @click="save">保存</el-button>
     </template>
@@ -48,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ASSET_TYPES, CURRENCIES, FOUR_TYPES, currencyLabel } from '../shared'
+import { ASSET_TYPES, CHANNEL_TYPES, CURRENCIES, FOUR_TYPES, TURNAROUND_TYPES, currencyLabel } from '../shared'
 import { useAssetForm } from '../hooks/use-asset-form'
 import type { AssetMember, AssetRow } from '../type'
 
@@ -60,6 +69,8 @@ const props = defineProps<{
 const assetTypes = ASSET_TYPES
 const fourTypes = FOUR_TYPES
 const currencies = CURRENCIES
+const channelTypes = CHANNEL_TYPES
+const turnaroundTypes = TURNAROUND_TYPES
 const assetForm = useAssetForm(() => props.reload())
 const {
   visible,
@@ -69,7 +80,6 @@ const {
   amountUnchanged,
   openEdit,
   save,
-  remove,
 } = assetForm
 
 const openCreate = (memberId: string) => {

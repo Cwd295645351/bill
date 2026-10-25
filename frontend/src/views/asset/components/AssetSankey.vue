@@ -30,11 +30,15 @@ const revision = inject<Ref<number>>('assetRevision', ref(0))
 const { billId } = storeToRefs(useBillStore())
 const { host, mode, load } = useSankey(memberId, members)
 
-watch([() => props.active, memberId, billId, revision], async () => {
-  if (!props.active) return
-  await nextTick()
-  await load()
-}, { immediate: true })
+watch(
+  [() => props.active, memberId, billId, revision],
+  async () => {
+    if (!props.active) return
+    await nextTick()
+    await load()
+  },
+  { immediate: true },
+)
 </script>
 
 <style scoped lang="scss">

@@ -19,6 +19,8 @@ export interface AssetForm {
   type: string
   fourMoneyType: string
   latestAmount: string
+  channel: string
+  turnaroundCycle: string
   insuranceCategory: string
   annualPremium: string
   /** CNY、HKD、USD */
@@ -33,6 +35,8 @@ export interface AssetRow {
   memberName: string
   type: string
   fourMoneyType: string
+  channel?: string
+  turnaroundCycle?: string
   latestAmount: number
   /** 原币金额。编辑和盘点用这个，避免把人民币写回原币 */
   rawAmount?: number
@@ -106,6 +110,8 @@ export interface FourMoneyAsset {
   currency?: string
   type?: string
   fourMoneyType?: string
+  channel?: string
+  turnaroundCycle?: string
   isDebt: boolean
   memberId?: string
   member?: { name?: string }

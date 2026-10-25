@@ -35,6 +35,15 @@ const typeNameMap: Record<string, string> = {
 const typeOrder = ['living', 'steady', 'longterm', 'receivable', 'debt']
 
 const round2 = (value: number) => Math.round(value * 100) / 100
+const CHANNELS = [
+  '微信', '支付宝', '平安银行', '中国银行', '招商银行', '建设银行', '中信银行',
+  '交通银行', '微众银行', '广发银行', '兴业银行', '且慢', '众安', '股票', '固定资产', '公积金', '未知'
+]
+
+const displayChannel = (value: unknown) => {
+  const channel = String(value || '').trim()
+  return CHANNELS.includes(channel) ? channel : '未知'
+}
 
 /** 当前筛选下的盘点日，以及最早有盘点的月份 */
 const recordSpan = async (assetIds: string[]) => {
@@ -131,7 +140,7 @@ export const getAssetOverview = async ({ billId, memberId, asOf }: Row) => {
 }
 
 /**
- * 获取桑基图数据。负债只从左侧汇入总资产，类型节点使用中文名。
+ * 获取桑基图数据。负债逐笔从左侧汇入总资产，类型节点使用中文名。
  */
 export const getSankeyData = async ({ billId, memberId }: Row) => {
   if (!billId) return ['账本id不能为空', null]
@@ -153,10 +162,10 @@ export const getSankeyData = async ({ billId, memberId }: Row) => {
   let totalAsset = 0
   let totalDebt = 0
   const typeAmount: Record<string, number> = {}
+  const typeChannelAmount: Record<string, Record<string, number>> = {}
+  const channelCycleAmount: Record<string, Record<string, number>> = {}
   const nodes: { id: string; name: string; memberName?: string; detail?: string; kind: string; currency?: string; rawAmount?: number }[] = []
   const links: { source: string; target: string; value: number }[] = []
-  const debtNames: string[] = []
-  const debtMembers = new Set<string>()
 
   assets.forEach((asset: Row) => {
     const rawAmount = Math.abs(Number(asset.latestAmount) || 0)
@@ -165,37 +174,52 @@ export const getSankeyData = async ({ billId, memberId }: Row) => {
     const memberName = asset.member?.name ? String(asset.member.name) : ''
     if (asset.isDebt) {
       totalDebt += amount
-      if (asset.name) debtNames.push(String(asset.name))
-      if (memberName) debtMembers.add(memberName)
+      const id = `d-${asset.id}`
+      nodes.push({ id, name: asset.name || '', memberName, kind: 'debt', currency: asset.currency || 'CNY', rawAmount })
+      links.push({ source: id, target: 'total', value: amount })
       return
     }
     const label = typeName[String(asset.type || '')] || String(asset.type || '')
     totalAsset += amount
     typeAmount[label] = (typeAmount[label] || 0) + amount
-    const id = `a-${asset.id}`
-    nodes.push({ id, name: asset.name || '', memberName, kind: 'asset', currency: asset.currency || 'CNY', rawAmount })
-    links.push({ source: `t-${label}`, target: id, value: amount })
+    typeChannelAmount[label] = typeChannelAmount[label] || {}
+    const channel = displayChannel(asset.channel)
+    const storedCycle = String(asset.turnaroundCycle || '')
+    const cycle = ['T+0', 'T+1', '长期', '不可提现'].includes(storedCycle) ? storedCycle : 'T+0'
+    const channelId = `c-${channel}`
+    const cycleId = `cycle-${cycle}`
+    typeChannelAmount[label][channel] = (typeChannelAmount[label][channel] || 0) + amount
+    channelCycleAmount[channel] = channelCycleAmount[channel] || {}
+    channelCycleAmount[channel][cycle] = (channelCycleAmount[channel][cycle] || 0) + amount
+    if (!nodes.some((node) => node.id === channelId)) {
+      nodes.push({ id: channelId, name: channel, kind: 'channel' })
+    }
+    if (!nodes.some((node) => node.id === cycleId)) {
+      nodes.push({ id: cycleId, name: cycle, kind: 'cycle' })
+    }
   })
 
   const netWorth = totalAsset - totalDebt
   nodes.unshift(
     { id: 'net', name: '净资产', kind: 'summary' },
-    {
-      id: 'debt',
-      name: '负债',
-      kind: 'summary',
-      detail: debtNames.join('、'),
-      memberName: debtMembers.size === 1 ? [...debtMembers][0] : ''
-    },
     { id: 'total', name: '总资产', kind: 'summary' }
   )
   Object.keys(typeAmount).forEach((label) => {
     if (typeAmount[label] <= 0) return
     nodes.push({ id: `t-${label}`, name: label, kind: 'type' })
     links.push({ source: 'total', target: `t-${label}`, value: typeAmount[label] })
+    Object.keys(typeChannelAmount[label]).forEach((channel) => {
+      const value = typeChannelAmount[label][channel]
+      if (value > 0) links.push({ source: `t-${label}`, target: `c-${channel}`, value })
+    })
+  })
+  Object.keys(channelCycleAmount).forEach((channel) => {
+    Object.keys(channelCycleAmount[channel]).forEach((cycle) => {
+      const value = channelCycleAmount[channel][cycle]
+      if (value > 0) links.push({ source: `c-${channel}`, target: `cycle-${cycle}`, value })
+    })
   })
   if (netWorth > 0) links.push({ source: 'net', target: 'total', value: netWorth })
-  if (totalDebt > 0) links.push({ source: 'debt', target: 'total', value: totalDebt })
 
   return [null, { nodes, links: links.filter((link) => link.value > 0) }]
 }
@@ -240,6 +264,8 @@ export const getFourMoneySummary = async ({ billId, memberId }: Row) => {
       name: asset.name,
       type: asset.type,
       fourMoneyType: type,
+      channel: asset.isDebt ? '' : displayChannel(asset.channel),
+      turnaroundCycle: asset.isDebt ? 'T+0' : asset.turnaroundCycle || 'T+0',
       latestAmount: amount,
       rawAmount: Math.abs(Number(asset.latestAmount) || 0),
       currency: asset.currency || 'CNY',

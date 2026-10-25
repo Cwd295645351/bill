@@ -1,7 +1,8 @@
 import { computed, reactive, ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { addAsset, delAsset, editAsset } from '../api'
+import { addAsset, editAsset } from '../api'
+import { CHANNEL_TYPES } from '../shared'
 import type { AssetForm, AssetRow } from '../type'
 
 const emptyForm = (): AssetForm => ({
@@ -11,6 +12,8 @@ const emptyForm = (): AssetForm => ({
   type: 'living',
   fourMoneyType: 'living',
   latestAmount: '',
+  channel: '未知',
+  turnaroundCycle: 'T+0',
   insuranceCategory: '',
   annualPremium: '',
   currency: 'CNY',
@@ -45,6 +48,8 @@ export const useAssetForm = (reload: () => Promise<void>) => {
       type: row.type,
       fourMoneyType: row.fourMoneyType,
       latestAmount: String(row.rawAmount ?? row.latestAmount ?? ''),
+      channel: row.type === 'debt' ? '' : CHANNEL_TYPES.some((item) => item.value === row.channel) ? row.channel : '未知',
+      turnaroundCycle: row.type === 'debt' ? 'T+0' : row.turnaroundCycle || 'T+0',
       insuranceCategory: row.insuranceCategory || '',
       annualPremium: row.annualPremium == null ? '' : String(row.annualPremium),
       currency: row.currency || 'CNY',
@@ -57,7 +62,7 @@ export const useAssetForm = (reload: () => Promise<void>) => {
     if (!form.name.trim()) return showFormError('资产名称不能为空')
     if (!form.memberId) return showFormError('请选择成员')
     const amount = Number(form.latestAmount)
-    if (!form.latestAmount.trim() || !Number.isFinite(amount) || amount <= 0) return showFormError('最新金额必须大于0')
+    if (!form.latestAmount.trim() || !Number.isFinite(amount) || amount < 0) return showFormError('最新金额必须大于等于0')
     if (form.type !== 'debt' && !form.fourMoneyType) return showFormError('请选择四笔钱')
     const moneyType = form.type === 'debt' ? '' : form.fourMoneyType
     if (moneyType === 'insurance' && form.annualPremium !== '') {
@@ -72,6 +77,8 @@ export const useAssetForm = (reload: () => Promise<void>) => {
       type: form.type,
       fourMoneyType: moneyType,
       latestAmount: amount,
+      channel: form.type === 'debt' ? '' : form.channel,
+      turnaroundCycle: form.type === 'debt' ? 'T+0' : form.turnaroundCycle,
       currency: form.currency || 'CNY',
       insuranceCategory: moneyType === 'insurance' ? form.insuranceCategory : '',
       annualPremium: moneyType === 'insurance' ? form.annualPremium : '',
@@ -88,20 +95,9 @@ export const useAssetForm = (reload: () => Promise<void>) => {
     await reload()
   }
 
-  const remove = async () => {
-    if (!form.id) return
-    const [err, res] = await delAsset({ params: { id: form.id } })
-    if (err || !res || res.retCode !== 0) {
-      ElMessage.error(res?.message || '删除失败')
-      return
-    }
-    visible.value = false
-    await reload()
-  }
-
   const showFormError = (message: string) => {
     error.value = message
   }
 
-  return { visible, saving, form, error, amountUnchanged, openCreate, openEdit, save, remove, showFormError }
+  return { visible, saving, form, error, amountUnchanged, openCreate, openEdit, save, showFormError }
 }

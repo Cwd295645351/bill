@@ -57,6 +57,8 @@ export interface Row {
   member?: { name?: string }
   memberName?: string
   fourMoneyType?: string
+  channel?: string | null
+  turnaroundCycle?: string | null
   currency?: string
   hkdRate?: number | string
   usdRate?: number | string

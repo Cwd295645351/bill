@@ -13,6 +13,22 @@ const ensureAssetSchema = async (db: Sequelize) => {
   }
   await db.query('ALTER TABLE assets MODIFY COLUMN four_money_type VARCHAR(32) NULL')
 
+  const channelColumns = await db.query("SHOW COLUMNS FROM assets LIKE 'channel'", { type: QueryTypes.SELECT })
+  if (!(Array.isArray(channelColumns) && channelColumns.length)) {
+    await db.query('ALTER TABLE assets ADD COLUMN channel VARCHAR(64) NULL')
+  }
+
+  const cycleColumns = await db.query("SHOW COLUMNS FROM assets LIKE 'turnaround_cycle'", { type: QueryTypes.SELECT })
+  const cycleColumn = Array.isArray(cycleColumns) ? cycleColumns[0] as { Type?: string } : undefined
+  if (!cycleColumn) {
+    await db.query("ALTER TABLE assets ADD COLUMN turnaround_cycle VARCHAR(16) NOT NULL DEFAULT 'T+0'")
+  } else {
+    const match = /varchar\((\d+)\)/i.exec(cycleColumn.Type || '')
+    if (!match || Number(match[1]) < 16) {
+      await db.query("ALTER TABLE assets MODIFY COLUMN turnaround_cycle VARCHAR(16) NOT NULL DEFAULT 'T+0'")
+    }
+  }
+
   await db.query(`
     CREATE TABLE IF NOT EXISTS \`bill_overview_rule_years\` (
       \`id\` CHAR(36) NOT NULL,

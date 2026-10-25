@@ -18,6 +18,9 @@ const TYPE_COLOR: Record<string, string> = {
   总资产: '#5b8ff9',
 }
 
+const CHANNEL_COLOR = '#67c23a'
+const CYCLE_COLOR = '#909399'
+
 const MEMBER_COLORS = ['#409eff', '#e6a23c', '#67c23a', '#909399', '#b37feb']
 
 /** 构成图用 ECharts 桑基图。标注在前端切换，数字仍是实际金额 */
@@ -42,12 +45,21 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
 
   const nodeColor = (node: SankeyNode, nodes: SankeyNode[]) => {
     if (node.id === 'net') return TYPE_COLOR['净资产']
+    if (node.kind === 'debt') return TYPE_COLOR['负债']
     if (node.id === 'debt') return TYPE_COLOR['负债']
     if (node.id === 'total') return TYPE_COLOR['总资产']
+    if (node.kind === 'channel') return CHANNEL_COLOR
+    if (node.kind === 'cycle') return CYCLE_COLOR
     if (TYPE_COLOR[node.name]) return TYPE_COLOR[node.name]
     const parentId = data.value.links.find((link) => link.target === node.id)?.source
     const parent = nodes.find((item) => item.id === parentId)
     return TYPE_COLOR[parent?.name || ''] || '#409eff'
+  }
+
+  const displayName = (node: SankeyNode) => {
+    if (node.kind === 'channel') return `渠道：${node.name}`
+    if (node.kind === 'cycle') return `周转周期：${node.name}`
+    return node.name
   }
 
   const draw = () => {
@@ -68,17 +80,19 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
             if (params.dataType === 'edge') {
               const source = nodes.find((item) => item.id === params.data?.source)
               const target = nodes.find((item) => item.id === params.data?.target)
-              return `${source?.name || ''} → ${target?.name || ''}<br/>${formatMoney(params.data?.value)}`
+              const sourceTitle = source ? displayName(source) : ''
+              const targetTitle = target ? displayName(target) : ''
+              return `${sourceTitle} → ${targetTitle}<br/>${formatMoney(params.data?.value)}`
             }
             const node = nodes.find((item) => item.id === params.data?.name)
-            return `${node?.name || ''}<br/>${formatMoney(node ? nodeValue(node, links) : params.data?.value)}`
+            return `${node ? displayName(node) : ''}<br/>${formatMoney(node ? nodeValue(node, links) : params.data?.value)}`
           },
         },
         series: [
           {
             type: 'sankey',
-            left: 24,
-            right: 140,
+            left: 40,
+            right: 240,
             top: 16,
             bottom: 16,
             nodeWidth: 16,
@@ -96,11 +110,12 @@ export const useSankey = (memberId: Ref<string>, memberNames: Ref<{ id: string; 
               })()
               const detail = node.detail ? ` · ${node.detail}` : ''
               const badge = showMember && node.memberName ? `{badge|${node.memberName}} ` : ''
+              const title = displayName(node)
               return {
                 name: node.id,
                 itemStyle: { color: nodeColor(node, nodes) },
                 label: {
-                  formatter: `${badge}${node.name}${detail}${valueText}`,
+                  formatter: `${badge}${title}${detail}${valueText}`,
                   color: '#333',
                   fontSize: 16,
                   rich: {

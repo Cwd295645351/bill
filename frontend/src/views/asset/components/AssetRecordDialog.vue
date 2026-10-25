@@ -5,6 +5,10 @@
       <el-form-item label="资产属性"><el-input :model-value="typeLabel(asset.type)" disabled /></el-form-item>
       <el-form-item label="币种"><el-input :model-value="currencyLabel(asset.currency)" disabled /></el-form-item>
     </div>
+    <div v-if="asset && asset.type !== 'debt'" class="two">
+      <el-form-item label="渠道"><el-input :model-value="channelLabel(asset.channel)" disabled /></el-form-item>
+      <el-form-item label="周转周期"><el-input :model-value="turnaroundLabel(asset.turnaroundCycle)" disabled /></el-form-item>
+    </div>
     <table class="record-table">
       <thead>
         <tr>
@@ -57,7 +61,7 @@
 </template>
 
 <script setup lang="ts">
-import { currencyLabel, formatMoney, fourLabel, typeLabel } from '../shared'
+import { channelLabel, currencyLabel, formatMoney, fourLabel, turnaroundLabel, typeLabel } from '../shared'
 import { useRecords } from '../hooks/use-records'
 import type { AssetRow } from '../type'
 

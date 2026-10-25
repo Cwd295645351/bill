@@ -21,10 +21,39 @@ export const CURRENCIES = [
   { value: 'USD', label: '美元' },
 ]
 
+export const CHANNEL_TYPES = [
+  { value: '微信', label: '微信' },
+  { value: '支付宝', label: '支付宝' },
+  { value: '平安银行', label: '平安银行' },
+  { value: '中国银行', label: '中国银行' },
+  { value: '招商银行', label: '招商银行' },
+  { value: '建设银行', label: '建设银行' },
+  { value: '中信银行', label: '中信银行' },
+  { value: '交通银行', label: '交通银行' },
+  { value: '微众银行', label: '微众银行' },
+  { value: '广发银行', label: '广发银行' },
+  { value: '兴业银行', label: '兴业银行' },
+  { value: '且慢', label: '且慢' },
+  { value: '众安', label: '众安' },
+  { value: '股票', label: '股票' },
+  { value: '固定资产', label: '固定资产' },
+  { value: '公积金', label: '公积金' },
+  { value: '未知', label: '未知' },
+]
+
+export const TURNAROUND_TYPES = [
+  { value: 'T+0', label: 'T+0' },
+  { value: 'T+1', label: 'T+1' },
+  { value: '长期', label: '长期' },
+  { value: '不可提现', label: '不可提现' },
+]
+
 export const currencyLabel = (value?: string) => CURRENCIES.find((item) => item.value === value)?.label || '人民币'
 
 export const typeLabel = (value: string) => ASSET_TYPES.find((item) => item.value === value)?.label || value
 export const fourLabel = (value: string) => FOUR_TYPES.find((item) => item.value === value)?.label || value
+export const turnaroundLabel = (value?: string) => TURNAROUND_TYPES.find((item) => item.value === value)?.label || 'T+0'
+export const channelLabel = (value?: string) => CHANNEL_TYPES.find((item) => item.value === value)?.label || '未知'
 
 /** 金额先收到分，避免浮点相加后出现一长串小数 */
 export const roundMoney = (value: number | null | undefined) => {

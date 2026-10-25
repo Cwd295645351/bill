@@ -36,6 +36,8 @@ export const useFourMoney = (memberId: Ref<string>) => {
         fourMoneyType,
         latestAmount: item.rawAmount ?? item.latestAmount,
         currency: item.currency || 'CNY',
+        channel: item.isDebt ? '' : item.channel || '',
+        turnaroundCycle: item.isDebt ? 'T+0' : item.turnaroundCycle || 'T+0',
         insuranceCategory: fourMoneyType === 'insurance' ? '' : '',
         annualPremium: '',
       },

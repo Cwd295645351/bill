@@ -231,6 +231,8 @@ function initModels(sequelize: Sequelize) {
       /** CNY、HKD、USD。创建后不可改。已有行回填人民币 */
       currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: 'CNY' },
       fourMoneyType: { type: DataTypes.STRING(32), allowNull: true, field: 'four_money_type' },
+      channel: { type: DataTypes.STRING(64), allowNull: true, field: 'channel' },
+      turnaroundCycle: { type: DataTypes.STRING(16), allowNull: false, defaultValue: 'T+0', field: 'turnaround_cycle' },
       isDebt: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_debt' },
       latestAmount: decimalMoney('latestAmount', { field: 'latest_amount' }),
       insuranceCategory: { type: DataTypes.STRING(32), allowNull: true, field: 'insurance_category' },

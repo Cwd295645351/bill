@@ -5,6 +5,11 @@ import { getRecentRecordsGrouped, placeRecordDate, recomputeLatestAmount } from 
 import { getBillRates, toCny } from '../../database/services/assetFx'
 
 const CURRENCIES = ['CNY', 'HKD', 'USD']
+const CHANNELS = [
+  '微信', '支付宝', '平安银行', '中国银行', '招商银行', '建设银行', '中信银行',
+  '交通银行', '微众银行', '广发银行', '兴业银行', '且慢', '众安', '股票', '固定资产', '公积金', '未知'
+]
+const TURNAROUND_CYCLES = ['T+0', 'T+1', '长期', '不可提现']
 
 /** 币种只允许人民币、港币、美元。空值用默认值 */
 const readCurrency = (value: unknown, fallback: string): [string, null] | [null, string] => {
@@ -12,6 +17,21 @@ const readCurrency = (value: unknown, fallback: string): [string, null] | [null,
   const code = String(value).toUpperCase()
   if (!CURRENCIES.includes(code)) return ['币种只能是人民币、港币或美元', null]
   return [null, code]
+}
+
+const channelName = (value: unknown) => {
+  const channel = String(value || '').trim()
+  return CHANNELS.includes(channel) ? channel : '未知'
+}
+
+/** 渠道和周转周期是资产属性；渠道缺省为未知，周期缺省为 T+0 */
+const readAssetAttributes = (type: unknown, channelValue: unknown, cycleValue: unknown): [string, null] | [null, { channel: string | null; turnaroundCycle: string }] => {
+  if (type === 'debt') return [null, { channel: null, turnaroundCycle: 'T+0' }]
+  const channel = channelValue == null ? '' : String(channelValue).trim()
+  if (channel && !CHANNELS.includes(channel)) return ['渠道不在可选范围内', null]
+  const cycle = cycleValue == null || cycleValue === '' ? 'T+0' : String(cycleValue)
+  if (!TURNAROUND_CYCLES.includes(cycle)) return ['周转周期只能是T+0、T+1、长期或不可提现', null]
+  return [null, { channel: channel || null, turnaroundCycle: cycle }]
 }
 
 /** 年交保费留空表示未填；填写时不能小于 0 */
@@ -23,11 +43,11 @@ const readPremium = (fourMoneyType: unknown, annualPremium: unknown): [string, n
   return [null, true]
 }
 
-/** 金额必须大于 0。空值和非法值分开提示 */
-const readPositiveAmount = (value: unknown, emptyMessage: string, invalidMessage: string): [string, null] | [null, number] => {
+/** 金额允许为 0。空值和非法值分开提示 */
+const readNonNegativeAmount = (value: unknown, emptyMessage: string, invalidMessage: string): [string, null] | [null, number] => {
   if (value === undefined || value === null || value === '') return [emptyMessage, null]
   const amount = Number(value)
-  if (!Number.isFinite(amount) || amount <= 0) return [invalidMessage, null]
+  if (!Number.isFinite(amount) || amount < 0) return [invalidMessage, null]
   return [null, amount]
 }
 
@@ -75,18 +95,20 @@ export const getAssetList = async ({ billId, memberId, type, fourMoneyType }: Ro
  * @param {number} annualPremium 年交保费
  * @returns {Array} [错误信息, 资产对象]
  */
-export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency }: Row) => {
+export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency, channel, turnaroundCycle }: Row) => {
   if (!name) return ['资产名称不能为空', null]
   if (!billId) return ['账本id不能为空', null]
   if (!memberId) return ['成员id不能为空', null]
   if (!type) return ['资产类型不能为空', null]
   const [currencyErr, currencyCode] = readCurrency(currency, 'CNY')
   if (currencyErr || !currencyCode) return [currencyErr, null]
+  const [attributeErr, attributes] = readAssetAttributes(type, channel, turnaroundCycle)
+  if (attributeErr || !attributes) return [attributeErr || '资产属性保存失败', null]
   const moneyType = type === 'debt' ? null : fourMoneyType
   if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
   const [premiumErr] = readPremium(moneyType, annualPremium)
   if (premiumErr) return [premiumErr, null]
-  const [amountErr, amount] = readPositiveAmount(latestAmount, '最新金额不能为空', '最新金额必须大于0')
+  const [amountErr, amount] = readNonNegativeAmount(latestAmount, '最新金额不能为空', '最新金额必须大于等于0')
   if (amountErr || amount == null) return [amountErr, null]
   const member = await Member.findOne({ where: { id: memberId, billId, isDel: false } })
   if (!member) return ['成员不存在', null]
@@ -98,6 +120,8 @@ export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, la
     type,
     currency: currencyCode,
     fourMoneyType: moneyType,
+    channel: attributes.channel,
+    turnaroundCycle: attributes.turnaroundCycle,
     latestAmount: amount,
     isDebt: type === 'debt',
     lastUpdatedDate: recordedAt,
@@ -125,7 +149,7 @@ export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, la
  * @param {number} annualPremium 年交保费
  * @returns {Array} [错误信息, 资产对象]
  */
-export const editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency }: Row) => {
+export const editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency, channel, turnaroundCycle }: Row) => {
   if (!id) return ['资产id不能为空', null]
   if (!name) return ['资产名称不能为空', null]
   if (!memberId) return ['成员id不能为空', null]
@@ -134,13 +158,15 @@ export const editAsset = async ({ id, name, memberId, type, fourMoneyType, lates
   if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
   const [premiumErr] = readPremium(moneyType, annualPremium)
   if (premiumErr) return [premiumErr, null]
-  const [amountErr, amount] = readPositiveAmount(latestAmount, '最新金额不能为空', '最新金额必须大于0')
+  const [amountErr, amount] = readNonNegativeAmount(latestAmount, '最新金额不能为空', '最新金额必须大于等于0')
   if (amountErr || amount == null) return [amountErr, null]
   const current = await Asset.findOne({ where: { id, isDel: false } })
   if (!current) return ['编辑资产失败，资产可能已被删除', null]
   if (currency !== undefined && currency !== null && currency !== '' && String(currency).toUpperCase() !== String(current.currency || 'CNY')) {
     return ['要换币种需删除后重新登记', null]
   }
+  const [attributeErr, attributes] = readAssetAttributes(type, channel, turnaroundCycle)
+  if (attributeErr || !attributes) return [attributeErr || '资产属性保存失败', null]
   const member = await Member.findOne({ where: { id: memberId, billId: current.billId, isDel: false } })
   if (!member) return ['成员不存在', null]
   const amountChanged = Number(current.latestAmount) !== amount
@@ -152,6 +178,8 @@ export const editAsset = async ({ id, name, memberId, type, fourMoneyType, lates
       memberId,
       type,
       fourMoneyType: storedMoney,
+      channel: attributes.channel,
+      turnaroundCycle: attributes.turnaroundCycle,
       isDebt: type === 'debt',
       ...insurancePatch(storedMoney, insuranceCategory, annualPremium)
     },
@@ -276,6 +304,8 @@ export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
         memberName: asset.member?.name || '',
         type: asset.type,
         fourMoneyType: asset.fourMoneyType,
+        channel: asset.isDebt ? '' : channelName(asset.channel),
+        turnaroundCycle: asset.isDebt ? 'T+0' : asset.turnaroundCycle || 'T+0',
         currency: asset.currency || 'CNY',
         rawAmount,
         latestAmount: current,

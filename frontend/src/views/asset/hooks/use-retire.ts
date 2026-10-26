@@ -1,4 +1,4 @@
-import { onBeforeUnmount, ref, watch, type Ref } from 'vue'
+import { nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import dayjs from 'dayjs'
 import * as echarts from 'echarts'
 import { storeToRefs } from 'pinia'
@@ -38,10 +38,28 @@ export const useRetire = (memberId: Ref<string>) => {
     return yearText * 12 + monthPart - 1
   }
 
+  const release = () => {
+    if (chart && !chart.isDisposed()) chart.dispose()
+    chart = null
+  }
+
+  const ensureChart = () => {
+    if (!host.value) return null
+    // host 会随 v-if 重建；旧实例还挂在已卸载节点上时必须重绑
+    if (chart && !chart.isDisposed() && chart.getDom() === host.value) return chart
+    release()
+    chart = echarts.init(host.value)
+    return chart
+  }
+
   const draw = () => {
-    if (!host.value || !view.value?.plan) return
-    if (!chart) chart = echarts.init(host.value)
-    chart.resize()
+    if (!host.value || !view.value?.plan) {
+      release()
+      return
+    }
+    const instance = ensureChart()
+    if (!instance) return
+    instance.resize()
     const plan = view.value.plan
     const series = view.value.series || []
     const base = series.find((item) => item.value != null)?.value ?? 0
@@ -52,7 +70,7 @@ export const useRetire = (memberId: Ref<string>) => {
       if (!plan.targetMonth) return plan.amount
       return Math.round((base + (plan.amount - base) * offset / totalMonths) * 100) / 100
     })
-    chart.setOption({
+    instance.setOption({
       tooltip: { trigger: 'axis', valueFormatter: (value: unknown) => formatMoney(value == null ? null : Number(value)) },
       legend: { top: 0, data: ['账户资产', '目标进度'] },
       grid: { left: 96, right: 24, top: 36, bottom: 32 },
@@ -68,6 +86,7 @@ export const useRetire = (memberId: Ref<string>) => {
   const load = async () => {
     if (!billId.value) {
       view.value = null
+      release()
       return
     }
     const params: { billId: string; memberId?: string; incomeYears: number; expenseYears: number; skipIdle: string } = {
@@ -87,7 +106,12 @@ export const useRetire = (memberId: Ref<string>) => {
       amount.value = String(res.data.plan.amount)
       startMonth.value = res.data.plan.startMonth
       targetMonth.value = res.data.plan.targetMonth || ''
+    } else {
+      amount.value = ''
+      startMonth.value = dayjs().format('YYYY-MM')
+      targetMonth.value = ''
     }
+    await nextTick()
     draw()
   }
 
@@ -109,13 +133,20 @@ export const useRetire = (memberId: Ref<string>) => {
       return false
     }
     view.value = res.data
+    await nextTick()
     draw()
     return true
   }
 
   watch([incomeYears, expenseYears, skipIdle], () => load())
-  watch(host, () => draw())
-  onBeforeUnmount(() => chart?.dispose())
+  watch(host, (el) => {
+    if (!el) {
+      release()
+      return
+    }
+    draw()
+  })
+  onBeforeUnmount(() => release())
 
   return { incomeYears, expenseYears, skipIdle, view, amount, startMonth, targetMonth, saving, host, load, save }
 }

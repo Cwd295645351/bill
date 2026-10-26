@@ -75,18 +75,19 @@ export const useTrend = (memberId: Ref<string>) => {
 
   const render = async () => {
     error.value = ''
-    const window = bounds()
-    if (!window) {
-      error.value = '开始日期不能晚于结束日期'
-      chart?.clear()
-      return
-    }
     if (!billId.value || !host.value) return
+    // since-range: fetch earliestMonth BEFORE bounds(); otherwise first paint only has current month
     if (range.value === 'since') {
       const params: { billId: string; memberId?: string } = { billId: billId.value }
       if (memberId.value) params.memberId = memberId.value
       const [err, res] = await getOverview({ params })
       if (!err && res?.retCode === 0) earliestMonth = res.data?.earliestRecordMonth || ''
+    }
+    const window = bounds()
+    if (!window) {
+      error.value = '开始日期不能晚于结束日期'
+      chart?.clear()
+      return
     }
     const labels: string[] = []
     const rows: { year: number; month: number }[] = []
@@ -104,7 +105,10 @@ export const useTrend = (memberId: Ref<string>) => {
       error.value = err instanceof Error ? err.message : '读取月历失败'
       return
     }
-    if (!chart) chart = echarts.init(host.value)
+    if (!chart || chart.isDisposed() || chart.getDom() !== host.value) {
+      if (chart && !chart.isDisposed()) chart.dispose()
+      chart = echarts.init(host.value)
+    }
     chart.resize()
     const series =
       metric.value === 'net'

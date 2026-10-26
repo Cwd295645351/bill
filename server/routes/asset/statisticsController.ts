@@ -381,13 +381,52 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
     })
   }
 
+  // 较年初基准：该年 1 月 1 日 0 点之前最近一次盘点（不含 1 月 1 日当天及之后）
+  const yearStartCutoff = dayjs(`${yearNum}-01-01`).startOf('day').valueOf() - 1
+  const yearStartSnaps = assetIds.length ? await getLatestSnapshotsBefore(assetIds, yearStartCutoff) : []
+  const yearStart: Record<string, number | null> = {}
+  categoryKeys.forEach((key) => {
+    yearStart[key] = null
+  })
+  {
+    const sums: Record<string, number> = {}
+    const seen: Record<string, boolean> = {}
+    let assetSum = 0
+    let debtSum = 0
+    let seenAsset = false
+    let seenDebt = false
+    yearStartSnaps.forEach((snap: Row) => {
+      const asset = assets.find((item: Row) => item.id === snap.assetId)
+      if (!asset) return
+      const amount = toCny(snap.amount, asset.currency, rates)
+      if (asset.isDebt) {
+        debtSum += amount
+        seenDebt = true
+        return
+      }
+      const label = typeName[String(asset.type || '')]
+      if (label) {
+        sums[label] = (sums[label] || 0) + amount
+        seen[label] = true
+      }
+      assetSum += amount
+      seenAsset = true
+    })
+    categoryKeys.slice(0, 4).forEach((label) => {
+      yearStart[label] = seen[label] ? sums[label] || 0 : null
+    })
+    yearStart['总资产'] = seenAsset ? assetSum : null
+    yearStart['总负债'] = seenDebt ? debtSum : null
+    yearStart['总净资产'] = seenAsset || seenDebt ? assetSum - debtSum : null
+  }
+
   const roundCell = (value: number) => Math.round(value * 100) / 100
   categoryKeys.forEach((key) => {
     const current = result[key].monthlyData[lastMonth]
-    const january = result[key].monthlyData[0]
+    const baseline = yearStart[key]
     result[key].current = current == null ? null : roundCell(current)
-    // 较年初只和 1 月比。1 月没有盘点时按 0，不能拿本月自己当基准，否则差额会变成 0
-    result[key].yearChange = current == null ? null : roundCell(current - (january ?? 0))
+    // 较年初 = 所看月份 − 该年 1 月 1 日之前状态；年初无盘点按 0
+    result[key].yearChange = current == null ? null : roundCell(current - (baseline ?? 0))
     result[key].monthlyData = result[key].monthlyData.map((value) => (value == null ? null : roundCell(value)))
   })
 

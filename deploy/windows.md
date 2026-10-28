@@ -94,3 +94,9 @@ nginx.exe -s stop
 | API | https://localhost/api/v1/... |
 
 根路径 `/` 没有页面，请走 `/pc/`。
+
+## 移动端 H5 `/mobile/`
+
+- 构建：`cd mobile-h5 && npm run build`
+- 发布目录：Windows `html/bill/mobile/`；Linux `/var/www/bill/mobile/`
+- Nginx 模板已含 `location /mobile/`

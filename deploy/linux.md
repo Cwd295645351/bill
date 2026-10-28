@@ -436,3 +436,9 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 ---
 
 部署完成后，PC 走 `/pc/`，API 走同源 `/api/v1/`。
+
+## 移动端 H5 `/mobile/`
+
+- 构建：`cd mobile-h5 && npm run build`
+- 发布目录：Windows `html/bill/mobile/`；Linux `/var/www/bill/mobile/`
+- Nginx 模板已含 `location /mobile/`

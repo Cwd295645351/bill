@@ -16,6 +16,8 @@
 
 `miniapp` 为微信小程序（原生 + TypeScript + Vant Weapp），面向家庭成员记账。用微信开发者工具打开 `miniapp/` 目录，在工具里执行「工具 -> 构建 npm」后编译。开发版直连本机；体验版和正式版的接口根地址写在 `miniapp/.env` 的 `MINIAPP_BASE_URL`（参考 `miniapp/.env.example`），然后在 `miniapp` 目录执行 `npm run sync-env`。该文件和生成的 `env.local.ts` 都不提交。
 
+mobile-h5 为手机浏览器移动端 H5（Vue3 + Vite + Vant），生产入口 /mobile/，账号密码登录，能力与小程序日常记账对等（邀请为复制邀请码）。用户操作见 [docs/用户手册.md](docs/用户手册.md) 第 12 章。
+
 ## 二、安装依赖
 
 ```js

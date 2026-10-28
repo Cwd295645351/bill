@@ -189,6 +189,19 @@ router.get('/monthly-report', async (ctx: HttpContext) => {
   else ctx.body = new ResModel(null, err, 'error')
 })
 
+router.get('/trend', async (ctx: HttpContext) => {
+  const billId = queryString(ctx.query.billId)
+  const startMonth = queryString(ctx.query.startMonth)
+  const endMonth = queryString(ctx.query.endMonth)
+  const grain = queryString(ctx.query.grain)
+  const metric = queryString(ctx.query.metric)
+  const memberId = queryString(ctx.query.memberId)
+  if (!(await guard(ctx, billId))) return
+  const [err, res] = await STATISTICS.getAssetTrend({ billId, startMonth, endMonth, grain, metric, memberId })
+  if (res) ctx.body = new ResModel(res, '获取成功')
+  else ctx.body = new ResModel(null, err, 'error')
+})
+
 router.get('/exchange-rate', async (ctx: HttpContext) => {
   const billId = queryString(ctx.query.billId)
   if (!(await guard(ctx, billId))) return

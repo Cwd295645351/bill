@@ -26,6 +26,7 @@ export const getOverview = service.get('/overview')
 export const getSankey = service.get('/sankey')
 export const getFourMoney = service.get('/four-money')
 export const getMonthlyReport = service.get('/monthly-report')
+export const getAssetTrend = service.get('/trend')
 
 /** 汇率、年度对账、养老计划 */
 export const getExchangeRate = service.get('/exchange-rate')

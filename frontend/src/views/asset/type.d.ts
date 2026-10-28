@@ -159,3 +159,30 @@ export interface MonthSeries {
 }
 
 export type MonthlyReport = Record<string, MonthSeries>
+
+/** 资产趋势接口 */
+export interface AssetTrendSeries {
+  key: string
+  name: string
+  values: (number | null)[]
+}
+
+export interface AssetTrendLegend {
+  key: string
+  first: number | null
+  last: number | null
+  delta: number | null
+}
+
+export interface AssetTrendResponse {
+  billId: string
+  startMonth: string
+  endMonth: string
+  grain: 'month' | 'year'
+  metric: 'all' | 'net'
+  memberId: string | null
+  capped?: boolean
+  labels: string[]
+  series: AssetTrendSeries[]
+  legend: AssetTrendLegend[]
+}

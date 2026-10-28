@@ -4,6 +4,15 @@ import { Op } from 'sequelize'
 import dayjs from 'dayjs'
 import { getLatestSnapshotsBefore } from '../../database/services/assetRecordService'
 import { getBillRates, toCny } from '../../database/services/assetFx'
+import {
+  buildMonthEndTotals,
+  loadSnapshotPool,
+  monthEndTimestamp,
+  listYearMonths,
+  isYearMonth,
+  TYPE_LABEL,
+  type MonthEndTotals
+} from '../../database/services/monthEndTotals'
 
 /** 获取资产概览（首页顶部摘要 + 变化柱状图）
  * 返回当前资产汇总及与上月末相比的各类型变化数据
@@ -307,12 +316,6 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
     .map((asset: Row) => asset.id)
     .filter((id: string | undefined): id is string => Boolean(id))
 
-  const typeName: Record<string, string> = {
-    living: '流动资金',
-    steady: '固定资产',
-    longterm: '投资理财',
-    receivable: '应收款'
-  }
   const categoryKeys = ['流动资金', '投资理财', '固定资产', '应收款', '总资产', '总负债', '总净资产']
   const blank = () => ({
     current: null as number | null,
@@ -327,56 +330,24 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
 
   const now = dayjs()
   const lastMonth = yearNum === now.year() ? now.month() : 11
+  const endYm = `${yearNum}-${String(lastMonth + 1).padStart(2, '0')}`
+  const pool = await loadSnapshotPool(assetIds, monthEndTimestamp(endYm))
 
   for (let m = 0; m <= lastMonth; m++) {
-    const monthEnd = dayjs(`${yearNum}-${String(m + 1).padStart(2, '0')}-01`).endOf('month').valueOf()
-    const latest = assetIds.length ? await getLatestSnapshotsBefore(assetIds, monthEnd) : []
-    const sums: Record<string, number> = {}
-    const seen: Record<string, boolean> = {}
-    const lastByKey: Record<string, string> = {}
-    let assetSum = 0
-    let debtSum = 0
-    let seenAsset = false
-    let seenDebt = false
+    const yearMonth = `${yearNum}-${String(m + 1).padStart(2, '0')}`
+    const totals = await buildMonthEndTotals({ yearMonth, assets, rates, pool, assetIds })
+    result['流动资金'].monthlyData[m] = totals.liquid
+    result['投资理财'].monthlyData[m] = totals.invest
+    result['固定资产'].monthlyData[m] = totals.fixed
+    result['应收款'].monthlyData[m] = totals.receivable
+    result['总资产'].monthlyData[m] = totals.assetsSum
+    result['总负债'].monthlyData[m] = totals.liability
+    result['总净资产'].monthlyData[m] = totals.net
 
-    latest.forEach((snap: Row) => {
-      const asset = assets.find((item: Row) => item.id === snap.assetId)
-      if (!asset) return
-      const amount = toCny(snap.amount, asset.currency, rates)
-      const dateStr = dayjs(Number(snap.date)).format('YYYY-MM-DD')
-      const touch = (key: string) => {
-        if (!lastByKey[key] || dateStr > lastByKey[key]) lastByKey[key] = dateStr
-      }
-      if (asset.isDebt) {
-        debtSum += amount
-        seenDebt = true
-        touch('总负债')
-        touch('总净资产')
-        return
-      }
-      const label = typeName[String(asset.type || '')]
-      if (label) {
-        sums[label] = (sums[label] || 0) + amount
-        seen[label] = true
-        touch(label)
-      }
-      assetSum += amount
-      seenAsset = true
-      touch('总资产')
-      touch('总净资产')
-    })
-
-    categoryKeys.slice(0, 4).forEach((label) => {
-      result[label].monthlyData[m] = seen[label] ? sums[label] || 0 : null
-    })
-    result['总资产'].monthlyData[m] = seenAsset ? assetSum : null
-    result['总负债'].monthlyData[m] = seenDebt ? debtSum : null
-    result['总净资产'].monthlyData[m] = seenAsset || seenDebt ? assetSum - debtSum : null
-
-    Object.keys(lastByKey).forEach((key) => {
-      if (result[key].monthlyData[m] == null) return
-      if (!result[key].lastUpdate || lastByKey[key] > result[key].lastUpdate) {
-        result[key].lastUpdate = lastByKey[key]
+    Object.keys(totals.lastUpdate).forEach((key) => {
+      if (result[key]?.monthlyData[m] == null) return
+      if (!result[key].lastUpdate || totals.lastUpdate[key] > result[key].lastUpdate) {
+        result[key].lastUpdate = totals.lastUpdate[key]
       }
     })
   }
@@ -404,7 +375,7 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
         seenDebt = true
         return
       }
-      const label = typeName[String(asset.type || '')]
+      const label = TYPE_LABEL[String(asset.type || '')]
       if (label) {
         sums[label] = (sums[label] || 0) + amount
         seen[label] = true
@@ -412,23 +383,154 @@ export const getMonthlyReport = async ({ billId, year, memberId }: Row) => {
       assetSum += amount
       seenAsset = true
     })
-    categoryKeys.slice(0, 4).forEach((label) => {
-      yearStart[label] = seen[label] ? sums[label] || 0 : null
+    ;(['流动资金', '投资理财', '固定资产', '应收款'] as const).forEach((label) => {
+      yearStart[label] = seen[label] ? round2(sums[label] || 0) : null
     })
-    yearStart['总资产'] = seenAsset ? assetSum : null
-    yearStart['总负债'] = seenDebt ? debtSum : null
-    yearStart['总净资产'] = seenAsset || seenDebt ? assetSum - debtSum : null
+    yearStart['总资产'] = seenAsset ? round2(assetSum) : null
+    yearStart['总负债'] = seenDebt ? round2(debtSum) : null
+    yearStart['总净资产'] = seenAsset || seenDebt ? round2(assetSum - debtSum) : null
   }
 
-  const roundCell = (value: number) => Math.round(value * 100) / 100
   categoryKeys.forEach((key) => {
     const current = result[key].monthlyData[lastMonth]
     const baseline = yearStart[key]
-    result[key].current = current == null ? null : roundCell(current)
-    // 较年初 = 所看月份 − 该年 1 月 1 日之前状态；年初无盘点按 0
-    result[key].yearChange = current == null ? null : roundCell(current - (baseline ?? 0))
-    result[key].monthlyData = result[key].monthlyData.map((value) => (value == null ? null : roundCell(value)))
+    result[key].current = current == null ? null : round2(current)
+    result[key].yearChange = current == null ? null : round2(current - (baseline ?? 0))
+    result[key].monthlyData = result[key].monthlyData.map((value) => (value == null ? null : round2(value)))
   })
 
   return [null, result]
+}
+
+const ALL_SERIES = [
+  { key: 'liquid', name: '流动资金', field: 'liquid' as const, sign: 1 },
+  { key: 'invest', name: '投资理财', field: 'invest' as const, sign: 1 },
+  { key: 'fixed', name: '固定资产', field: 'fixed' as const, sign: 1 },
+  { key: 'receivable', name: '应收款', field: 'receivable' as const, sign: 1 },
+  { key: 'liability', name: '负债', field: 'liability' as const, sign: -1 }
+]
+
+const legendOf = (key: string, values: (number | null)[]) => {
+  let first: number | null = null
+  let last: number | null = null
+  for (const value of values) {
+    if (value == null) continue
+    if (first == null) first = value
+    last = value
+  }
+  if (first == null || last == null) return { key, first: null, last: null, delta: null }
+  return { key, first, last, delta: round2(last - first) }
+}
+
+/**
+ * 资产趋势：任意月窗一次返回 chart-ready 序列（与月历共用月末汇总内核）
+ */
+export const getAssetTrend = async ({
+  billId,
+  startMonth,
+  endMonth,
+  grain,
+  metric,
+  memberId
+}: {
+  billId?: string
+  startMonth?: string | null
+  endMonth?: string | null
+  grain?: string | null
+  metric?: string | null
+  memberId?: string | null
+}) => {
+  if (!billId) return ['账本id不能为空', null]
+  if (!isYearMonth(startMonth) || !isYearMonth(endMonth)) return ['起止月份格式须为 YYYY-MM', null]
+
+  const grainValue = grain === 'year' ? 'year' : 'month'
+  const metricValue = metric === 'net' ? 'net' : 'all'
+
+  const nowMonth = dayjs().format('YYYY-MM')
+  let end = String(endMonth)
+  const capped = end > nowMonth
+  if (capped) end = nowMonth
+  const start = String(startMonth)
+  if (start > end) return ['起止月份颠倒', null]
+
+  const months = listYearMonths(start, end)
+  if (months.length > 240) return ['时间范围过大，请缩小到 20 年以内', null]
+
+  const query: WhereBag = { billId, isDel: false }
+  if (memberId) query.memberId = memberId
+  const assets = await Asset.findAll({ where: query })
+  const rates = await getBillRates(String(billId))
+  const assetIds = assets
+    .map((asset: Row) => asset.id)
+    .filter((id: string | undefined): id is string => Boolean(id))
+
+  const pool = await loadSnapshotPool(assetIds, monthEndTimestamp(end))
+  const monthly: MonthEndTotals[] = []
+  for (const yearMonth of months) {
+    monthly.push(await buildMonthEndTotals({ yearMonth, assets, rates, pool, assetIds }))
+  }
+
+  const projectMonth = (row: MonthEndTotals) => {
+    if (metricValue === 'net') {
+      return [{ key: 'net', name: '净资产', value: row.net }]
+    }
+    return ALL_SERIES.map((item) => ({
+      key: item.key,
+      name: item.name,
+      value: row[item.field] == null ? null : round2((row[item.field] as number) * item.sign)
+    }))
+  }
+
+  let labels: string[] = months
+  let projected = monthly.map((row) => projectMonth(row))
+
+  if (grainValue === 'year') {
+    const groups = new Map<string, number[]>()
+    months.forEach((ym, index) => {
+      const year = ym.slice(0, 4)
+      const list = groups.get(year) || []
+      list.push(index)
+      groups.set(year, list)
+    })
+    labels = []
+    const picked: typeof projected = []
+    groups.forEach((indexes, year) => {
+      let chosen = indexes[indexes.length - 1]
+      for (let i = indexes.length - 1; i >= 0; i -= 1) {
+        if (projected[indexes[i]].some((cell) => cell.value != null)) {
+          chosen = indexes[i]
+          break
+        }
+      }
+      labels.push(year)
+      picked.push(projected[chosen])
+    })
+    projected = picked
+  }
+
+  const seriesKeys =
+    metricValue === 'net'
+      ? [{ key: 'net', name: '净资产' }]
+      : ALL_SERIES.map((item) => ({ key: item.key, name: item.name }))
+
+  const series = seriesKeys.map((meta, seriesIndex) => ({
+    key: meta.key,
+    name: meta.name,
+    values: projected.map((row) => row[seriesIndex]?.value ?? null) as (number | null)[]
+  }))
+
+  const legend = series.map((item) => legendOf(item.key, item.values))
+
+  return [null, {
+    billId: String(billId),
+    startMonth: start,
+    endMonth: end,
+    grain: grainValue,
+    metric: metricValue,
+    memberId: memberId ? String(memberId) : null,
+    capped,
+    labels,
+    series,
+    legend
+  }]
 }

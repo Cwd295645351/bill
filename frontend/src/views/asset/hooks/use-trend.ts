@@ -3,23 +3,24 @@ import dayjs, { type Dayjs } from 'dayjs'
 import * as echarts from 'echarts'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
-import { getMonthlyReport, getOverview } from '../api'
-import { formatMoney, roundMoney, shortAmount } from '../shared'
-import type { MonthlyReport } from '../type'
+import { getAssetTrend, getOverview } from '../api'
+import { formatMoney, shortAmount } from '../shared'
+import type { AssetTrendResponse } from '../type'
 
 export type TrendRange = 'since' | 'thisYear' | 'y1' | 'y3' | 'y5' | 'custom'
 export type TrendGrain = 'month' | 'year'
 export type TrendMetric = 'all' | 'net'
 
-const STACK = [
-  { key: '流动资金', color: '#409eff' },
-  { key: '投资理财', color: '#fac858' },
-  { key: '固定资产', color: '#91cc75' },
-  { key: '负债', color: '#f74f4f' },
-  { key: '应收款', color: '#73c0de' },
-]
+const COLORS: Record<string, string> = {
+  liquid: '#409eff',
+  invest: '#fac858',
+  fixed: '#91cc75',
+  receivable: '#73c0de',
+  liability: '#f74f4f',
+  net: '#18a356'
+}
 
-/** 用各年的月历拼出趋势。不另开趋势接口 */
+/** 一次请求 /asset/trend；overview 只用于「记账以来」最早月 */
 export const useTrend = (memberId: Ref<string>) => {
   const { billId } = storeToRefs(useBillStore())
   const range = ref<TrendRange>('since')
@@ -31,7 +32,7 @@ export const useTrend = (memberId: Ref<string>) => {
   const legend = ref<{ name: string; color: string; last: number | null; change: number | null }[]>([])
   const host = ref<HTMLElement | null>(null)
   let chart: echarts.ECharts | null = null
-  const cache = new Map<string, MonthlyReport>()
+  const cache = new Map<string, AssetTrendResponse>()
   let earliestMonth = ''
 
   const bounds = (): { from: Dayjs; to: Dayjs; capped?: boolean } | null => {
@@ -52,31 +53,9 @@ export const useTrend = (memberId: Ref<string>) => {
     return { from, to, capped }
   }
 
-  const loadYear = async (year: number) => {
-    const cacheKey = `${billId.value}-${memberId.value}-${year}`
-    const cached = cache.get(cacheKey)
-    if (cached) return cached
-    const params: { billId: string; year: number; memberId?: string } = { billId: billId.value || '', year }
-    if (memberId.value) params.memberId = memberId.value
-    const [err, res] = await getMonthlyReport({ params })
-    if (err || !res || res.retCode !== 0) throw new Error(res?.message || '读取月历失败')
-    cache.set(cacheKey, res.data || {})
-    return res.data as MonthlyReport
-  }
-
-  const point = (report: MonthlyReport, key: string, month: number) => {
-    const source = key === '负债' ? '总负债' : key
-    const amount = roundMoney(report[source]?.monthlyData?.[month])
-    if (amount == null) return null
-    // 负债记在零轴下方，和资产正向堆叠分开
-    if (key === '负债' && amount !== 0) return -amount
-    return amount
-  }
-
   const render = async () => {
     error.value = ''
     if (!billId.value || !host.value) return
-    // since-range: fetch earliestMonth BEFORE bounds(); otherwise first paint only has current month
     if (range.value === 'since') {
       const params: { billId: string; memberId?: string } = { billId: billId.value }
       if (memberId.value) params.memberId = memberId.value
@@ -89,87 +68,82 @@ export const useTrend = (memberId: Ref<string>) => {
       chart?.clear()
       return
     }
-    const labels: string[] = []
-    const rows: { year: number; month: number }[] = []
-    let cursor = window.from
-    while (cursor.isBefore(window.to) || cursor.isSame(window.to, 'month')) {
-      labels.push(cursor.format('YYYY-MM'))
-      rows.push({ year: cursor.year(), month: cursor.month() })
-      cursor = cursor.add(1, 'month')
+
+    const startMonth = window.from.format('YYYY-MM')
+    const endMonth = window.to.format('YYYY-MM')
+    const cacheKey = `${billId.value}-${memberId.value}-${startMonth}-${endMonth}-${grain.value}-${metric.value}`
+    let data = cache.get(cacheKey)
+    if (!data) {
+      const params: {
+        billId: string
+        startMonth: string
+        endMonth: string
+        grain: TrendGrain
+        metric: TrendMetric
+        memberId?: string
+      } = {
+        billId: billId.value || '',
+        startMonth,
+        endMonth,
+        grain: grain.value,
+        metric: metric.value
+      }
+      if (memberId.value) params.memberId = memberId.value
+      const [err, res] = await getAssetTrend({ params })
+      if (err || !res || res.retCode !== 0) {
+        error.value = res?.message || '读取趋势失败'
+        return
+      }
+      data = res.data as AssetTrendResponse
+      cache.set(cacheKey, data)
     }
-    const years = [...new Set(rows.map((item) => item.year))]
-    const reports = new Map<number, MonthlyReport>()
-    try {
-      for (const year of years) reports.set(year, await loadYear(year))
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : '读取月历失败'
-      return
-    }
+
     if (!chart || chart.isDisposed() || chart.getDom() !== host.value) {
       if (chart && !chart.isDisposed()) chart.dispose()
       chart = echarts.init(host.value)
     }
     chart.resize()
-    const series =
-      metric.value === 'net'
-        ? [
-            {
-              name: '净资产',
-              type: 'line',
-              stack: 'net',
-              areaStyle: {},
-              showSymbol: false,
-              color: '#18a356',
-              data: rows.map((item) => point(reports.get(item.year) || {}, '总净资产', item.month)),
-            },
-          ]
-        : STACK.map((item) => ({
-            name: item.key,
-            type: 'line',
-              stack: 'asset',
-              stackStrategy: 'samesign',
-              areaStyle: {},
-            showSymbol: false,
-            color: item.color,
-            data: rows.map((row) => point(reports.get(row.year) || {}, item.key, row.month)),
-          }))
-    let labelsShown = labels
-    let seriesShown = series
-    if (grain.value === 'year') {
-      const groups = new Map<string, number[]>()
-      labels.forEach((label, index) => {
-        const year = label.slice(0, 4)
-        const list = groups.get(year) || []
-        list.push(index)
-        groups.set(year, list)
-      })
-      const picked: number[] = []
-      labelsShown = []
-      groups.forEach((indexes, year) => {
-        let chosen = indexes[indexes.length - 1]
-        for (let i = indexes.length - 1; i >= 0; i -= 1) {
-          if (series.some((item) => item.data[indexes[i]] != null)) {
-            chosen = indexes[i]
-            break
-          }
-        }
-        labelsShown.push(`${year}年`)
-        picked.push(chosen)
-      })
-      seriesShown = series.map((item) => ({ ...item, data: picked.map((index) => item.data[index]) }))
-    }
+
+    const labelsShown = data.labels.map((label) => (grain.value === 'year' && /^\d{4}$/.test(label) ? `${label}年` : label))
+    const seriesShown = (data.series || []).map((item) => ({
+      name: item.name,
+      type: 'line' as const,
+      stack: metric.value === 'net' ? 'net' : 'asset',
+      stackStrategy: metric.value === 'net' ? undefined : ('samesign' as const),
+      areaStyle: {},
+      showSymbol: grain.value === 'year',
+      color: COLORS[item.key] || '#18a356',
+      data: item.values
+    }))
+
     const hasValue = seriesShown.some((item) => item.data.some((value) => value != null))
-    legend.value = seriesShown.map((item) => {
+    legend.value = seriesShown.map((item, index) => {
+      const meta = data!.legend?.[index]
+      if (meta && (meta.last != null || meta.first != null)) {
+        return {
+          name: item.name,
+          color: item.color,
+          last: meta.last,
+          change: meta.delta
+        }
+      }
       const numbers = item.data.filter((value): value is number => value != null)
       if (!numbers.length) return { name: item.name, color: item.color, last: null, change: null }
-      return { name: item.name, color: item.color, last: numbers[numbers.length - 1], change: numbers[numbers.length - 1] - numbers[0] }
+      return {
+        name: item.name,
+        color: item.color,
+        last: numbers[numbers.length - 1],
+        change: numbers[numbers.length - 1] - numbers[0]
+      }
     })
+
     if (!hasValue) {
       error.value = '该区间没有盘点'
       chart.clear()
       return
     }
-    if (window.capped) error.value = '结束日期晚于当前月，只画到当前月'
+    if (window.capped || data.capped) error.value = '结束日期晚于当前月，只画到当前月'
+
     const signedShort = (value: number | null, withPlus = false) => {
       if (value == null || Number.isNaN(value)) return '—'
       const text = shortAmount(Math.abs(value))
@@ -197,26 +171,26 @@ export const useTrend = (memberId: Ref<string>) => {
               num: { fontSize: 16, lineHeight: 28, color: '#666' },
               up: { fontSize: 16, lineHeight: 28, color: '#18a356' },
               down: { fontSize: 16, lineHeight: 28, color: 'rgb(247, 79, 79)' },
-              flat: { fontSize: 16, lineHeight: 28, color: '#666' },
-            },
+              flat: { fontSize: 16, lineHeight: 28, color: '#666' }
+            }
           },
           formatter: (name: string) => {
             const item = legend.value.find((row) => row.name === name)
             if (!item || item.last == null) return `${name} 无`
             const tone = item.change == null || Math.abs(item.change) < 0.005 ? 'flat' : item.change > 0 ? 'up' : 'down'
             return `${name}{tag|期末}{num|${signedShort(item.last)}}{tag|变化}{${tone}|${signedShort(item.change, true)}}`
-          },
+          }
         },
         grid: { left: 88, right: 16, top: seriesShown.length > 2 ? 88 : 52, bottom: labelsShown.length > 18 ? 64 : 32 },
         xAxis: { type: 'category', data: labelsShown, axisLabel: labelsShown.length > 18 ? { rotate: 45, fontSize: 11 } : {} },
         yAxis: {
           type: 'value',
           min: hasNegative ? undefined : 0,
-          axisLabel: { formatter: (value: number) => signedShort(value) },
+          axisLabel: { formatter: (value: number) => signedShort(value) }
         },
-        series: seriesShown.map((item) => ({ ...item, showSymbol: grain.value === 'year' })),
+        series: seriesShown
       },
-      true,
+      true
     )
   }
 

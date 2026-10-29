@@ -69,7 +69,7 @@ Page({
 
   async onSubmit(e: WechatMiniprogram.CustomEvent) {
     if (this.data.saving) return
-    const { payload, pref, photos } = e.detail
+    const { payload, pref, photos, again } = e.detail
     this.setData({ saving: true })
     const form = this.selectComponent('#form') as any
     const list = Array.isArray(photos) ? photos : []
@@ -96,7 +96,12 @@ Page({
       setLastBillId(payload.billId)
       hideSaveLoading()
       wx.showToast({ title: '已保存' })
-      wx.navigateTo({ url: `/pages/bill-detail/index?id=${payload.billId}` })
+      // 再记一笔：留在本页并重置表单；完成：进入账本详情
+      if (again) {
+        if (form && form.resetForAgain) form.resetForAgain()
+      } else {
+        wx.navigateTo({ url: `/pages/bill-detail/index?id=${payload.billId}` })
+      }
     } finally {
       hideSaveLoading()
       this.setData({ saving: false })

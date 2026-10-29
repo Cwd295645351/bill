@@ -17,7 +17,7 @@ export function editTransaction(data: Record<string, any>) {
 }
 
 export function deleteTransaction(id: string) {
-  return request({ url: '/transaction/', method: 'DELETE', data: { id }, silent: true })
+  return request({ url: '/transaction/', method: 'DELETE', params: { id }, silent: true })
 }
 
 export function getMonthCost(billId: string) {

@@ -113,9 +113,10 @@ async function onSubmit(detail: {
   payload: Record<string, any>
   pref: RecordPref
   photos: PendingPhoto[]
+  again: boolean
 }) {
   if (saving.value) return
-  const { payload, pref, photos } = detail
+  const { payload, pref, photos, again } = detail
   saving.value = true
   try {
     const list = Array.isArray(photos) ? photos : []
@@ -142,7 +143,12 @@ async function onSubmit(detail: {
     billCtx.setCurrentBillId(payload.billId)
     hideSaveLoading()
     showToast('已保存')
-    router.push({ name: 'bill-detail', params: { id: payload.billId } })
+    // 再记一笔：留在本页并重置表单；完成：进入账本详情
+    if (again) {
+      formRef.value?.resetForAgain?.()
+    } else {
+      router.push({ name: 'bill-detail', params: { id: payload.billId } })
+    }
   } finally {
     hideSaveLoading()
     saving.value = false

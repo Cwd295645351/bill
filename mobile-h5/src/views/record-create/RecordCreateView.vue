@@ -66,9 +66,10 @@ async function onSubmit(detail: {
   payload: Record<string, any>
   pref: RecordPref
   photos: PendingPhoto[]
+  again: boolean
 }) {
   if (saving.value) return
-  const { payload, pref, photos } = detail
+  const { payload, pref, photos, again } = detail
   saving.value = true
   try {
     const list = Array.isArray(photos) ? photos : []
@@ -94,7 +95,12 @@ async function onSubmit(detail: {
     setLastPref(pref)
     hideSaveLoading()
     showToast('已保存')
-    router.back()
+    // 再记一笔：留在本页并重置表单；完成：返回上一页
+    if (again) {
+      formRef.value?.resetForAgain?.()
+    } else {
+      router.back()
+    }
   } finally {
     hideSaveLoading()
     saving.value = false

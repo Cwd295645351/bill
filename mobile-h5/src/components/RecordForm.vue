@@ -1,6 +1,6 @@
 <template>
   <div class="record-form">
-    <div class="body">
+    <div class="body" :class="{ 'with-kb': showKeyboard && canEdit }">
       <div class="type-switch">
         <button
           type="button"
@@ -179,7 +179,9 @@
     </div>
 
     <div v-if="!showKeyboard && canEdit" class="submit-bar">
-      <button v-if="mode === 'add'" type="button" class="again" @click="onAgain">再记一笔</button>
+      <button v-if="mode === 'add'" type="button" class="again" :disabled="saving" @click="onAgain">
+        再记一笔
+      </button>
       <button type="button" class="ok" :disabled="saving" @click="onConfirm">
         {{ mode === 'add' ? '完成' : '保存' }}
       </button>
@@ -251,7 +253,15 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  submit: [detail: { payload: Record<string, any>; pref: RecordPref; photos: PendingPhoto[] }]
+  submit: [
+    detail: {
+      payload: Record<string, any>
+      pref: RecordPref
+      photos: PendingPhoto[]
+      /** 为 true 时表示保存后继续记下一笔，不离开页面 */
+      again: boolean
+    },
+  ]
   delete: [id: string]
 }>()
 
@@ -610,7 +620,7 @@ function setPhotoServerIds(ids: Array<string | undefined>) {
   photos.value = photos.value.map((p, i) => (ids[i] ? { ...p, serverId: ids[i] } : p))
 }
 
-defineExpose({ setPhotoServerIds, images, photos })
+defineExpose({ setPhotoServerIds, resetForAgain, images, photos })
 
 function mergePref(): RecordPref {
   const prev = getLastPref() || emptyPref()
@@ -678,11 +688,25 @@ function onConfirm() {
   if (!payload) return
   const pref = mergePref()
   setLastPref(pref)
-  emit('submit', { payload, pref, photos: photos.value.slice() })
+  emit('submit', { payload, pref, photos: photos.value.slice(), again: false })
 }
 
-/** 再记一笔：清空金额、内容与已选照片，保留日期和归属人 */
+/** 再记一笔：先保存当前数据，成功后由父页调用 resetForAgain */
 function onAgain() {
+  if (!canEdit.value) {
+    showToast('只能编辑自己记的账单')
+    return
+  }
+  if (saving.value) return
+  const payload = buildPayload()
+  if (!payload) return
+  const pref = mergePref()
+  setLastPref(pref)
+  emit('submit', { payload, pref, photos: photos.value.slice(), again: true })
+}
+
+/** 保存成功后清空金额、内容与照片，保留日期/分类/归属人，继续记下一笔 */
+function resetForAgain() {
   refreshSuggestions(categoryId.value, categoryName.value, '')
   amount.value = ''
   remark.value = ''
@@ -711,6 +735,10 @@ function onDelete() {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-bottom: 8px;
+}
+/* 键盘悬浮后为滚动区预留高度，避免底部内容被遮挡 */
+.body.with-kb {
+  padding-bottom: calc(240px + env(safe-area-inset-bottom));
 }
 .type-switch {
   display: flex;
@@ -977,6 +1005,7 @@ function onDelete() {
   color: #fff;
   background: #4285f4;
 }
+.submit-bar .again:disabled,
 .submit-bar .ok:disabled {
   opacity: 0.6;
 }

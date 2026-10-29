@@ -57,9 +57,15 @@ const rows = [
 
 <style scoped>
 .kb {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
   display: flex;
   background: #e8eaed;
   padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.08);
 }
 .rows {
   flex: 3;

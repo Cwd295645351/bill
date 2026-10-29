@@ -34,7 +34,7 @@ Page({
 
   async onSubmit(e: WechatMiniprogram.CustomEvent) {
     if (this.data.saving) return
-    const { payload, pref, photos } = e.detail
+    const { payload, pref, photos, again } = e.detail
     this.setData({ saving: true })
     const form = this.selectComponent('#form') as any
     const list = Array.isArray(photos) ? photos : []
@@ -59,7 +59,12 @@ Page({
       setLastPref(pref)
       hideSaveLoading()
       wx.showToast({ title: '已保存' })
-      wx.navigateBack()
+      // 再记一笔：留在本页并重置表单；完成：返回上一页
+      if (again) {
+        if (form && form.resetForAgain) form.resetForAgain()
+      } else {
+        wx.navigateBack()
+      }
     } finally {
       hideSaveLoading()
       this.setData({ saving: false })

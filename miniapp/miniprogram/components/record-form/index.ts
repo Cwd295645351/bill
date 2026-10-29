@@ -484,12 +484,23 @@ Component({
       })
     },
 
-    /** 再记一笔：不产生记账，清空照片、金额和描述，保留日期和归属人 */
+    /** 再记一笔：先保存当前数据，成功后由父页调用 resetForAgain */
     onAgain() {
-      this.resetForAgain()
+      if (!this.data.canEdit) {
+        wx.showToast({ title: '只能编辑自己记的账单', icon: 'none' })
+        return
+      }
+      const payload = this.buildPayload()
+      if (!payload) return
+      this.triggerEvent('submit', {
+        payload,
+        again: true,
+        pref: this.mergePref(),
+        photos: this.getPhotos()
+      })
     },
 
-    /** 再记一笔：保留日期和归属人，清空金额、内容与已选照片 */
+    /** 保存成功后清空金额、内容与照片，保留日期/分类/归属人，继续记下一笔 */
     resetForAgain() {
       this.refreshSuggestions(this.data.categoryId, this.data.categoryName, '')
       this.setData({ amount: '', remark: '', photos: [], showKeyboard: true })

@@ -10,6 +10,18 @@
 | [nginx.conf](nginx.conf) | Windows Nginx 模板 |
 | [sql/](sql/) | 已上线环境的数据库升级、回滚脚本 |
 
+## 移动端 H5（`/mobile/`）
+
+源码在仓库 `mobile-h5/`。构建产物部署到与 PC 对称的 `mobile/` 目录，对外路径 `/mobile/`。
+
+1. 在 `mobile-h5/` 执行 `npm ci`（或 `npm install`）后 `npm run build`
+2. 把 `mobile-h5/dist/` 全部内容复制到：
+   - Windows：`nginx/html/bill/mobile/`
+   - Linux：`/var/www/bill/mobile/`
+3. 确认 `deploy/nginx.conf` / `deploy/nginx-linux.conf` 已包含 `location /mobile/`
+4. `nginx -t` 后 reload；访问 `https://<host>/mobile/` 应打开 H5
+
+
 ## 微信小程序
 
 小程序源码在仓库 `miniapp/`，不经过 Nginx 托管静态页，只请求现有 `/api`。

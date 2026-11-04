@@ -2,14 +2,20 @@
   <section v-show="active" class="overview">
     <div class="top">
       <aside class="summary">
-        <h2>家庭资产</h2>
+        <div class="summary-head">
+          <h2>家庭资产</h2>
+          <label class="exclude-fixed">
+            <span>排除固定资产</span>
+            <el-switch v-model="excludeFixedAssets" size="small" />
+          </label>
+        </div>
         <div class="metric">
           <div class="label">净资产</div>
-          <div class="num up">{{ formatMoney(familyAsset.netAmount) }}</div>
+          <div class="num up">{{ formatMoney(displayNetAmount) }}</div>
         </div>
         <div class="metric">
           <div class="label">总资产</div>
-          <div class="num">{{ formatMoney(familyAsset.assetAmount) }}</div>
+          <div class="num">{{ formatMoney(displayAssetAmount) }}</div>
         </div>
         <div class="metric">
           <div class="label">总负债</div>
@@ -247,6 +253,22 @@ const familyAsset = computed(() => ({
   totalChange: Number(summary.value.totalChange) || 0,
   debtChange: Number(summary.value.debtChange) || 0,
 }))
+/** 会话内：排除固定资产后卡片净资产/总资产扣减该类合计，总负债不变 */
+const excludeFixedAssets = ref(false)
+const fixedAssetAmount = computed(() => {
+  const fromChanges = (summary.value.categoryChanges || []).find((item) => item.typeName === '固定资产')
+  if (fromChanges) return Number(fromChanges.current) || 0
+  const group = (stats.value.assetGroups || []).find((item) => item.typeName === '固定资产')
+  return Number(group?.amount) || 0
+})
+const displayAssetAmount = computed(() => {
+  const base = familyAsset.value.assetAmount
+  return excludeFixedAssets.value ? base - fixedAssetAmount.value : base
+})
+const displayNetAmount = computed(() => {
+  const base = familyAsset.value.netAmount
+  return excludeFixedAssets.value ? base - fixedAssetAmount.value : base
+})
 const halfFen = (value: number | null | undefined) => Math.abs(Number(value) || 0) < 0.005
 const shownAssetChange = computed(() => (asOf.value ? familyAsset.value.totalChange : 0))
 const shownDebtChange = computed(() => (asOf.value ? familyAsset.value.debtChange : 0))
@@ -420,10 +442,32 @@ watch([() => props.active, memberId, billId, revision], async () => {
     flex-direction: column;
     padding: 16px 18px 18px;
 
-    h2 {
-      text-align: center;
-      font-size: 22px;
+    .summary-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
       margin-bottom: 12px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+
+    .exclude-fixed {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      color: #606266;
+      font-size: 12px;
+      line-height: 1;
+      cursor: pointer;
+      white-space: nowrap;
+      user-select: none;
     }
 
     .metric {
@@ -448,6 +492,7 @@ watch([() => props.active, memberId, billId, revision], async () => {
 
     .actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 8px;
       margin-top: 14px;
       padding-top: 14px;

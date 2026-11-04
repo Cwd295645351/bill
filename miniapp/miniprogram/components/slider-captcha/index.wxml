@@ -1,0 +1,24 @@
+<view class="sc">
+  <view class="sc__bg" style="height: {{displayHeight}}px;">
+    <image wx:if="{{backgroundImage}}" class="sc__bg-img" src="{{backgroundImage}}" mode="scaleToFill" />
+    <image
+      wx:if="{{puzzleImage}}"
+      class="sc__puzzle"
+      src="{{puzzleImage}}"
+      style="left: {{displaySlideX}}px; top: {{displayY}}px; width: {{displayPuzzleSize}}px; height: {{displayPuzzleSize}}px;"
+    />
+    <view class="sc__refresh" catchtap="onRefresh">↻</view>
+  </view>
+  <view
+    class="sc__track"
+    catchtouchstart="onTouchStart"
+    catchtouchmove="onTouchMove"
+    catchtouchend="onTouchEnd"
+    catchtouchcancel="onTouchEnd"
+  >
+    <view class="sc__fill" style="width: {{displaySlideX + displayPuzzleSize / 2}}px;"></view>
+    <view class="sc__knob {{ready ? 'ok' : (error ? 'fail' : '')}}" style="left: {{displaySlideX}}px;">{{ready ? '✓' : '→'}}</view>
+    <view wx:if="{{!dragging && slideX < 4}}" class="sc__hint">向右拖动完成验证</view>
+  </view>
+  <view wx:if="{{error}}" class="sc__error">{{error}}</view>
+</view>

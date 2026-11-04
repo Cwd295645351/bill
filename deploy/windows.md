@@ -57,7 +57,7 @@ include bill.conf;
 
 **4. 启动后端**
 
-确保本机 MySQL、Redis 已运行，且 `server/.env` 中已配置 `JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`、`MYSQL_USER`、`MYSQL_PASSWORD`。
+确保本机 MySQL、Redis 已运行，且 `server/.env` 中已配置 `JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`、`MYSQL_USER`、`MYSQL_PASSWORD`。 登录拼图滑块题目也写在同一 Redis；`GET /api/v1/common/captcha` 须免登录可访问。
 
 ```bash
 cd E:/my-codes/bill/server

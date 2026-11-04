@@ -8,6 +8,8 @@ import { userLogin, userRegister, getLoginConfig } from '../api'
 
 import type { Status, FormInfo } from '../type'
 
+export type CaptchaPayload = { captchaId: string; captchaX: number; ready: boolean }
+
 export const useLogin = () => {
   const route = useRoute()
   const operationDisabled = false
@@ -34,14 +36,49 @@ export const useLogin = () => {
     nickName: '',
   })
 
+  const captcha = ref<{ captchaId: string; captchaX: number; ready: boolean }>({ captchaId: '', captchaX: 0, ready: false })
+  const captchaRef = ref<{ reload: () => void } | null>(null)
+  const captchaVisible = ref(false)
+  const pendingAction = ref<'login' | 'register' | null>(null)
+  const submitting = ref(false)
+
+  const onCaptchaUpdate = (payload: { captchaId: string; captchaX: number; ready: boolean }) => {
+    captcha.value = payload
+    if (!payload.ready || !captchaVisible.value || submitting.value) return
+    if (pendingAction.value === 'login') {
+      void submitLogin()
+    } else if (pendingAction.value === 'register') {
+      void submitRegister()
+    }
+  }
+
+  const openCaptcha = (action: 'login' | 'register') => {
+    captcha.value = { captchaId: '', captchaX: 0, ready: false }
+    pendingAction.value = action
+    captchaVisible.value = true
+  }
+
+  const closeCaptcha = () => {
+    captchaVisible.value = false
+    pendingAction.value = null
+    captcha.value = { captchaId: '', captchaX: 0, ready: false }
+  }
+
+  const onCaptchaDialogClosed = () => {
+    pendingAction.value = null
+    captcha.value = { captchaId: '', captchaX: 0, ready: false }
+  }
+
   /** 切换到注册 */
   const registerUser = () => {
+    closeCaptcha()
     status.value = 'register'
     formInfo.value.nickName = ''
   }
 
   /** 返回登录 */
   const backToLogin = () => {
+    closeCaptcha()
     status.value = 'login'
     formInfo.value.nickName = ''
   }
@@ -58,66 +95,92 @@ export const useLogin = () => {
     return hextob64(encryptData)
   }
 
-  /** 注册 */
+  const submitRegister = async () => {
+    if (submitting.value) return
+    if (!captcha.value.ready || !captcha.value.captchaId) return
+    submitting.value = true
+    try {
+      const password = formInfo.value.password
+      const data = {
+        username: formInfo.value.username,
+        password: encryptPassword(password),
+        nickName: formInfo.value.nickName || formInfo.value.username,
+        captchaId: captcha.value.captchaId,
+        captchaX: captcha.value.captchaX,
+      }
+      const [err, res] = await userRegister({ data })
+      if (err) {
+        captchaRef.value?.reload()
+        return
+      }
+      if (res.retCode === 0) {
+        ElMessage.success('注册成功，请登录')
+        closeCaptcha()
+        status.value = 'login'
+        formInfo.value.password = ''
+        formInfo.value.nickName = ''
+      } else {
+        ElMessage.error('注册失败，' + res.message)
+        captchaRef.value?.reload()
+      }
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  /** 注册：先校验表单，再弹滑块 */
   const register = async () => {
     $loginForm.value.validate(async (valid: boolean) => {
-      if (valid) {
-        const password = formInfo.value.password
-        const data = {
-          username: formInfo.value.username,
-          password: encryptPassword(password),
-          nickName: formInfo.value.nickName || formInfo.value.username,
-        }
-        const [err, res] = await userRegister({ data })
-        if (err) return
-        if (res.retCode === 0) {
-          ElMessage.success('注册成功，请登录')
-          status.value = 'login'
-          formInfo.value.password = ''
-          formInfo.value.nickName = ''
-        } else {
-          ElMessage.error('注册失败，' + res.message)
-        }
-      } else {
-        console.log('error submit!!')
-        return false
-      }
+      if (!valid) return false
+      openCaptcha('register')
     })
   }
 
-  // 登录
+  const submitLogin = async () => {
+    if (submitting.value) return
+    if (!captcha.value.ready || !captcha.value.captchaId) return
+    submitting.value = true
+    try {
+      const password = formInfo.value.password
+      const data = {
+        username: formInfo.value.username,
+        password: encryptPassword(password),
+        captchaId: captcha.value.captchaId,
+        captchaX: captcha.value.captchaX,
+      }
+      const [err, res] = await userLogin({ data })
+      if (err) {
+        captchaRef.value?.reload()
+        return
+      }
+      if (res.retCode === 0) {
+        const data = res.data
+        const expiresAt = new Date().getTime() + data.expiresIn * 1000
+        const userInfo = {
+          ...data.userInfo,
+          accessToken: data.accessToken,
+          refreshToken: data.refreshToken,
+          userId: data.userInfo.id,
+        }
+        sessionStorage.setItem('expiresAt', expiresAt.toString())
+        sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
+        closeCaptcha()
+        const redirect = sanitizeRedirect(route.query.redirect)
+        router.push(redirect || '/layout/bill')
+      } else {
+        ElMessage.error('登录失败，' + res.message)
+        captchaRef.value?.reload()
+      }
+    } finally {
+      submitting.value = false
+    }
+  }
+
+  // 登录：先校验表单，再弹滑块
   const login = async () => {
     $loginForm.value.validate(async (valid: boolean) => {
-      if (valid) {
-        console.log('校验通过')
-        const password = formInfo.value.password
-        const data = {
-          username: formInfo.value.username,
-          password: encryptPassword(password),
-        }
-        const [err, res] = await userLogin({ data })
-        if (err) return
-        if (res.retCode === 0) {
-          console.log(res.data)
-          const data = res.data
-          const expiresAt = new Date().getTime() + data.expiresIn * 1000
-          const userInfo = {
-            ...data.userInfo,
-            accessToken: data.accessToken,
-            refreshToken: data.refreshToken,
-            userId: data.userInfo.id,
-          }
-          sessionStorage.setItem('expiresAt', expiresAt.toString())
-          sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
-          const redirect = sanitizeRedirect(route.query.redirect)
-          router.push(redirect || '/layout/bill')
-        } else {
-          ElMessage.error('登录失败，' + res.message)
-        }
-      } else {
-        console.log('error submit!!')
-        return false
-      }
+      if (!valid) return false
+      openCaptcha('login')
     })
   }
 
@@ -134,6 +197,21 @@ export const useLogin = () => {
 
   onMounted(getConfig)
 
-  return { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login, getConfig }
+  return {
+    operationDisabled,
+    status,
+    title,
+    $loginForm,
+    formInfo,
+    registerUser,
+    backToLogin,
+    forgetPassword,
+    register,
+    login,
+    getConfig,
+    captchaRef,
+    onCaptchaUpdate,
+    captchaVisible,
+    onCaptchaDialogClosed,
+  }
 }
-

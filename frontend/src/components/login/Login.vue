@@ -31,12 +31,24 @@
         </el-form-item>
       </el-form>
     </div>
+    <el-dialog
+      v-model="captchaVisible"
+      title="安全验证"
+      width="360px"
+      align-center
+      :close-on-click-modal="false"
+      destroy-on-close
+      @closed="onCaptchaDialogClosed"
+    >
+      <SliderCaptcha v-if="captchaVisible" ref="captchaRef" @update="onCaptchaUpdate" />
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { UserFilled, Lock } from '@element-plus/icons-vue'
 import { useLogin } from './hooks/use-login'
+import SliderCaptcha from './SliderCaptcha.vue'
 
 const rules = {
   username: [
@@ -85,7 +97,7 @@ const rules = {
     },
   ],
 }
-const { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login } = useLogin()
+const { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login, captchaRef, onCaptchaUpdate, captchaVisible, onCaptchaDialogClosed } = useLogin()
 
 /** 回车与按钮共用：登录页登录，注册页注册 */
 const onEnterSubmit = () => {

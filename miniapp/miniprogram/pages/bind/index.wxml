@@ -8,4 +8,9 @@
   <view class="btn">
     <van-button type="primary" block round color="#4285F4" loading="{{ submitting }}" bind:click="onSubmit">绑定并进入</van-button>
   </view>
+
+  <van-popup show="{{ captchaVisible }}" round position="center" custom-style="width: 92%; max-width: 360px; padding: 16px 12px 12px;" bind:close="onCaptchaClose" closeable>
+    <view class="captcha-title">安全验证</view>
+    <slider-captcha wx:if="{{ captchaVisible }}" id="slider" bind:update="onCaptchaUpdate" />
+  </van-popup>
 </view>

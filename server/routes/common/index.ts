@@ -3,11 +3,23 @@ import type { Next } from 'koa'
 import KoaRouter from 'koa-router'
 import { ResModel } from '../../model/resModel'
 import { getLoginConfig, updateEncryptionKey, assertAdmin, login, createJwt, register, wxLogin, wxBind, updateProfile, changePassword, updateAvatar, toClientUser } from './controller'
+import { createCaptcha, consumeCaptcha } from '../../utils/captcha'
 import { getAvatarFile } from '../../database/services/avatarService'
 
 import VERSION from '../../config/version'
 
 const router = new KoaRouter({ prefix: `/api/${VERSION}/common` })
+
+// 滑块验证码（登录/注册/绑定前拉取）
+router.get('/captcha', async (ctx: HttpContext) => {
+  try {
+    const data = await createCaptcha()
+    ctx.body = new ResModel(data, '获取成功')
+  } catch (err: unknown) {
+    console.error(err)
+    ctx.body = new ResModel(null, '获取滑块失败', 'error')
+  }
+})
 
 // 登录
 router.post('/login', async (ctx: HttpContext, next: Next) => {
@@ -22,6 +34,14 @@ router.post('/login', async (ctx: HttpContext, next: Next) => {
   if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
     ctx.body = new ResModel(null, '密码不符合规范', 'error')
     return
+  }
+  /* captcha:login */
+  {
+    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+    if (captchaErr) {
+      ctx.body = new ResModel(null, captchaErr, 'error')
+      return
+    }
   }
   const [err, res] = await login(username, password)
   if (res) {
@@ -80,6 +100,14 @@ router.post('/wxBind', async (ctx: HttpContext) => {
     ctx.body = new ResModel(null, '密码不符合规范', 'error')
     return
   }
+  /* captcha:wxBind */
+  {
+    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+    if (captchaErr) {
+      ctx.body = new ResModel(null, captchaErr, 'error')
+      return
+    }
+  }
   const [err, user] = await wxBind({ bindTicket, username, password })
   if (!user) {
     ctx.body = new ResModel(null, err, 'error')
@@ -133,6 +161,14 @@ router.post('/register', async (ctx: HttpContext, next: Next) => {
   if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
     ctx.body = new ResModel(null, '密码不符合规范', 'error')
     return
+  }
+  /* captcha:register */
+  {
+    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+    if (captchaErr) {
+      ctx.body = new ResModel(null, captchaErr, 'error')
+      return
+    }
   }
   // 注册密码需要校验强度（明文强度校验在controller中解密后进行）
   const [err, res] = await register(username, password, nickName)

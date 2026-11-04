@@ -125,8 +125,8 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <h2>2. 快速开始</h2>
 <p>第一次使用，按下面顺序即可开始记账。</p>
 <ol>
-<li>用电脑打开站点的 <strong>PC 端</strong>（地址一般为 <code>https://你的域名/pc/</code>）。</li>
-<li>点击「注册账号」，设置用户名和密码，完成注册后回到登录页登录。</li>
+<li>用电脑打开站点的 <strong>PC 端</strong>（地址一般为 <code>https://你的域名/pc/</code>；进入账本后为路径地址，不再使用 <code>#/…</code>）。</li>
+<li>点击「注册账号」，设置用户名和密码；点「注册」后弹出拼图滑块，对准后再提交。注册成功后回到登录页，登录时同样要过滑块。</li>
 <li>登录后进入账本页，点击右下角虚线「+」卡片，输入账本名称并确定。</li>
 <li>鼠标移到刚创建的账本卡片上，点击「眼睛」图标进入账本。</li>
 <li>在顶部菜单选择「记账」，右侧点「新增」，填写日期、类型、内容、金额后保存。</li>
@@ -254,30 +254,103 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <li><strong>密码</strong>（必填）：至少 8 位，且必须同时包含小写字母、大写字母和数字。</li>
 </ul>
 </li>
-<li>点击「注册」。成功后会提示「注册成功，请登录」，页面回到登录状态。</li>
-<li>输入刚注册的用户名和密码，点击「登录」。</li>
+<li>点击「注册」。页面会弹出「安全验证」拼图滑块（见 <a href="#45-%E5%AE%89%E5%85%A8%E9%AA%8C%E8%AF%81%E6%8B%BC%E5%9B%BE%E6%BB%91%E5%9D%97">4.5</a>）；对准缺口后才会真正提交注册。</li>
+<li>注册成功后会提示「注册成功，请登录」，页面回到登录状态。</li>
+<li>输入刚注册的用户名和密码，点击「登录」（同样需完成滑块）。</li>
 </ol>
-<p>密码在浏览器端会先加密再提交，服务端不会保存明文。</p>
+<p>密码在浏览器端会先加密再提交，服务端不会保存明文。登录页默认<strong>不</strong>显示滑块，只有点击「注册」或「登录」后才弹出。</p>
 <h3>4.2 登录</h3>
 <ul>
-<li><strong>PC</strong>：打开 <code>/pc/</code>，输入用户名和密码后登录，进入账本列表。</li>
-<li><strong>微信小程序</strong>：首次打开会进入「绑定账号」，用已注册的用户名和密码绑定一次。绑定成功后，再次打开会自动登录，不必每次输入密码。详见 <a href="#111-%E9%A6%96%E6%AC%A1%E7%BB%91%E5%AE%9A">11.1</a>。</li>
+<li><strong>PC</strong>：打开 <code>/pc/</code>，输入用户名和密码后点「登录」。弹出「安全验证」滑块并对准后，进入账本列表。</li>
+<li><strong>移动端 H5</strong>：打开 <code>/mobile/</code>，同样用账号密码登录，点登录后弹出滑块。详见 <a href="#121-%E7%99%BB%E5%BD%95">12.1</a>。</li>
+<li><strong>微信小程序</strong>：首次打开会进入「绑定账号」，用已注册的用户名和密码绑定一次（绑定提交时同样要过滑块）。绑定成功后，再次打开会<strong>静默自动登录，不必滑块、也不必再输密码</strong>。详见 <a href="#111-%E9%A6%96%E6%AC%A1%E7%BB%91%E5%AE%9A">11.1</a>。</li>
 </ul>
 <p>登录态有效期约为 <strong>24 小时</strong>。网页端过期后需要重新登录。小程序在未主动退出时会自动重新登录。请不要在公共电脑勾选记住密码，离开时点「退出登录」。</p>
+<h3>4.2.1 PC 地址说明（History）</h3>
+<p>PC 网页已改为 <strong>History 路径</strong>（地址栏不再使用 <code>#/…</code>）：</p>
+<ul>
+<li>本地开发示例：<code>http://localhost:4000/layout/bill</code></li>
+<li>进入某账本记账页：<code>/layout/bill/&lt;账本ID&gt;/record</code>（生产环境前缀为 <code>/pc</code>，例如 <code>https://你的域名/pc/layout/bill/&lt;账本ID&gt;/record</code>）</li>
+<li>其它页签：<code>…/overview</code>、<code>…/budget</code>、<code>…/plan</code>、<code>…/asset</code></li>
+<li>从预算跳到记账时，地址可带 <code>?costTypeId=</code> 筛选参数</li>
+</ul>
+<p>刷新深链需要服务器把未知路径回退到 PC 的 <code>index.html</code>（仓库 <code>deploy/nginx.conf</code> 已按此配置）。若仍打开旧书签 <code>…/pc/#/layout/…</code>，页面加载时会尽量自动转到无 <code>#</code> 的新路径。</p>
 <h3>4.3 退出登录</h3>
 <ul>
 <li><strong>PC</strong>：点击右上角头像，在弹出层底部点「退出登录」。</li>
 <li><strong>微信小程序</strong>：底部切到「我的」，点「退出登录」。退出后微信绑定仍然保留，需要再点「重新进入」才会登录。详见 <a href="#118-%E6%88%91%E7%9A%84">11.8</a>。</li>
 </ul>
 <h3>4.4 个人资料</h3>
-<p>点击 PC 右上角头像，可看到：</p>
+<p>三端均可修改本人资料（昵称、头像、登录密码）。未上传头像时，界面用<strong>默认头像图标</strong>占位（不会留空白）：PC 为用户图标，小程序 / H5 为用户轮廓图标。</p>
+<h4>入口</h4>
+<table>
+<thead>
+<tr>
+<th>端</th>
+<th>入口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PC</strong></td>
+<td>右上角头像弹出层 →「修改个人信息」</td>
+</tr>
+<tr>
+<td><strong>微信小程序</strong></td>
+<td>底部「我的」→「修改个人信息」</td>
+</tr>
+<tr>
+<td><strong>移动端 H5</strong></td>
+<td>底部「我的」→「修改个人信息」</td>
+</tr>
+</tbody></table>
+<p>PC 头像弹出层还会显示：当前头像与昵称、跨账本累计总支出/总收入、「加入账本」、「退出登录」。</p>
+<h4>两个 Tab，各自保存</h4>
+<p>弹层（或底部面板）拆成两个标签，<strong>互不影响</strong>：</p>
+<ol>
+<li><strong>个人资料</strong>：头像 + 昵称。点「保存资料」才提交。可先选图预览，确认后再保存；也可只改昵称。</li>
+<li><strong>修改密码</strong>：旧密码、新密码、确认密码。点「保存密码」才提交。</li>
+</ol>
+<h4>规则</h4>
 <ul>
-<li>头像与昵称</li>
-<li>该账号累计的总支出、总收入（跨账本汇总）</li>
-<li>「加入账本」入口</li>
-<li>「退出登录」</li>
+<li><strong>昵称</strong>：trim 后 1～20 位，中文 / 英文 / 数字 / 下划线。保存后本地会话与各账本成员显示名同步更新。</li>
+<li><strong>头像</strong>：jpeg / png / gif / webp，单张不超过 10MB。保存成功后三端展示刷新。</li>
+<li><strong>改密</strong>：须填写正确旧密码；新密码规则与注册相同（至少 8 位，含大小写字母与数字）。成功后清除登录会话，需重新登录。</li>
+<li><strong>不做</strong>：忘记密码自助重置、修改登录用户名。如需处理绑定异常等，请联系管理员。</li>
 </ul>
-<p>当前版本不提供忘记密码、修改密码、修改昵称的页面。如需改密，请联系系统管理员。</p>
+<h3>4.5 安全验证（拼图滑块）</h3>
+<p>为降低脚本撞库与批量注册风险，以下操作在提交账号密码前必须完成一次<strong>拼图滑块</strong>验证（服务端一次性校验，前端也会先按目标位置判断是否对准）：</p>
+<table>
+<thead>
+<tr>
+<th>端</th>
+<th>何时出现</th>
+<th>何时不出现</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>PC</strong></td>
+<td>点击「登录」或「注册」后弹窗</td>
+<td>表单默认不展示滑块</td>
+</tr>
+<tr>
+<td><strong>移动端 H5</strong></td>
+<td>点击「登录」后弹窗</td>
+<td>表单默认不展示；H5 无注册</td>
+</tr>
+<tr>
+<td><strong>微信小程序</strong></td>
+<td>「绑定账号」页点击绑定后弹窗</td>
+<td>已绑定用户的静默登录（<code>重新进入</code> / 自动进入）<strong>不要</strong>滑块</td>
+</tr>
+</tbody></table>
+<p>操作说明：</p>
+<ol>
+<li>先填好用户名、密码（注册还需昵称等），再点提交。</li>
+<li>弹出「安全验证」：拖动拼图块对齐缺口；也可点刷新换一题。</li>
+<li><strong>对准</strong>后才会继续提交业务；对不齐会提示失败并刷新题目，不会显示成功。</li>
+<li>题目约 <strong>2 分钟</strong>内有效，且只能用一次。密码错误等业务失败后，下次提交需重新完成滑块。</li>
+<li>关闭弹窗等于取消本次提交。</li>
+</ol>
 <hr>
 <h2>5. PC 端：账本管理</h2>
 <p>登录后首先看到账本墙。每张卡片是一个账本，虚线「+」用于新建。</p>
@@ -335,7 +408,20 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <li>鼠标移到账本卡片，点击 <strong>垃圾桶</strong> 图标。</li>
 <li>确认「删除后账本相关数据将无法恢复」。</li>
 </ol>
-<p>非创建者看不到分享、设置、删除按钮。加入者无法删除整个账本。</p>
+<p>非创建者看不到分享、设置、删除、成员管理按钮。加入者无法删除整个账本。</p>
+<h3>5.6 退出账本（仅非创建者）</h3>
+<ul>
+<li><strong>PC</strong>：鼠标移到自己加入（非本人创建）的账本卡片，点击 <strong>退出</strong> 图标并确认。</li>
+<li><strong>小程序 / 移动端 H5</strong>：在账本列表对该账本<strong>左滑</strong>点「退出」并确认。</li>
+</ul>
+<p>确认后自己离开该账本，列表中不再显示；账本与其他成员的数据保留，自己的历史记账仍留在账本中。</p>
+<p>账本<strong>创建者</strong>不能退出。若要结束该账本，请使用「删除账本」。产品暂不提供转让创建者。</p>
+<h3>5.7 移除成员（仅创建者）</h3>
+<ul>
+<li><strong>PC</strong>：鼠标移到自己创建的账本卡片，点击 <strong>成员</strong> 图标。</li>
+<li><strong>小程序 / 移动端 H5</strong>：进入账本明细，点顶部 <strong>成员</strong>，在列表中对非创建者点「移除」并确认。</li>
+</ul>
+<p>被移出的用户之后无法再进入该账本；其历史记账仍保留。不能移除自己，也不能移除账本创建者。非创建者看不到移除入口。</p>
 <hr>
 <h2>6. PC 端：记账</h2>
 <p>进入账本后默认打开「记账」。左侧是按日期排列的时间线，右侧是查询或新增面板。</p>
@@ -752,7 +838,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </thead>
 <tbody><tr>
 <td>账本</td>
-<td>账本列表：新建、进入、删除</td>
+<td>账本列表：新建、进入、删除 / 退出</td>
 </tr>
 <tr>
 <td>记一笔</td>
@@ -760,7 +846,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </tr>
 <tr>
 <td>我的</td>
-<td>昵称与累计收支、用邀请码加入、退出登录</td>
+<td>昵称与头像、修改个人信息、用邀请码加入、退出登录</td>
 </tr>
 </tbody></table>
 <h3>11.1 首次绑定</h3>
@@ -768,22 +854,24 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <ol>
 <li>打开小程序。尚未绑定微信时，会进入「绑定账号」。</li>
 <li>填写电脑端已经注册的<strong>用户名</strong>和<strong>密码</strong>。用户名为 3～20 位字母、数字或下划线。</li>
-<li>点「绑定并进入」。</li>
+<li>点「绑定并进入」。页面弹出「安全验证」拼图滑块（见 <a href="#45-%E5%AE%89%E5%85%A8%E9%AA%8C%E8%AF%81%E6%8B%BC%E5%9B%BE%E6%BB%91%E5%9D%97">4.5</a>）；对准缺口后才会提交绑定。</li>
 </ol>
-<p>密码会先加密再提交。绑定成功后，下次打开小程序会自动登录。</p>
+<p>密码会先加密再提交。绑定成功后，下次打开小程序会<strong>静默自动登录</strong>，<strong>不再出现滑块</strong>，也不必再输入密码。</p>
 <p>注意：</p>
 <ul>
 <li>一个微信只能绑定一个账号，一个账号也只能绑定一个微信。</li>
 <li>若提示「该账号已绑定其他微信」，说明这个账号已经绑过别的微信。小程序里不能自行解绑或换绑，请联系管理员。</li>
 <li>若提示绑定凭证失效，关掉小程序重新进入后再绑一次。</li>
 <li>别人发来的加入邀请，如果自己还没绑定，会先去绑定，绑定成功后回到该邀请。</li>
+<li>绑定页默认不展示滑块；只有点「绑定并进入」后才弹窗。</li>
 </ul>
 <h3>11.2 账本列表</h3>
 <p>「账本」页列出当前账号能看到的全部账本。</p>
 <ul>
 <li>点某一行进入该账本的流水。</li>
 <li>底部「新建账本」：名称只能包含中文、英文、数字和下划线，长度 <strong>3～10</strong> 个字符。同一账号下不能重名。新建后会带上与电脑端相同的默认分类。</li>
-<li>自己创建的账本可以<strong>向左滑动</strong>，点「删除」。确认文案为「删除后账本相关数据将无法恢复」。别人邀请你加入的账本不能在这里删除。</li>
+<li>自己创建的账本可以<strong>向左滑动</strong>，点「删除」。确认文案为「删除后账本相关数据将无法恢复」。</li>
+<li><strong>非创建者</strong>加入的账本可以<strong>向左滑动</strong>，点「退出」。确认后自己离开该账本，列表不再显示；不能删除别人的账本。</li>
 <li>一个账本都没有时，页面会提示先创建一个，或让家人邀请。</li>
 </ul>
 <h3>11.3 账本明细</h3>
@@ -826,7 +914,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <li>下拉可刷新汇总和流水，上拉加载更多，全部加载完后显示「没有更多了」。</li>
 <li>右上角放大镜进入 <a href="#106-%E6%90%9C%E7%B4%A2">搜索</a>。</li>
 <li>右下角「+」在<strong>当前账本</strong>里记一笔。未保存可以直接返回。</li>
-<li>账本<strong>创建者</strong>在汇总卡片右上角、放大镜左边有「邀请成员」，见 <a href="#117-%E9%82%80%E8%AF%B7%E6%88%90%E5%91%98%E4%B8%8E%E5%8A%A0%E5%85%A5%E8%B4%A6%E6%9C%AC">11.7</a>。</li>
+<li>账本<strong>创建者</strong>在汇总卡片右上角、放大镜左边有「成员」「邀请成员」：「成员」可查看名单并移除非创建者成员（不能移除自己或创建者）；「邀请成员」见 <a href="#117-%E9%82%80%E8%AF%B7%E6%88%90%E5%91%98%E4%B8%8E%E5%8A%A0%E5%85%A5%E8%B4%A6%E6%9C%AC">11.7</a>。</li>
 </ul>
 <h3>11.4 记一笔</h3>
 <p>可以从底部「记一笔」进入，也可以从账本里的「+」进入。两处是同一张表单。</p>
@@ -916,8 +1004,9 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </ol>
 <p>失效、已加入或码不正确时，会提示邀请已失效、已加入该账本，或加入失败。过期请让创建者重新邀请。</p>
 <h3>11.8 我的</h3>
-<p>「我的」展示当前账号的昵称，以及跨账本累计的总收入、总支出。</p>
+<p>「我的」展示当前账号头像（未上传时为默认图标）与昵称，以及跨账本累计的总收入、总支出。点顶部头像也可快捷换头像（选图后立即上传）。</p>
 <ul>
+<li><strong>修改个人信息</strong>：打开后为两个 Tab——<strong>个人资料</strong>（头像预览 + 昵称，点「保存资料」）与 <strong>修改密码</strong>（旧/新/确认，点「保存密码」；成功后需重新登录）。规则见 <a href="#44-%E4%B8%AA%E4%BA%BA%E8%B5%84%E6%96%99">4.4</a>。</li>
 <li><strong>通过邀请码加入</strong>：见上一节。</li>
 <li><strong>退出登录</strong>：确认后回到未登录。微信绑定不会取消。</li>
 <li><strong>重新进入</strong>：退出之后点此按钮，用已绑定的微信自动登录，不必再输入密码。</li>
@@ -1007,7 +1096,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </thead>
 <tbody><tr>
 <td>账本</td>
-<td>账本列表：新建、进入、删除</td>
+<td>账本列表：新建、进入、删除 / 退出</td>
 </tr>
 <tr>
 <td>记一笔</td>
@@ -1015,7 +1104,7 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </tr>
 <tr>
 <td>我的</td>
-<td>昵称与累计收支、用邀请码加入、退出登录</td>
+<td>昵称与头像、修改个人信息、用邀请码加入、退出登录</td>
 </tr>
 </tbody></table>
 <h3>12.1 登录</h3>
@@ -1023,16 +1112,18 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <ol>
 <li>用手机浏览器打开 <code>https://你的域名/mobile/</code>。</li>
 <li>填写与电脑端相同的<strong>用户名</strong>和<strong>密码</strong>，点登录。</li>
+<li>弹出「安全验证」拼图滑块（见 <a href="#45-%E5%AE%89%E5%85%A8%E9%AA%8C%E8%AF%81%E6%8B%BC%E5%9B%BE%E6%BB%91%E5%9D%97">4.5</a>）；对准后才会真正登录。</li>
 <li>登录成功后进入「账本」列表。凭证仍有效时再次打开一般无需重复输入。</li>
 </ol>
 <p>注意：</p>
 <ul>
-<li>没有微信绑定流程；退出后需重新输入账号密码。</li>
-<li>用户名、密码规则与电脑端一致。密码错误或账号不存在时会停留在登录页并提示失败。</li>
+<li>登录页默认不显示滑块，只有点登录后才弹窗。</li>
+<li>没有微信绑定流程；退出后需重新输入账号密码并再次完成滑块。</li>
+<li>用户名、密码规则与电脑端一致。密码错误或账号不存在时会停留在登录页并提示失败；下次登录需重新过滑块。</li>
 <li>会话失效后访问业务页会回到登录，不会看到过期数据。</li>
 </ul>
 <h3>12.2 账本列表与明细</h3>
-<p>与 <a href="#112-%E8%B4%A6%E6%9C%AC%E5%88%97%E8%A1%A8">11.2</a>、<a href="#113-%E8%B4%A6%E6%9C%AC%E6%98%8E%E7%BB%86">11.3</a> 相同：可新建账本（名称 3～10 位中英文数字下划线）、左滑删除自己创建的账本、进入后看六项汇总与按日流水；创建者可点「邀请成员」。空列表时提示创建或让家人邀请。</p>
+<p>与 <a href="#112-%E8%B4%A6%E6%9C%AC%E5%88%97%E8%A1%A8">11.2</a>、<a href="#113-%E8%B4%A6%E6%9C%AC%E6%98%8E%E7%BB%86">11.3</a> 相同：可新建账本（名称 3～10 位中英文数字下划线）；创建者左滑「删除」、非创建者左滑「退出」；进入后看六项汇总与按日流水；创建者可点「成员」管理名单或「邀请成员」。空列表时提示创建或让家人邀请。</p>
 <h3>12.3 记一笔 / 编辑 / 搜索</h3>
 <p>填写顺序、数字键盘、分类格子、内容建议、归属人规则、照片（最多 9 张）、「再记一笔」、只能改删自己的记录、搜索条件等，均与 <a href="#114-%E8%AE%B0%E4%B8%80%E7%AC%94">11.4</a>～<a href="#116-%E6%90%9C%E7%B4%A2">11.6</a> 一致。新增时不选报销进度与支付方式，固定为「无需报销」。</p>
 <p>内容建议里自己加的条目只保存在<strong>本机浏览器</strong>，不会同步到电脑、小程序或其他设备。</p>
@@ -1052,8 +1143,9 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </ol>
 <p>失效、已加入或码不正确时的提示与小程序相同。过期请让创建者重新生成。</p>
 <h3>12.5 我的</h3>
-<p>「我的」展示当前账号昵称，以及跨账本累计的总收入、总支出。</p>
+<p>「我的」展示当前账号头像（未上传时为默认图标）与昵称，以及跨账本累计的总收入、总支出。</p>
 <ul>
+<li><strong>修改个人信息</strong>：两个 Tab——<strong>个人资料</strong>（头像 + 昵称，「保存资料」）与 <strong>修改密码</strong>（旧/新/确认，「保存密码」；成功后需重新登录）。规则见 <a href="#44-%E4%B8%AA%E4%BA%BA%E8%B5%84%E6%96%99">4.4</a>。</li>
 <li><strong>通过邀请码加入</strong>：见上一节。</li>
 <li><strong>退出登录</strong>：确认后清除本地会话，回到登录页；再次使用需重新输入账号密码。</li>
 </ul>
@@ -1199,6 +1291,18 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <td>仅账本创建者（PC、H5、小程序）</td>
 </tr>
 <tr>
+<td>修改个人信息（昵称/头像/密码）</td>
+<td>已登录用户（PC / 小程序 / 移动端 H5）</td>
+</tr>
+<tr>
+<td>退出账本</td>
+<td>仅非创建者成员（PC 账本卡片；小程序 / H5 账本列表左滑）</td>
+</tr>
+<tr>
+<td>移除账本成员</td>
+<td>仅账本创建者（PC 成员管理；小程序 / H5 账本明细「成员」）</td>
+</tr>
+<tr>
 <td>编辑 / 删除某条明细</td>
 <td>仅该条的记账人</td>
 </tr>
@@ -1217,14 +1321,17 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 </ul>
 <hr>
 <h2>15. 常见问题</h2>
-<p><strong>Q：小程序没有注册？</strong><br>A：请先在 PC 端注册，再在小程序里用同一账号绑定一次微信，之后会自动登录。</p>
-<p><strong>Q：手机浏览器 H5 怎么登录？能注册吗？</strong><br>A：打开 <code>https://你的域名/mobile/</code>，用与电脑端相同的账号和密码登录。H5 不能注册，也没有微信绑定；新用户请先在电脑网页注册。</p>
+<p><strong>Q：小程序没有注册？</strong><br>A：请先在 PC 端注册，再在小程序里用同一账号绑定一次微信（绑定提交时要过拼图滑块）；之后会自动登录，不必再滑块。  </p>
+<p><strong>Q：手机浏览器 H5 怎么登录？能注册吗？</strong><br>A：打开 <code>https://你的域名/mobile/</code>，用与电脑端相同的账号和密码登录；点登录后需完成拼图滑块。H5 不能注册，也没有微信绑定；新用户请先在电脑网页注册。  </p>
+<p><strong>Q：登录 / 注册 / 绑定时为什么要拖滑块？对准了还失败？</strong><br>A：这是防脚本的安全验证。PC 登录与注册、H5 登录、小程序绑定账号在点提交后会弹窗；请把拼图拖到缺口对齐。对不齐或题目过期会失败并可刷新重试。已绑定微信后的小程序自动登录<strong>不需要</strong>滑块。</p>
 <p><strong>Q：H5 和小程序有什么差别？</strong><br>A：日常记账（账本、记一笔、改账、搜索、加入账本）能力对等。差别是：H5 用账号密码登录、邀请靠复制邀请码；小程序用微信绑定登录、可用微信分享卡片邀请。类型、概览、预算、计划、资产、导出仍只在电脑端。</p>
 <p><strong>Q：小程序提示「该账号已绑定其他微信」？</strong><br>A：这个账号已经绑过另一个微信。小程序不能自行解绑或换绑，请联系管理员。</p>
 <p><strong>Q：小程序退出后，为什么还要点「重新进入」？</strong><br>A：主动退出后不会自动登录，避免在别人的手机上直接进入账本。绑定关系还在，点「重新进入」即可，不必再输入密码。</p>
 <p><strong>Q：微信邀请打不开，或提示邀请已失效？</strong><br>A：邀请和电脑端分享码一样，只有 30 分钟。请让账本创建者重新点「邀请成员」。电脑上或 H5 上复制的 128 位分享码，也可以在小程序或 H5「我的 → 通过邀请码加入」里粘贴。已经在账本里的人会提示「已加入该账本」。</p>
 <p><strong>Q：加入账本提示分享码不正确或已失效？</strong><br>A：确认完整复制了 128 位字符、没有多余空格或换行，且在 30 分钟内使用。过期请让创建者重新生成。</p>
-<p><strong>Q：看不到分享、设置、删除按钮？</strong><br>A：这些操作仅账本创建者可见。加入者只能进入记账。</p>
+<p><strong>Q：看不到分享、设置、删除、成员按钮？</strong><br>A：这些操作仅账本创建者可见。加入者可以进入记账，并在账本列表退出账本（PC 卡片退出；小程序 / H5 左滑退出）。创建者可在成员管理中移除他人（PC 卡片「成员」；小程序 / H5 明细页「成员」）。</p>
+<p><strong>Q：创建者能退出账本吗？</strong><br>A：不能。创建者若要结束账本，请删除账本；暂不支持转让。</p>
+<p><strong>Q：修改个人信息里昵称和密码要一起保存吗？</strong><br>A：不必。界面分成「个人资料」和「修改密码」两个 Tab，各自点保存即可。未上传头像时会显示默认头像图标。</p>
 <p><strong>Q：为什么改不了某条记录？</strong><br>A：只能改自己记的。请联系原记账人，或再记一笔说明冲正。</p>
 <p><strong>Q：应退金额为什么是 0，或感觉不准？</strong><br>A：检查是否选对了起止日期并点了「查询」；归属人是否该选「全部」却选了个人；数量型规则的数量和归属人是否填对；两人有效收入是否被支出类型规则扣减。也可先把规则全部停用，按 1:1 核对一笔公共账是否符合预期。</p>
 <p><strong>Q：总消费和总支出差一截？</strong><br>A：差额通常是「基金」类投资支出。总消费 = 总支出 − 基金。</p>
@@ -1414,6 +1521,12 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <td align="center">绑定后自动登录，可退出</td>
 </tr>
 <tr>
+<td>拼图滑块（点提交后弹窗）</td>
+<td align="center">登录、注册</td>
+<td align="center">登录</td>
+<td align="center">仅绑定账号；静默登录无</td>
+</tr>
+<tr>
 <td>新建账本</td>
 <td align="center">✓</td>
 <td align="center">✓</td>
@@ -1442,6 +1555,24 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 <td align="center">✓</td>
 <td align="center">✓（创建者左滑）</td>
 <td align="center">✓（创建者左滑）</td>
+</tr>
+<tr>
+<td>退出账本</td>
+<td align="center">✓（非创建者）</td>
+<td align="center">✓（非创建者左滑）</td>
+<td align="center">✓（非创建者左滑）</td>
+</tr>
+<tr>
+<td>移除账本成员</td>
+<td align="center">✓（创建者）</td>
+<td align="center">✓（明细「成员」）</td>
+<td align="center">✓（明细「成员」）</td>
+</tr>
+<tr>
+<td>修改个人信息（昵称/头像/密码）</td>
+<td align="center">✓</td>
+<td align="center">✓（两 Tab 各自保存）</td>
+<td align="center">✓（两 Tab 各自保存）</td>
 </tr>
 <tr>
 <td>新增 / 编辑 / 删除明细</td>
@@ -1544,6 +1675,5 @@ footer{margin-top:36px;padding-top:16px;border-top:1px solid var(--border);color
 
 <footer>记亿由薪用户手册 · 离线 HTML 版本<br>源 Markdown：docs/用户手册.md</footer>
 </article></div>
-<section id="pc-history"><h3>4.2.1 PC 地址说明（History）</h3><p>PC 网页已改为 History 路径（地址栏不再使用 <code>#/…</code>）。本地示例：<code>http://localhost:4000/layout/bill</code>；账本内页：<code>/layout/bill/&lt;账本ID&gt;/record</code>（生产前缀 <code>/pc</code>）。预算跳记账可带 <code>?costTypeId=</code>。深链刷新需 nginx 回落 <code>index.html</code>；旧 <code>#/…</code> 书签会尽量自动迁移。完整说明见 Markdown 手册。</p></section></body>
+</body>
 </html>
-

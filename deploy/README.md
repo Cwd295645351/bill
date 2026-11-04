@@ -33,6 +33,16 @@
 5. 用微信开发者工具打开 `miniapp/`，菜单「工具 -> 构建 npm」，上传体验版。开发版可在工具中勾选「不校验合法域名」，直连本机 `http://127.0.0.1:3000`。
 6. 服务端 `.env` 配置 `OSS_REGION`、`OSS_BUCKET`、`OSS_ACCESS_KEY_ID`、`OSS_ACCESS_KEY_SECRET`、`OSS_URL_SECRET`（只放服务端，禁止提交真实密钥），重启后 `sequelize.sync()` 会创建 `transaction_images` 表。
 
+
+## 登录滑块校验（015）
+
+无新数据库脚本。滑块题目写在现有 Redis（TTL 约 2 分钟）。发布含 captcha 的后端后，确认：
+
+1. Redis 可达（与 Session 同一实例即可）。
+2. `GET /api/v1/common/captcha` **无需登录**即可返回题目（JWT 白名单已放行）；若返回「请重新登录」，检查服务端 `unless` 与 PC 端 axios 免刷新名单。
+3. PC `/pc/` 登录与注册、H5 `/mobile/` 登录、小程序绑定页：点提交后弹窗滑块；已绑定用户静默登录无滑块。
+4. 同步发布三端前端 / 小程序，旧客户端缺 `captchaId`/`captchaX` 时 login/register/wxBind 会被拒绝。
+
 ## 数据库升级脚本
 
 `sequelize.sync()` 只会新建缺失的表，不会修改已有表的列。已上线的库改列时，要先手工执行 `sql/` 下的脚本，再发布新代码。全新安装的环境由 `sync()` 直接按模型建表，不需要执行。

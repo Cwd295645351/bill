@@ -1,3 +1,6 @@
 {
-  "navigationBarTitleText": "绑定账号"
+  "navigationBarTitleText": "绑定账号",
+  "usingComponents": {
+    "slider-captcha": "/components/slider-captcha/index"
+  }
 }

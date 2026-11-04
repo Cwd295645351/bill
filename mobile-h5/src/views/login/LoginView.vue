@@ -31,6 +31,18 @@
       </div>
     </van-form>
     <p v-if="error" class="login__error">{{ error }}</p>
+
+    <van-popup
+      v-model:show="captchaVisible"
+      round
+      position="center"
+      :style="{ width: '92%', maxWidth: '360px', padding: '16px 12px 12px' }"
+      :close-on-click-overlay="true"
+      @closed="onCaptchaClosed"
+    >
+      <div class="login__captcha-title">安全验证</div>
+      <SliderCaptcha v-if="captchaVisible" ref="captchaRef" @update="onCaptchaUpdate" />
+    </van-popup>
   </div>
 </template>
 
@@ -39,6 +51,7 @@ import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showToast } from 'vant'
 import { getLoginConfig, login } from '@/api/common'
+import SliderCaptcha from '@/components/SliderCaptcha.vue'
 import { encryptPassword } from '@/utils/rsa'
 import { useSessionStore } from '@/stores/session'
 
@@ -51,6 +64,20 @@ const password = ref('')
 const publicKey = ref('')
 const loading = ref(false)
 const error = ref('')
+const captchaVisible = ref(false)
+const captchaRef = ref<{ reload: () => void } | null>(null)
+const captcha = ref({ captchaId: '', captchaX: 0, ready: false })
+
+function onCaptchaUpdate(payload: { captchaId: string; captchaX: number; ready: boolean }) {
+  captcha.value = payload
+  if (payload.ready && captchaVisible.value && !loading.value) {
+    void doLogin()
+  }
+}
+
+function onCaptchaClosed() {
+  captcha.value = { captchaId: '', captchaX: 0, ready: false }
+}
 
 async function loadConfig() {
   try {
@@ -65,26 +92,25 @@ async function loadConfig() {
   }
 }
 
-async function onSubmit() {
+async function doLogin() {
+  if (loading.value) return
+  if (!captcha.value.ready || !captcha.value.captchaId) return
   error.value = ''
-  if (!publicKey.value) {
-    await loadConfig()
-    if (!publicKey.value) {
-      showToast('无法获取登录配置')
-      return
-    }
-  }
   loading.value = true
   try {
     const res = await login({
       username: username.value.trim(),
       password: encryptPassword(password.value, publicKey.value),
+      captchaId: captcha.value.captchaId,
+      captchaX: captcha.value.captchaX,
     })
     if (res.retCode !== 0 || !res.data) {
       error.value = res.message || '登录失败'
       showToast(error.value)
+      captchaRef.value?.reload()
       return
     }
+    captchaVisible.value = false
     session.setSession(res.data)
     const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : ''
     if (redirect && redirect.startsWith('/') && !redirect.startsWith('//')) {
@@ -95,9 +121,23 @@ async function onSubmit() {
   } catch (e: any) {
     error.value = e?.message || '登录失败'
     showToast(error.value)
+    captchaRef.value?.reload()
   } finally {
     loading.value = false
   }
+}
+
+async function onSubmit() {
+  error.value = ''
+  if (!publicKey.value) {
+    await loadConfig()
+    if (!publicKey.value) {
+      showToast('无法获取登录配置')
+      return
+    }
+  }
+  captcha.value = { captchaId: '', captchaX: 0, ready: false }
+  captchaVisible.value = true
 }
 
 onMounted(loadConfig)
@@ -125,5 +165,12 @@ onMounted(loadConfig)
   margin: 16px 28px 0;
   color: #ee0a24;
   font-size: 13px;
+}
+.login__captcha-title {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #323233;
 }
 </style>

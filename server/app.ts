@@ -151,6 +151,7 @@ app.use(
       /\/api\/v1\/common\/login$/,
       /\/api\/v1\/common\/logout/,
       /\/api\/v1\/common\/login_config/,
+      /\/api\/v1\/common\/captcha$/,
       /\/api\/v1\/common\/register/,
       /\/api\/v1\/common\/wxLogin$/,
       /\/api\/v1\/common\/wxBind$/,

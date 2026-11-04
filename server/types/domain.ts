@@ -187,6 +187,8 @@ export interface ApiInput extends Row {
   oldPassword?: string
   newPassword?: string
   nickName?: string
+  captchaId?: string
+  captchaX?: number
   file?: Row
 }
 

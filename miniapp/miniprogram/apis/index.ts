@@ -21,7 +21,22 @@ export function getLoginConfig() {
   return request<{ publicKey: string }>({ url: `${V}/common/login_config`, auth: false, silent: true })
 }
 
-export function wxBind(data: { bindTicket: string; username: string; password: string }) {
+export function fetchCaptcha() {
+  return request<{
+    captchaId: string
+    backgroundImage: string
+    puzzleImage: string
+    y: number
+    width: number
+    height: number
+    puzzleSize: number
+    targetX: number
+    tolerance: number
+    expiresIn: number
+  }>({ url: `${V}/common/captcha`, auth: false, silent: true })
+}
+
+export function wxBind(data: { bindTicket: string; username: string; password: string; captchaId: string; captchaX: number }) {
   return request({ url: `${V}/common/wxBind`, method: 'POST', data, auth: false, silent: true })
 }
 

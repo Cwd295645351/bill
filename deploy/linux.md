@@ -138,7 +138,7 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 
 ## 5. 安装 Redis
 
-后端 Session 依赖 Redis，必须安装并保持运行。
+后端 Session 与登录拼图滑块题目都依赖 Redis，必须安装并保持运行。
 
 ```bash
 sudo apt install -y redis-server
@@ -431,6 +431,7 @@ CREATE DATABASE IF NOT EXISTS bill CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode
 | API 404 且路径少了 `/api` | `proxy_pass` 写成了 `http://localhost:3000/`（带尾斜杠） | 使用仓库模板：`proxy_pass http://bill_api;` |
 | MySQL connect failed，进程退出 | `.env` 中 `MYSQL_USER` / `MYSQL_PASSWORD` 错误或 MySQL 未启动 | 修正后重启，`systemctl status mysql` |
 | Redis 相关报错 / 登录态异常 | Redis 未启动 | `redis-cli ping`，`sudo systemctl start redis-server` |
+| 登录页拉滑块失败 / 提示请重新登录 | Redis 不可用，或 `/common/captcha` 未免鉴权 | `redis-cli ping`；确认后端 JWT unless 含 captcha；重启 `bill-manage` |
 | HTTPS 证书错误 | 仍使用模板里的 localhost 证书路径 | 换成 Let's Encrypt 或自有证书 |
 
 ---

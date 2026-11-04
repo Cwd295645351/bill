@@ -108,7 +108,7 @@ export const useRecord = () => {
   /** 查询金额条件 */
   const conditionOptions = ref([
     { name: '>=', id: 'gte' },
-    { name: '>', id: 'gt' },
+    { name: '→', id: 'gt' },
     { name: '=', id: 'eq' },
     { name: '<=', id: 'lte' },
     { name: '<', id: 'lt' },

@@ -1,6 +1,27 @@
 import { request } from './http'
 import http from './http'
 
+export type CaptchaChallenge = {
+  captchaId: string
+  backgroundImage: string
+  puzzleImage: string
+  y: number
+  width: number
+  height: number
+  puzzleSize: number
+  targetX: number
+  tolerance: number
+  expiresIn: number
+}
+
+export function fetchCaptcha() {
+  return request<CaptchaChallenge>({
+    url: '/common/captcha',
+    method: 'GET',
+    silent: true,
+  })
+}
+
 export function getLoginConfig() {
   return request<{ publicKey: string }>({
     url: '/common/login_config',
@@ -9,7 +30,7 @@ export function getLoginConfig() {
   })
 }
 
-export function login(data: { username: string; password: string }) {
+export function login(data: { username: string; password: string; captchaId: string; captchaX: number }) {
   return request<{
     accessToken: string
     refreshToken: string

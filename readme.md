@@ -16,7 +16,7 @@
 
 `miniapp` 为微信小程序（原生 + TypeScript + Vant Weapp），面向家庭成员记账。用微信开发者工具打开 `miniapp/` 目录，在工具里执行「工具 -> 构建 npm」后编译。开发版直连本机；体验版和正式版的接口根地址写在 `miniapp/.env` 的 `MINIAPP_BASE_URL`（参考 `miniapp/.env.example`），然后在 `miniapp` 目录执行 `npm run sync-env`。该文件和生成的 `env.local.ts` 都不提交。
 
-mobile-h5 为手机浏览器移动端 H5（Vue3 + Vite + Vant），生产入口 /mobile/，账号密码登录，能力与小程序日常记账对等（邀请为复制邀请码）。用户操作见 [docs/用户手册.md](docs/用户手册.md) 第 12 章。
+mobile-h5 为手机浏览器移动端 H5（Vue3 + Vite + Vant），生产入口 /mobile/，账号密码登录，能力与小程序日常记账对等（邀请为复制邀请码）。用户操作见 [docs/用户手册.md](docs/用户手册.md) 第 12 章。 登录提交前弹出拼图滑块（与 PC 共用校验）。
 
 ## 二、安装依赖
 
@@ -47,6 +47,8 @@ AI_API_KEY=替换为新密钥
 `server/.env` 已被 Git 忽略，禁止把真实密钥写入源码或提交到仓库。同一份文件还要配置 `JWT_SECRET`、`PASSWORD_SALT`、`AES_KEY`、`AES_IV`（后两项必须各为 16 字节），以及 `MYSQL_USER`、`MYSQL_PASSWORD`。缺任意一项后端会拒绝启动。主机、端口、库名和 Redis 地址有默认值，需要时再改 `MYSQL_HOST`、`MYSQL_PORT`、`MYSQL_DATABASE`、`REDIS_HOST`、`REDIS_PORT`。生产环境也可以直接通过进程环境变量注入。如需切换其他兼容服务，可设置 `AI_BASE_URL` 和 `AI_MODEL`；不设置时默认使用硅基流动及 DeepSeek V3.2。
 
 小程序登录还需要在同一份 `.env` 中配置 `WX_APPID` 与 `WX_SECRET`（微信公众平台的小程序密钥）。首次使用小程序时用账号密码绑定微信，之后静默登录。一个账号只能绑定一个微信，不提供解绑；如需换绑，由管理员直接修改 `user_wechats` 表。轮换登录 RSA 密钥的接口只允许 `ADMIN_USERNAME` 对应用户调用，未配置时该接口拒绝所有请求。
+
+登录 / 注册 / 小程序绑定账号时需完成拼图滑块：服务端提供公开接口 `GET /api/v1/common/captcha`（**无需登录**），答案存 Redis（约 2 分钟、一次性）。`POST /common/login`、`/register`、`/wxBind` 须带 `captchaId` 与 `captchaX`。已绑定用户的静默 `wxLogin` **不**要求滑块。Redis 不可用时无法拉题或登录。
 
 ## 五、生产部署
 

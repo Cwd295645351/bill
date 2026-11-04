@@ -1,0 +1,28 @@
+.sc { margin: 16px 0; }
+.sc__bg { position: relative; width: 100%; overflow: hidden; border-radius: 8px; background: #f2f3f5; }
+.sc__bg-img { width: 100%; height: 100%; display: block; }
+.sc__puzzle { position: absolute; pointer-events: none; }
+.sc__refresh {
+  position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(0,0,0,.45); color: #fff; text-align: center; line-height: 28px; font-size: 14px;
+}
+.sc__track {
+  position: relative; margin-top: 10px; height: 40px; border-radius: 20px;
+  background: #f2f3f5; border: 1px solid #ebedf0; overflow: hidden;
+}
+.sc__fill { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(66,133,244,.2); }
+.sc__knob {
+  position: absolute; top: 2px; width: 36px; height: 36px; border-radius: 50%;
+  background: #4285f4; color: #fff; text-align: center; line-height: 36px; font-size: 14px;
+}
+.sc__knob.fail {
+  background: #ee0a24;
+  color: #fff;
+}
+.sc__knob.ok { background: #07c160; }
+.sc__hint {
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #969799; font-size: 13px; pointer-events: none;
+}
+.sc__error { margin-top: 8px; color: #ee0a24; font-size: 12px; }

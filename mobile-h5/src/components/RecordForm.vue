@@ -197,6 +197,7 @@
 
     <van-popup v-model:show="showDate" position="bottom" round>
       <van-date-picker
+        v-model="datePickerValue"
         title="选择日期"
         :min-date="minDate"
         :max-date="maxDate"
@@ -278,6 +279,7 @@ const belongUserName = ref('全部')
 const recordId = ref('')
 const reimbursement = ref(0)
 const showDate = ref(false)
+const datePickerValue = ref<string[]>([])
 const showKeyboard = ref(true)
 const suggestions = ref<SuggestionChip[]>([])
 const removingSuggestion = ref(false)
@@ -529,9 +531,16 @@ function onKey(key: string) {
   amount.value = applyAmountKey(amount.value, key)
 }
 
+function dayToPickerValues(day: string): string[] {
+  const text = toDayText(day) || today()
+  const [y, m, d] = text.split('-')
+  return [y, m, d]
+}
+
 function openDate() {
   if (!canEdit.value) return
   closeKeyboard()
+  datePickerValue.value = dayToPickerValues(date.value)
   showDate.value = true
 }
 

@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import router from '@/router'
 import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
+import { billTabPath } from '@/router/helpers'
 import { createBill, getBillList, deleteBill, shareBill } from '../api'
 import type { UserInfo } from '@/types/user-info'
 import type { Bill } from '../type'
@@ -51,7 +52,7 @@ export const useBill = () => {
     sessionStorage.setItem('billId', item.id)
     sessionStorage.setItem('tabValue', 'record')
     store.updateState({ key: 'billId', value: item.id })
-    router.push('/layout/record')
+    router.push(billTabPath(item.id, 'record'))
   }
 
   /** 显示新增账本弹窗 */
@@ -145,3 +146,4 @@ export const useBill = () => {
     createShareBillCode,
   }
 }
+

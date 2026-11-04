@@ -1,5 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import router from '@/router'
+import { useRoute } from 'vue-router'
+import { sanitizeRedirect } from '@/router/helpers'
 import { KEYUTIL, KJUR, hextob64 } from 'jsrsasign'
 
 import { userLogin, userRegister, getLoginConfig } from '../api'
@@ -7,6 +9,7 @@ import { userLogin, userRegister, getLoginConfig } from '../api'
 import type { Status, FormInfo } from '../type'
 
 export const useLogin = () => {
+  const route = useRoute()
   const operationDisabled = false
   /** 表单状态 */
   const status = ref<Status>('login')
@@ -106,7 +109,8 @@ export const useLogin = () => {
           }
           sessionStorage.setItem('expiresAt', expiresAt.toString())
           sessionStorage.setItem('userInfo', JSON.stringify(userInfo))
-          router.push('/layout/bill')
+          const redirect = sanitizeRedirect(route.query.redirect)
+          router.push(redirect || '/layout/bill')
         } else {
           ElMessage.error('登录失败，' + res.message)
         }
@@ -132,3 +136,4 @@ export const useLogin = () => {
 
   return { operationDisabled, status, title, $loginForm, formInfo, registerUser, backToLogin, forgetPassword, register, login, getConfig }
 }
+

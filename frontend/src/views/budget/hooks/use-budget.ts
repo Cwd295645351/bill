@@ -2,6 +2,7 @@ import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import router from '@/router'
+import { billTabPath } from '@/router/helpers'
 import * as echarts from 'echarts'
 import { getBudgetList, budgetAdd, budgetEdit, budgetDelete } from '../api'
 
@@ -190,8 +191,10 @@ export const useBudget = (emits: Emits) => {
   const jumpRecord = (item: BudgetDetail) => {
     emits('changeValue', 'record')
     store.updateState({ key: 'costTypeId', value: item.costTypeId })
+    const id = String(billId.value || sessionStorage.getItem('billId') || '')
     router.push({
-      path: '/layout/record',
+      path: id ? billTabPath(id, 'record') : '/layout/bill',
+      query: item.costTypeId ? { costTypeId: String(item.costTypeId) } : {},
     })
   }
 
@@ -224,3 +227,4 @@ export const useBudget = (emits: Emits) => {
     jumpRecord,
   }
 }
+

@@ -1,4 +1,5 @@
 import { ref, watch, onMounted, computed, nextTick } from 'vue'
+import { useRoute } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
@@ -42,6 +43,7 @@ const isNewerCursor = (a: DateCursor, b: DateCursor) => {
 }
 
 export const useRecord = () => {
+  const route = useRoute()
   const store = useBillStore()
   const { bill, costTypeId } = storeToRefs(store)
 
@@ -87,6 +89,21 @@ export const useRecord = () => {
     condition: 'gte',
     rangeMoney: 0,
   })
+
+  /** 预算跳转筛选提前应用，避免 getInfo 快于 onMounted 时首屏未带 costTypeId */
+  {
+    const queryType = route.query.costTypeId
+    const fromQuery = Array.isArray(queryType) ? queryType[0] : queryType
+    const fromStore = costTypeId.value !== 0 && costTypeId.value != null ? String(costTypeId.value) : ''
+    const selected = (fromQuery && String(fromQuery)) || fromStore
+    if (selected) {
+      searchOptions.value.costTypeId = selected
+      const currDate = new Date()
+      searchOptions.value.beginDate = dayjs(currDate).startOf('year').valueOf()
+      searchOptions.value.endDate = dayjs(currDate).endOf('year').valueOf()
+      store.updateState({ key: 'costTypeId', value: 0 })
+    }
+  }
 
   /** 查询金额条件 */
   const conditionOptions = ref([
@@ -223,6 +240,7 @@ export const useRecord = () => {
 
   /** 查询明细列表 */
   const getList = async (mode: LoadMode) => {
+    if (!bill.value?.id) return
     const token = listToken
     const options = searchOptions.value
     const params: Record<string, unknown> = {
@@ -238,7 +256,7 @@ export const useRecord = () => {
       condition: options.condition,
       rangeMoney: options.rangeMoney,
       remark: options.remark,
-      billId: (bill.value as Bill).id,
+      billId: bill.value.id,
       withMonthSummary: !!mode.withMonthSummary,
     }
     if (mode.kind === 'anchor' && mode.anchorDate) {
@@ -318,6 +336,10 @@ export const useRecord = () => {
 
   // 导出交易明细
   const exportExcel = async () => {
+    if (!bill.value?.id) {
+      ElMessage.warning('账本信息加载中，请稍后再导出')
+      return
+    }
     const options = searchOptions.value
     const data = {
       beginDate: options.beginDate ? dayStartTs(options.beginDate) : '',
@@ -331,7 +353,7 @@ export const useRecord = () => {
       condition: options.condition,
       rangeMoney: options.rangeMoney,
       remark: options.remark,
-      billId: (bill.value as Bill).id,
+      billId: bill.value.id,
     }
     const [err, res] = await exportData({ data })
     if (err) return
@@ -459,16 +481,8 @@ export const useRecord = () => {
     await ensureFill()
   }
 
-  onMounted(() => {
+    onMounted(() => {
     userInfo.value = getUserInfo()
-    if (costTypeId.value !== 0) {
-      searchOptions.value.costTypeId = costTypeId.value
-      const currDate = new Date()
-      /** 获取当前年度的开始日期和结束日期 */
-      searchOptions.value.beginDate = dayjs(currDate).startOf('year').valueOf()
-      searchOptions.value.endDate = dayjs(currDate).endOf('year').valueOf()
-      store.updateState({ key: 'costTypeId', value: 0 })
-    }
   })
 
   return {
@@ -500,3 +514,4 @@ export const useRecord = () => {
     conditionOptions,
   }
 }
+

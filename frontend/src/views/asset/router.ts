@@ -2,6 +2,8 @@ import { RouteRecordRaw } from 'vue-router'
 
 const Asset = () => import('./Asset.vue')
 
-const routes: Array<RouteRecordRaw> = [{ path: '/layout/asset', name: 'Asset', component: Asset }]
+const routes: Array<RouteRecordRaw> = [
+  { path: 'bill/:billId/asset', name: 'Asset', component: Asset },
+]
 
 export default routes

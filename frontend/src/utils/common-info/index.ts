@@ -1,6 +1,7 @@
 import router from '@/router'
 import { logout } from '@/apis'
 import { useBillStore } from '@/store'
+import { sanitizeRedirect } from '@/router/helpers'
 
 import type { UserInfo, RefreshTokenInfo } from '@/types/user-info'
 
@@ -40,11 +41,17 @@ export function refreshUserInfo(refreshInfo: RefreshTokenInfo) {
   window.sessionStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo))
 }
 
-/** 退出登录 */
-export function logoutUser() {
+/**
+ * 退出登录。
+ * @param redirectTo 可选回跳路径；默认取当前路由 fullPath（经安全校验后写入 login?redirect=）
+ */
+export function logoutUser(redirectTo?: string) {
+  const candidate =
+    redirectTo ??
+    (router.currentRoute.value.path === '/login' ? '' : router.currentRoute.value.fullPath)
+
   window.sessionStorage.removeItem(USER_INFO_KEY)
   window.sessionStorage.removeItem(EXPIRE_AT)
-  // 清除 Pinia store 中的账本数据，避免下一个用户看到残留数据
   try {
     const store = useBillStore()
     store.updateState({ key: 'bill', value: null })
@@ -54,6 +61,11 @@ export function logoutUser() {
   }
   logout().finally(() => {
     sessionStorage.clear()
-    router.push('/login')
+    const redirect = sanitizeRedirect(candidate)
+    if (redirect) {
+      router.push({ path: '/login', query: { redirect } })
+    } else {
+      router.push('/login')
+    }
   })
 }

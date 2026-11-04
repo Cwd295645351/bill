@@ -8,7 +8,7 @@ import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 const pathResolve = (dir: string) => path.resolve(__dirname, dir)
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     vue(),
     AutoImport({
@@ -25,13 +25,13 @@ export default defineConfig({
     // drop: ['console', 'debugger'],
   },
   build: {
-    outDir: 'dist', // 指定打包路径，默认为项目根目录下的 dist 目录
-    chunkSizeWarningLimit: 1500, // chunk 大小警告的限制（以 kbs 为单位）
+    outDir: 'dist',
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       output: {
-        chunkFileNames: 'js/[name]-[hash].js', // 引入文件名的名称
-        entryFileNames: 'js/[name]-[hash].js', // 包的入口文件名称
-        assetFileNames: '[ext]/[name]-[hash].[ext]', // 资源文件像字体，图片等
+        chunkFileNames: 'js/[name]-[hash].js',
+        entryFileNames: 'js/[name]-[hash].js',
+        assetFileNames: '[ext]/[name]-[hash].[ext]',
       },
     },
   },
@@ -43,15 +43,14 @@ export default defineConfig({
   css: {
     // postcss: pathResolve('./postcss.config.js'),
   },
-  base: './', // 设置公共基础路径
+  // History 模式：生产挂在 /pc/；本地 dev 用根路径，便于 http://localhost:4000/
+  base: command === 'build' ? '/pc/' : '/',
   server: {
     host: '0.0.0.0',
-    port: 4000, // 设置服务启动端口号
-    open: true, // 设置服务启动时是否自动打开浏览器
-    cors: true, // 允许跨域
+    port: 4000,
+    open: true,
+    cors: true,
     hmr: true,
-
-    // 设置代理，根据我们项目实际情况配置
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:8000',
@@ -61,4 +60,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

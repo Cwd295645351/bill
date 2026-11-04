@@ -178,3 +178,37 @@
   text-align: center;
   color: #999;
 }
+
+.members-sheet {
+  padding: 24rpx 0 48rpx;
+}
+.members-title {
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: 600;
+  margin-bottom: 16rpx;
+}
+.members-empty {
+  text-align: center;
+  color: #999;
+  padding: 40rpx 0;
+}
+.member-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20rpx 32rpx;
+  border-bottom: 1rpx solid #f0f0f0;
+}
+.member-name {
+  font-size: 28rpx;
+  color: #333;
+}
+.member-name .tag {
+  margin-left: 12rpx;
+  font-size: 22rpx;
+  color: #4285f4;
+}
+.members-close {
+  margin: 24rpx 32rpx 0;
+}

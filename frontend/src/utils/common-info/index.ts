@@ -30,6 +30,13 @@ export function refreshExpireStamp(secondsExpiresIn: number) {
   }
 }
 
+/** 合并并写回本地会话中的用户展示字段（如昵称） */
+export function patchUserInfo(partial: Partial<UserInfo>) {
+  const userInfo = { ...getUserInfo(), ...partial }
+  window.sessionStorage.setItem(USER_INFO_KEY, JSON.stringify(userInfo))
+  return userInfo
+}
+
 /** 刷新用户信息 */
 export function refreshUserInfo(refreshInfo: RefreshTokenInfo) {
   let userInfo = getUserInfo()

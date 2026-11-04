@@ -1,4 +1,5 @@
 import { request } from './http'
+import http from './http'
 
 export function getLoginConfig() {
   return request<{ publicKey: string }>({
@@ -37,4 +38,29 @@ export function logout() {
     method: 'POST',
     silent: true,
   })
+}
+
+export function updateProfile(nickName: string) {
+  return request({
+    url: '/common/profile',
+    method: 'PUT',
+    data: { nickName },
+  })
+}
+
+export function changePassword(oldPassword: string, newPassword: string) {
+  return request<{ requireRelogin: boolean }>({
+    url: '/common/password',
+    method: 'PUT',
+    data: { oldPassword, newPassword },
+  })
+}
+
+export async function uploadAvatar(file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await http.post('/common/avatar', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return res.data
 }

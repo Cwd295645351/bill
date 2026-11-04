@@ -118,3 +118,53 @@ export function getBalance(billId: string, beginDate: number, endDate: number) {
     silent: true
   })
 }
+
+
+export function updateProfile(nickName: string) {
+  return request({ url: `${V}/common/profile`, method: 'PUT', data: { nickName } })
+}
+
+export function changePassword(oldPassword: string, newPassword: string) {
+  return request({ url: `${V}/common/password`, method: 'PUT', data: { oldPassword, newPassword } })
+}
+
+/** 上传头像，返回富化用户信息 */
+export async function uploadAvatar(filePath: string): Promise<ApiBody<any>> {
+  if (isExpired()) {
+    const status = await ensureLogin()
+    if (status !== 'ok') {
+      showTip('登录已失效')
+      return { retCode: 401, message: '登录已失效', data: null as any }
+    }
+  }
+  const url = `${getBaseURL()}${V}/common/avatar`
+  return new Promise((resolve) => {
+    wx.uploadFile({
+      url,
+      filePath,
+      name: 'file',
+      header: authHeader(),
+      success: (res) => {
+        let body: ApiBody<any>
+        try {
+          body = typeof res.data === 'string' ? JSON.parse(res.data) : (res.data as any)
+        } catch (e) {
+          body = { retCode: -1, message: '头像没有保存成功', data: null as any }
+        }
+        if (!body || body.retCode == null) {
+          body = { retCode: -1, message: '头像没有保存成功', data: null as any }
+        }
+        if (body.retCode !== 0) showTip(body.message || '头像没有保存成功')
+        resolve(body)
+      },
+      fail: () => {
+        showTip('网络异常')
+        resolve({ retCode: -1, message: '网络异常', data: null as any })
+      }
+    })
+  })
+}
+
+export function quitBill(billId: string, userId: string) {
+  return request({ url: `${V}/bill/quit`, method: 'POST', data: { id: billId, userId } })
+}

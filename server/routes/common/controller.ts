@@ -1,14 +1,15 @@
-import type { Row } from '../../types/domain'
+import type { Row, HttpContext } from '../../types/domain'
 import { KEYUTIL, KJUR, b64tohex } from 'jsrsasign'
 import { xssData } from '../../utils/xss'
 import jwt from 'jsonwebtoken'
-import { Encryption, User, UserWechat } from '../../database/index'
+import { BillUser, Encryption, User, UserWechat } from '../../database/index'
 import { generateRsaKeyPair, ensureEncryptionKey, type EncryptionStore } from '../../database/ensureEncryption'
 import { code2session } from '../../utils/wechat'
 import { createBindTicket, peekBindTicket, consumeBindTicket } from '../../utils/redis'
 
 import { genPassword } from '../../utils/cryp'
 import { loadSecrets } from '../../config/secrets'
+import { resolveAvatarUrl, uploadAvatar as saveAvatarToOss } from '../../database/services/avatarService'
 
 const USER_ATTRS = ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
 
@@ -198,4 +199,119 @@ const register = async (username: string, password: string, nickName: string) =>
   }
 }
 
-export { getLoginConfig, updateEncryptionKey, assertAdmin, login, register, createJwt, verifyPassword, wxLogin, wxBind }
+
+
+/** 将用户行转为客户端 JSON，并把 avatar objectKey 换成签名 URL */
+const toClientUser = (user: Row | null | undefined, ctx?: HttpContext | null) => {
+  if (!user) return null
+  const plain = typeof (user as any).toJSON === 'function' ? (user as any).toJSON() : { ...(user as any) }
+  const id = String(plain.id || '')
+  plain.avatarUrl = resolveAvatarUrl(plain.avatarUrl, id, ctx)
+  return plain
+}
+
+const decryptPasswordCipher = async (cipherText: string) => {
+  const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+  if (!keys.length || !keys[0]?.privateKey) {
+    throw new Error('登录密钥未初始化，请联系管理员')
+  }
+  const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+  return KJUR.crypto.Cipher.decrypt(b64tohex(String(cipherText)), privateKey, 'RSA')
+}
+
+const assertPasswordStrength = (plain: string) => {
+  if (plain.length < 8) return '密码至少需要8位'
+  if (!/[a-z]/.test(plain)) return '密码必须包含小写字母'
+  if (!/[A-Z]/.test(plain)) return '密码必须包含大写字母'
+  if (!/\d/.test(plain)) return '密码必须包含数字'
+  return null
+}
+
+/** 修改密码：校验旧密码，哈希新密码 */
+const changePassword = async (
+  userId: string | null | undefined,
+  oldPasswordCipher: string,
+  newPasswordCipher: string
+): Promise<[string | null, { requireRelogin: true } | null]> => {
+  if (!userId) return ['请先登录', null]
+  try {
+    const oldPlain = await decryptPasswordCipher(oldPasswordCipher)
+    const newPlain = await decryptPasswordCipher(newPasswordCipher)
+    const strengthErr = assertPasswordStrength(newPlain)
+    if (strengthErr) return [strengthErr, null]
+    if (oldPlain === newPlain) return ['新密码不能与旧密码相同', null]
+
+    const user = await User.findOne({
+      where: { id: userId, isDel: false },
+      attributes: ['id', 'password']
+    })
+    if (!user) return ['用户不存在', null]
+
+    const oldHash = xssData(genPassword(oldPlain))
+    if (String(user.password) !== oldHash) return ['旧密码不正确', null]
+
+    const newHash = xssData(genPassword(newPlain))
+    await User.update({ password: newHash }, { where: { id: userId, isDel: false } })
+    return [null, { requireRelogin: true }]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '修改密码失败', null]
+  }
+}
+
+/** 上传头像并返回富化用户信息 */
+const updateAvatar = async (
+  userId: string | null | undefined,
+  file: { filepath?: string; size?: number } | null | undefined,
+  ctx?: HttpContext | null
+): Promise<[string | null, Row | null]> => {
+  if (!userId) return ['请先登录', null]
+  const [err] = await saveAvatarToOss({ file, userId })
+  if (err) return [err, null]
+  const user = await User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+  if (!user) return ['用户不存在', null]
+  return [null, toClientUser(user as Row, ctx) as Row]
+}
+
+const NICK_REG = /^[\u4E00-\u9FA5A-Za-z0-9_]{1,20}$/
+
+/** 更新当前用户昵称，并同步各账本成员显示名 */
+const updateProfile = async (
+  userId: string | null | undefined,
+  nickNameRaw: string,
+  ctx?: HttpContext | null
+) => {
+  if (!userId) return ['请先登录', null]
+  const nickName = xssData(String(nickNameRaw || '').trim())
+  if (!nickName || !NICK_REG.test(nickName)) {
+    return ['昵称须为 1～20 位中文、英文、数字或下划线', null]
+  }
+  try {
+    const [affected] = await User.update({ nickName }, { where: { id: userId, isDel: false } })
+    if (!affected) return ['用户不存在', null]
+    await BillUser.update({ userName: nickName }, { where: { userId } })
+    const user = await User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+    if (!user) return ['用户不存在', null]
+    return [null, toClientUser(user as Row, ctx)]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '更新失败', null]
+  }
+}
+
+export {
+  getLoginConfig,
+  updateEncryptionKey,
+  assertAdmin,
+  login,
+  register,
+  createJwt,
+  verifyPassword,
+  wxLogin,
+  wxBind,
+  updateProfile,
+  changePassword,
+  updateAvatar,
+  toClientUser
+}
+

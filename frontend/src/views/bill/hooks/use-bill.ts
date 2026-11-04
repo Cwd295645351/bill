@@ -4,7 +4,7 @@ import router from '@/router'
 import { useBillStore } from '@/store'
 import { getUserInfo } from '@/utils/common-info'
 import { billTabPath } from '@/router/helpers'
-import { createBill, getBillList, deleteBill, shareBill } from '../api'
+import { createBill, getBillList, deleteBill, shareBill, getBillDetail, quitBill } from '../api'
 import type { UserInfo } from '@/types/user-info'
 import type { Bill } from '../type'
 
@@ -17,17 +17,20 @@ export const useBill = () => {
   const addBillDialog = ref(false)
   const deleteBillDialog = ref(false)
   const shareBillDialog = ref(false)
+  const quitBillDialog = ref(false)
+  const membersDialog = ref(false)
+  const members = ref<{ id: string; name: string }[]>([])
+  const membersLoading = ref(false)
   const dialogLoading = ref(false)
   const bills = ref<Bill[]>([])
   const form = ref({ name: '' })
   const currentOperateBill = ref<Bill>({ id: '', name: '', creator: '' })
-  const shareCode = ref('') // 分享码
-  const typeManagerVisible = ref(false) // 类型管理弹窗
-  const currentTypeBill = ref('') // 当前正在管理类型的账本ID
+  const shareCode = ref('')
+  const typeManagerVisible = ref(false)
+  const currentTypeBill = ref('')
   const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
 
-  watch(updateBill, (val) => {
-    // 为 true 表示已加入新账本，需要刷新账本列表数据，并重置标识符为 false
+  watch(updateBill, () => {
     getList()
     store.updateState({ key: 'updateBill', value: false })
   })
@@ -47,7 +50,6 @@ export const useBill = () => {
     }
   }
 
-  /** 查看账本详情 */
   const showBillDetail = async (item: Bill) => {
     sessionStorage.setItem('billId', item.id)
     sessionStorage.setItem('tabValue', 'record')
@@ -55,28 +57,90 @@ export const useBill = () => {
     router.push(billTabPath(item.id, 'record'))
   }
 
-  /** 显示新增账本弹窗 */
   const showBillDialog = () => {
     form.value.name = ''
     addBillDialog.value = true
   }
 
-  /** 显示类型管理弹窗 */
   const showTypeManager = (item: Bill) => {
     currentTypeBill.value = item.id
     typeManagerVisible.value = true
   }
 
-  /** 显示删除账本弹窗 */
   const showDeleteDialog = (item: Bill) => {
     deleteBillDialog.value = true
     currentOperateBill.value = item
   }
 
-  /** 新增账本 */
+  const showQuitDialog = (item: Bill) => {
+    currentOperateBill.value = item
+    quitBillDialog.value = true
+  }
+
+  const doQuitBill = async () => {
+    const data = { id: currentOperateBill.value.id, userId: userInfo.value.userId }
+    dialogLoading.value = true
+    const [err, res] = await quitBill({ data })
+    dialogLoading.value = false
+    quitBillDialog.value = false
+    if (err) return
+    if (res.retCode === 0) {
+      ElMessage.success('已退出账本')
+      if (sessionStorage.getItem('billId') === currentOperateBill.value.id) {
+        sessionStorage.setItem('billId', '')
+        store.updateState({ key: 'billId', value: '' })
+        store.updateState({ key: 'bill', value: null })
+      }
+      getList()
+    } else {
+      ElMessage.error(res.message || '退出失败')
+    }
+  }
+
+  const showMembersDialog = async (item: Bill) => {
+    currentOperateBill.value = item
+    membersDialog.value = true
+    membersLoading.value = true
+    members.value = []
+    const [err, res] = await getBillDetail({ params: { id: item.id } })
+    membersLoading.value = false
+    if (err) return
+    if (res.retCode === 0) {
+      members.value = (res.data && res.data.users) || []
+    } else {
+      ElMessage.error(res.message || '获取成员失败')
+    }
+  }
+
+  const removeMember = async (member: { id: string; name: string }) => {
+    if (member.id === userInfo.value.userId) {
+      ElMessage.error('不能移除自己')
+      return
+    }
+    if (member.id === currentOperateBill.value.creator) {
+      ElMessage.error('不能移除账本创建者')
+      return
+    }
+    try {
+      await ElMessageBox.confirm(`确定将「${member.name}」移出账本吗？`, '移除成员', { type: 'warning' })
+    } catch {
+      return
+    }
+    const data = { id: currentOperateBill.value.id, userId: member.id }
+    dialogLoading.value = true
+    const [err, res] = await quitBill({ data })
+    dialogLoading.value = false
+    if (err) return
+    if (res.retCode === 0) {
+      ElMessage.success('已移除成员')
+      members.value = members.value.filter((m) => m.id !== member.id)
+    } else {
+      ElMessage.error(res.message || '移除失败')
+    }
+  }
+
   const addBill = async () => {
     $addForm.value.validate(async (valid: boolean) => {
-      console.log(valid)
       if (valid) {
         const data = { name: form.value.name }
         dialogLoading.value = true
@@ -94,7 +158,6 @@ export const useBill = () => {
     })
   }
 
-  /** 删除账本 */
   const delBill = async () => {
     const params = { id: currentOperateBill.value.id }
     dialogLoading.value = true
@@ -110,7 +173,6 @@ export const useBill = () => {
     }
   }
 
-  /** 分享账本，生成分项码 */
   const createShareBillCode = async (item: Bill) => {
     const data = { id: item.id }
     const [err, res] = await shareBill({ data })
@@ -130,6 +192,10 @@ export const useBill = () => {
     addBillDialog,
     deleteBillDialog,
     shareBillDialog,
+    quitBillDialog,
+    membersDialog,
+    members,
+    membersLoading,
     typeManagerVisible,
     currentTypeBill,
     dialogLoading,
@@ -137,13 +203,17 @@ export const useBill = () => {
     form,
     shareCode,
     userInfo,
+    currentOperateBill,
     showBillDetail,
     showBillDialog,
     showTypeManager,
     showDeleteDialog,
+    showQuitDialog,
+    doQuitBill,
+    showMembersDialog,
+    removeMember,
     addBill,
     delBill,
     createShareBillCode,
   }
 }
-

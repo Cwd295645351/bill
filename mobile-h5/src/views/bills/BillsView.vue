@@ -21,7 +21,12 @@
                   <div class="del" @click.stop="onDelete(bill)">删除</div>
                 </template>
               </van-swipe-cell>
-              <van-cell v-else :title="bill.name" is-link @click="openBill(bill)" />
+              <van-swipe-cell v-else :right-width="72">
+                <van-cell :title="bill.name" is-link @click="openBill(bill)" />
+                <template #right>
+                  <div class="del" @click.stop="onQuit(bill)">退出</div>
+                </template>
+              </van-swipe-cell>
             </template>
           </van-cell-group>
           <p v-if="error" class="err">{{ error }} <a href="#" @click.prevent="load">重试</a></p>
@@ -56,7 +61,7 @@
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { showConfirmDialog, showToast } from 'vant'
-import { createBill, deleteBill, getBillList } from '@/api/bill'
+import { createBill, deleteBill, getBillList, quitBill } from '@/api/bill'
 import { useSessionStore } from '@/stores/session'
 import { useBillContextStore } from '@/stores/bill-context'
 
@@ -137,6 +142,31 @@ async function onDelete(bill: any) {
     await load()
   } else {
     showToast(ret.message || '删除失败')
+  }
+}
+
+
+async function onQuit(bill: any) {
+  const uid = session.userInfo?.userId || ''
+  if (!uid) {
+    showToast('请先登录')
+    return
+  }
+  try {
+    await showConfirmDialog({
+      title: '退出账本',
+      message: '退出后将无法再查看该账本，历史记账仍保留在账本中。',
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch {
+    return
+  }
+  const ret = await quitBill(bill.id, uid)
+  if (ret.retCode === 0) {
+    showToast('已退出')
+    await load()
+  } else {
+    showToast(ret.message || '退出失败')
   }
 }
 

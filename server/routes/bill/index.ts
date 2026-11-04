@@ -125,28 +125,28 @@ router.post('/quit', async (ctx: HttpContext, next: Next) => {
   xssData(data)
   const id = data.id
   const userId = data.userId
-  const nickName = decodeURIComponent(typeof ctx.header.nickname === 'string' ? ctx.header.nickname : String(ctx.header.nickname))
+  const operatorId = queryString(ctx.header.userid)
   if (!id) {
     ctx.body = new ResModel(null, 'id不能为空', 'error')
     return
   } else if (!userId) {
     ctx.body = new ResModel(null, 'userId不能为空', 'error')
     return
-  } else if (!nickName) {
-    ctx.body = new ResModel(null, '用户昵称不能为空', 'error')
+  } else if (!operatorId) {
+    ctx.body = new ResModel(null, '请先登录', 'error')
     return
-  } else if (userId === queryString(ctx.header.userid)) {
+  } else if (String(userId) === String(operatorId)) {
     // 退出账本
-    const [err, res] = await BILL.quitBill({ userId, id, nickName })
-    console.log(err, res)
+    const [err, res] = await BILL.quitBill({ userId, id })
     if (res) ctx.body = new ResModel(null, '退出成功')
     else ctx.body = new ResModel(null, err, 'error')
   } else {
     // 将某人移出账本
-    const [err, res] = await BILL.removePerson({ userId, id, nickName })
+    const [err, res] = await BILL.removePerson({ operatorId, userId, id })
     if (res) ctx.body = new ResModel(null, '移除成功')
     else ctx.body = new ResModel(null, err, 'error')
   }
 })
 
 export default router
+

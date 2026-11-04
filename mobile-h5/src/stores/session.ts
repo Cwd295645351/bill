@@ -93,6 +93,14 @@ export const useSessionStore = defineStore('session', () => {
     sessionStorage.removeItem(EXPIRES_KEY)
   }
 
+  function patchUserInfo(partial: Partial<SessionUserInfo>) {
+    if (!userInfo.value) return null
+    const next = { ...userInfo.value, ...partial }
+    userInfo.value = next
+    sessionStorage.setItem(USER_KEY, JSON.stringify(next))
+    return next
+  }
+
   return {
     userInfo,
     expiresAt,
@@ -101,6 +109,7 @@ export const useSessionStore = defineStore('session', () => {
     isAuthenticated,
     setSession,
     patchTokens,
+    patchUserInfo,
     clearSession,
   }
 })

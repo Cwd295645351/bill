@@ -154,8 +154,9 @@ app.use(
       /\/api\/v1\/common\/register/,
       /\/api\/v1\/common\/wxLogin$/,
       /\/api\/v1\/common\/wxBind$/,
-      // 照片查看地址靠签名放行，图片组件无法携带登录头
-      /\/api\/v1\/transaction\/image\/file/
+      // 照片/头像查看地址靠签名放行，图片组件无法携带登录头
+      /\/api\/v1\/transaction\/image\/file/,
+      /\/api\/v1\/common\/avatar\/file/
     ]
   })
 )

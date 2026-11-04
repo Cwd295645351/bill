@@ -184,6 +184,8 @@ export interface WhereBag {
 /** 路由入参。字段来自现有请求体，不使用 any。 */
 export interface ApiInput extends Row {
   password?: string
+  oldPassword?: string
+  newPassword?: string
   nickName?: string
   file?: Row
 }

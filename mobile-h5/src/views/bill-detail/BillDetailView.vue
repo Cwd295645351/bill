@@ -21,6 +21,7 @@
     <template v-else>
       <div class="summary">
         <div class="summary-actions">
+          <button v-if="isCreator" type="button" class="invite" @click="openMembers">成员</button>
           <button v-if="isCreator" type="button" class="invite" @click="onInvite">邀请成员</button>
         </div>
         <div class="item">
@@ -124,6 +125,28 @@
         <p class="invite-code">{{ inviteCode }}</p>
       </div>
     </van-dialog>
+
+    <van-popup v-model:show="membersVisible" position="bottom" round :style="{ minHeight: '40%' }">
+      <div class="members-sheet">
+        <div class="members-title">成员管理</div>
+        <van-loading v-if="membersLoading" class="members-loading" />
+        <van-empty v-else-if="!members.length" description="暂无成员" />
+        <van-cell-group v-else inset>
+          <van-cell v-for="m in members" :key="m.id" :title="memberTitle(m)">
+            <template #right-icon>
+              <van-button
+                v-if="m.id !== creatorId && m.id !== userId"
+                size="mini"
+                type="danger"
+                plain
+                :loading="removingId === m.id"
+                @click="removeMember(m)"
+              >移除</van-button>
+            </template>
+          </van-cell>
+        </van-cell-group>
+      </div>
+    </van-popup>
   </div>
 </template>
 
@@ -131,7 +154,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { showConfirmDialog, showImagePreview, showToast } from 'vant'
-import { getBillDetail, inviteBill } from '@/api/bill'
+import { getBillDetail, inviteBill, quitBill } from '@/api/bill'
 import {
   deleteTransaction,
   getBalance,
@@ -174,6 +197,11 @@ const PAGE_SIZE = 20
 
 const inviteVisible = ref(false)
 const inviteCode = ref('')
+const membersVisible = ref(false)
+const membersLoading = ref(false)
+const members = ref<{ id: string; name: string }[]>([])
+const creatorId = ref('')
+const removingId = ref('')
 
 const userId = computed(() => session.userInfo?.userId || '')
 
@@ -202,7 +230,13 @@ async function loadBill() {
   }
   loadError.value = ''
   billName.value = res.data.name || ''
-  users.value = (res.data.users || []).map((u: { id: string }) => ({ id: u.id }))
+  creatorId.value = res.data.creator || ''
+  const userList = (res.data.users || []).map((u: { id: string; name?: string }) => ({
+    id: u.id,
+    name: u.name || '',
+  }))
+  users.value = userList.map((u: { id: string }) => ({ id: u.id }))
+  members.value = userList
   isCreator.value = !!(userId.value && res.data.creator === userId.value)
   billCtx.setCurrentBill(res.data)
   return res.data
@@ -325,6 +359,51 @@ async function onDelete(record: RecordItem) {
     loadList(true)
   } else {
     showToast(ret.message || '删除失败')
+  }
+}
+
+function memberTitle(m: { id: string; name: string }) {
+  let label = m.name || '未命名'
+  if (m.id === creatorId.value) label += '（创建者）'
+  else if (m.id === userId.value) label += '（我）'
+  return label
+}
+
+function openMembers() {
+  membersVisible.value = true
+  membersLoading.value = false
+}
+
+async function removeMember(m: { id: string; name: string }) {
+  if (m.id === userId.value) {
+    showToast('不能移除自己')
+    return
+  }
+  if (m.id === creatorId.value) {
+    showToast('不能移除账本创建者')
+    return
+  }
+  try {
+    await showConfirmDialog({
+      title: '移除成员',
+      message: `确定将「${m.name || '该成员'}」移出账本吗？`,
+      confirmButtonColor: '#ee0a24',
+    })
+  } catch {
+    return
+  }
+  removingId.value = m.id
+  try {
+    const ret = await quitBill(billId.value, m.id)
+    if (ret.retCode === 0) {
+      showToast('已移除成员')
+      members.value = members.value.filter((x) => x.id !== m.id)
+      users.value = users.value.filter((x) => x.id !== m.id)
+    } else {
+      showToast(ret.message || '移除失败')
+    }
+  } finally {
+    removingId.value = ''
   }
 }
 
@@ -532,5 +611,22 @@ onMounted(init)
   word-break: break-all;
   background: #f5f6f8;
   border-radius: 8px;
+}
+.summary-actions .invite + .invite {
+  margin-left: 8px;
+}
+.members-sheet {
+  padding: 16px 0 24px;
+}
+.members-title {
+  padding: 0 16px 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+.members-loading {
+  display: flex;
+  justify-content: center;
+  padding: 24px 0;
 }
 </style>

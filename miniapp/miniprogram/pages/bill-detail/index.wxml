@@ -1,6 +1,7 @@
 <view class="page">
   <view class="summary">
     <view class="summary-actions">
+      <button wx:if="{{ isCreator }}" class="invite" bindtap="onOpenMembers">成员</button>
       <button wx:if="{{ isCreator }}" class="invite" open-type="share">邀请成员</button>
       <view class="search" bindtap="onSearch">
         <van-icon name="search" size="18px" color="#4285F4" />
@@ -75,4 +76,31 @@
   <view class="fab" bindtap="onAdd">
     <van-icon name="plus" size="28px" color="#ffffff" />
   </view>
+  <van-popup show="{{ membersVisible }}" position="bottom" round bind:close="onCloseMembers">
+    <view class="members-sheet">
+      <view class="members-title">成员管理</view>
+      <view wx:if="{{ !members.length }}" class="members-empty">暂无成员</view>
+      <block wx:else>
+        <view class="member-row" wx:for="{{ members }}" wx:key="id">
+          <view class="member-name">
+            {{ item.name }}
+            <text wx:if="{{ item.id === creatorId }}" class="tag">创建者</text>
+            <text wx:elif="{{ item.id === userId }}" class="tag">我</text>
+          </view>
+          <van-button
+            wx:if="{{ item.id !== creatorId && item.id !== userId }}"
+            size="mini"
+            type="danger"
+            plain
+            data-id="{{ item.id }}"
+            data-name="{{ item.name }}"
+            bind:click="onRemoveMember"
+          >移除</van-button>
+        </view>
+      </block>
+      <view class="members-close">
+        <van-button block bind:click="onCloseMembers">关闭</van-button>
+      </view>
+    </view>
+  </van-popup>
 </view>

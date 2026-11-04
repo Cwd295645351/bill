@@ -1,4 +1,4 @@
-import { createBill, deleteBill, getBillList } from '../../apis/index'
+import { createBill, deleteBill, getBillList, quitBill } from '../../apis/index'
 import { guardPage } from '../../utils/auth'
 import { getUser, setLastBillId } from '../../utils/storage'
 
@@ -63,6 +63,24 @@ Page({
         const ret = await deleteBill(id)
         if (ret.retCode === 0) {
           wx.showToast({ title: '已删除' })
+          this.load()
+        }
+      }
+    })
+  },
+
+  onQuit(e: WechatMiniprogram.TouchEvent) {
+    const id = e.currentTarget.dataset.id
+    const user = getUser()
+    if (!user) return
+    wx.showModal({
+      title: '退出账本',
+      content: '退出后将无法再查看该账本，历史记账仍保留在账本中。',
+      success: async (res) => {
+        if (!res.confirm) return
+        const ret = await quitBill(id, user.userId)
+        if (ret.retCode === 0) {
+          wx.showToast({ title: '已退出' })
           this.load()
         }
       }

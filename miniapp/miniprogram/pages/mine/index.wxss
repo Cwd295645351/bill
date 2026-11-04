@@ -11,10 +11,17 @@
   width: 120rpx;
   height: 120rpx;
   border-radius: 60rpx;
-  background: #4285f4;
-  text-align: center;
-  line-height: 120rpx;
-  font-size: 48rpx;
+  background: #e8eef7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.avatar-img {
+  width: 120rpx;
+  height: 120rpx;
+  border-radius: 60rpx;
 }
 
 .name {
@@ -31,4 +38,42 @@
 
 .relogin {
   padding: 24rpx;
+}
+
+.profile-sheet {
+  padding: 8rpx 0 32rpx;
+}
+
+.sheet-avatar {
+  width: 128rpx;
+  height: 128rpx;
+  margin: 24rpx auto 8rpx;
+  border-radius: 64rpx;
+  background: #e8eef7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.sheet-avatar-img {
+  width: 128rpx;
+  height: 128rpx;
+  border-radius: 64rpx;
+}
+
+.sheet-avatar-tip {
+  text-align: center;
+  color: #999;
+  font-size: 24rpx;
+  margin-bottom: 8rpx;
+  padding: 0 24rpx;
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 0 24rpx 16rpx;
 }

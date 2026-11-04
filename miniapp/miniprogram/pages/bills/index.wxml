@@ -6,7 +6,10 @@
         <van-cell title="{{ item.name }}" is-link data-id="{{ item.id }}" bind:click="onOpen" />
         <view slot="right" class="del" data-id="{{ item.id }}" catchtap="onDelete">删除</view>
       </van-swipe-cell>
-      <van-cell wx:else title="{{ item.name }}" is-link data-id="{{ item.id }}" bind:click="onOpen" />
+      <van-swipe-cell wx:else right-width="{{ 72 }}">
+        <van-cell title="{{ item.name }}" is-link data-id="{{ item.id }}" bind:click="onOpen" />
+        <view slot="right" class="del" data-id="{{ item.id }}" catchtap="onQuit">退出</view>
+      </van-swipe-cell>
     </block>
   </scroll-view>
   <view class="footer">

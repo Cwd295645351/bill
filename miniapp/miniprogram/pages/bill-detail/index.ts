@@ -1,4 +1,4 @@
-import { deleteTransaction, getBalance, getBillDetail, getBudget, getMonthCost, getRecordList, inviteBill } from '../../apis/index'
+import { deleteTransaction, getBalance, getBillDetail, getBudget, getMonthCost, getRecordList, inviteBill, quitBill } from '../../apis/index'
 import { guardPage } from '../../utils/auth'
 import { dayEndTs, thisYear, today, yearStartTs } from '../../utils/date'
 import { groupRecords, RecordItem } from '../../utils/records'
@@ -13,6 +13,9 @@ Page({
     userId: '',
     users: [] as { id: string }[],
     isCreator: false,
+    creatorId: '',
+    members: [] as { id: string; name: string }[],
+    membersVisible: false,
     type: 1,
     records: [] as RecordItem[],
     groups: [] as any[],
@@ -47,9 +50,15 @@ Page({
     const res = await getBillDetail(this.data.billId)
     if (res.retCode !== 0 || !res.data) return
     const user = getUser()
+    const memberList = (res.data.users || []).map((item: { id: string; name?: string }) => ({
+      id: item.id,
+      name: item.name || ''
+    }))
     this.setData({
       userId: user ? user.userId : '',
-      users: (res.data.users || []).map((item: { id: string }) => ({ id: item.id }))
+      users: memberList.map((item: { id: string }) => ({ id: item.id })),
+      members: memberList,
+      creatorId: res.data.creator || ''
     })
     setBillDict(this.data.billId, res.data)
     wx.setNavigationBarTitle({ title: res.data.name || '账本明细' })
@@ -135,6 +144,43 @@ Page({
     wx.navigateTo({ url: `/pages/record-create/index?billId=${this.data.billId}` })
   },
 
+
+  onOpenMembers() {
+    if (!this.data.isCreator) return
+    this.setData({ membersVisible: true })
+  },
+
+  onCloseMembers() {
+    this.setData({ membersVisible: false })
+  },
+
+  onRemoveMember(e: WechatMiniprogram.TouchEvent) {
+    const id = String(e.currentTarget.dataset.id || '')
+    const name = String(e.currentTarget.dataset.name || '')
+    if (!id) return
+    if (id === this.data.userId) {
+      wx.showToast({ title: '不能移除自己', icon: 'none' })
+      return
+    }
+    if (id === this.data.creatorId) {
+      wx.showToast({ title: '不能移除创建者', icon: 'none' })
+      return
+    }
+    wx.showModal({
+      title: '移除成员',
+      content: '确定将「' + (name || '该成员') + '」移出账本吗？',
+      success: async (res) => {
+        if (!res.confirm) return
+        const ret = await quitBill(this.data.billId, id)
+        if (ret.retCode === 0) {
+          wx.showToast({ title: '已移除' })
+          const members = (this.data.members || []).filter((m: { id: string }) => m.id !== id)
+          const users = (this.data.users || []).filter((m: { id: string }) => m.id !== id)
+          this.setData({ members, users })
+        }
+      }
+    })
+  },
   onSearch() {
     wx.navigateTo({ url: `/pages/record-search/index?billId=${this.data.billId}` })
   },

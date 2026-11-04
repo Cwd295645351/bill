@@ -120,23 +120,24 @@ export const joinBill = async ({ userId, code, nickName }: Row) => {
 }
 
 // 退出账本
-export const quitBill = async ({ userId, id, nickName }: Row) => {
-  // 从该账本中查找是否存在该用户，若存在则退出账本
+export const quitBill = async ({ userId, id }: Row) => {
   const billRes = await Bill.findOne({ where: { id, isDel: false } })
   if (!billRes) return ['找不到账本', null]
-  if (billRes.creator === userId) return ['创建者不能退出账本', null]
-  const [affected] = await BillUser.destroy({ where: { billId: id, userId, userName: nickName } })
+  if (String(billRes.creator) === String(userId)) return ['创建者不能退出账本', null]
+  const affected = await BillUser.destroy({ where: { billId: id, userId } })
   if (!affected) return ['您并未加入该账本', null]
   return [null, true]
 }
 
-// 将某个移出账本
-export const removePerson = async ({ userId, id, nickName }: Row) => {
-  // 从该账本中查找是否存在该用户，若存在则移除
+// 将某人移出账本（仅创建者；不可移除创建者本人）
+export const removePerson = async ({ operatorId, userId, id }: Row) => {
   const billRes = await Bill.findOne({ where: { id, isDel: false } })
   if (!billRes) return ['找不到账本', null]
-  const exist = await BillUser.findOne({ where: { billId: id, userId, userName: nickName } })
+  if (String(billRes.creator) !== String(operatorId)) return ['仅账本创建者可移除成员', null]
+  if (String(userId) === String(operatorId)) return ['不能移除自己，请使用退出账本', null]
+  if (String(billRes.creator) === String(userId)) return ['不能移除账本创建者', null]
+  const exist = await BillUser.findOne({ where: { billId: id, userId } })
   if (!exist) return ['该用户并未加入此账本', null]
-  await BillUser.destroy({ where: { billId: id, userId, userName: nickName } })
+  await BillUser.destroy({ where: { billId: id, userId } })
   return [null, true]
 }

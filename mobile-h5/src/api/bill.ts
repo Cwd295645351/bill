@@ -23,3 +23,7 @@ export function inviteBill(id: string) {
 export function joinBill(code: string) {
   return request({ url: '/bill/join', method: 'POST', data: { code }, silent: true })
 }
+
+export function quitBill(billId: string, userId: string) {
+  return request({ url: '/bill/quit', method: 'POST', data: { id: billId, userId }, silent: true })
+}

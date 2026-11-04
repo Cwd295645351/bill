@@ -1,6 +1,9 @@
 <view class="page">
   <view class="header">
-    <view class="avatar">{{ loggedOut ? '?' : avatarText }}</view>
+    <view class="avatar" bind:tap="onChangeAvatar">
+      <image wx:if="{{ avatarUrl }}" class="avatar-img" src="{{ avatarUrl }}" mode="aspectFill" />
+      <van-icon wx:else name="user-o" size="56rpx" color="#8aa0c2" />
+    </view>
     <view class="name">{{ loggedOut ? '未登录' : nickName }}</view>
   </view>
   <view class="panel" wx:if="{{ !loggedOut }}">
@@ -8,10 +11,39 @@
     <van-cell title="总支出" value="{{ expenses }}" value-class="cost" />
   </view>
   <view class="panel">
+    <van-cell wx:if="{{ !loggedOut }}" title="修改个人信息" is-link bind:click="onOpenProfile" />
     <van-cell wx:if="{{ !loggedOut }}" title="通过邀请码加入" is-link bind:click="onJoin" />
     <van-cell wx:if="{{ !loggedOut }}" title="退出登录" is-link bind:click="onLogout" />
     <view wx:else class="relogin">
       <van-button type="primary" block color="#4285F4" bind:click="onRelogin">重新进入</van-button>
     </view>
   </view>
+
+  <van-popup show="{{ profileVisible }}" position="bottom" round bind:close="onCloseProfile">
+    <view class="profile-sheet">
+      <van-tabs active="{{ profileTab }}" bind:change="onProfileTabChange" color="#4285F4">
+        <van-tab title="个人资料" name="info">
+          <view class="sheet-avatar" bind:tap="onPickPendingAvatar">
+            <image wx:if="{{ sheetAvatarUrl }}" class="sheet-avatar-img" src="{{ sheetAvatarUrl }}" mode="aspectFill" />
+            <van-icon wx:else name="user-o" size="64rpx" color="#8aa0c2" />
+          </view>
+          <view class="sheet-avatar-tip">未上传时显示默认头像；点头像预览，点下方保存资料</view>
+          <van-field label="昵称" value="{{ editNick }}" maxlength="20" placeholder="1～20 位中文、英文、数字或下划线" bind:change="onNickChange" />
+          <view class="sheet-actions">
+            <van-button size="small" bind:click="onCloseProfile">取消</van-button>
+            <van-button size="small" type="primary" color="#4285F4" loading="{{ savingInfo }}" bind:click="onSaveProfileInfo">保存资料</van-button>
+          </view>
+        </van-tab>
+        <van-tab title="修改密码" name="password">
+          <van-field label="旧密码" value="{{ oldPassword }}" password placeholder="请输入当前密码" bind:change="onOldPwdChange" />
+          <van-field label="新密码" value="{{ newPassword }}" password placeholder="至少8位，含大小写与数字" bind:change="onNewPwdChange" />
+          <van-field label="确认密码" value="{{ confirmPassword }}" password placeholder="再次输入新密码" bind:change="onConfirmPwdChange" />
+          <view class="sheet-actions">
+            <van-button size="small" bind:click="onCloseProfile">取消</van-button>
+            <van-button size="small" type="primary" color="#4285F4" loading="{{ savingPwd }}" bind:click="onSavePassword">保存密码</van-button>
+          </view>
+        </van-tab>
+      </van-tabs>
+    </view>
+  </van-popup>
 </view>

@@ -1,20 +1,23 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.0.0 → 2.1.0
-Bump rationale: MINOR。原则 II 的后端职责补充源码语言为 TypeScript，运行时仍是
-  Node.js + Koa 2 + MySQL + Redis。不改变三端分工，不改原则 I、III、IV、V。
+Version change: 2.1.0 → 3.0.0
+Bump rationale: MAJOR。原则 II / III / IV 与技术栈落点对齐现行产品：承认
+  mobile-h5（部署 /mobile/），允许微信小程序注册即绑定；删除「小程序不支持
+  注册」「不存在 Mobile」「/mobile/ 永久关停」等过时条文。
 
 Principles amended:
-  II. 多端边界不可混用（后端职责写明 TypeScript 源码；运行时栈不变）
+  II. 多端边界不可混用（三端：PC + mobile-h5 + miniapp + 后端）
+  III. 账本隔离与记账权限（小程序可注册即绑定；一微信一账号不变）
+  IV. 公开契约向后兼容（/mobile/ 为现行 H5 静态资源路径）
 
 Added sections: 无
-Removed sections: 无
+Removed sections: 无（改写过时条款）
 
 Templates reviewed for alignment:
-  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V，无需修改
-  ✅ .specify/templates/spec-template.md — 无源码语言合同，无需修改
-  ✅ .specify/templates/tasks-template.md — 无源码语言合同，无需修改
+  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V
+  ✅ .specify/templates/spec-template.md — 无需修改
+  ✅ .specify/templates/tasks-template.md — 无需修改
 
 Follow-up TODOs: 无
 -->
@@ -38,22 +41,23 @@ Follow-up TODOs: 无
 
 ### II. 多端边界不可混用
 
-必须保留现有客户端分工，禁止无故引入平行技术栈或把一端的职责塞进另一端。手机浏览器中的记账网页（移动端 H5）已经退出产品，不得恢复。
+必须保留现有客户端分工，禁止无故引入平行技术栈或把一端的职责塞进另一端。旧版已关停的 `mobile/` 工程不得恢复；现行手机浏览器入口是独立工程 `mobile-h5/`，部署路径 `/mobile/`。
 
 | 端 | 目录 | 职责 |
 |----|------|------|
-| PC | `frontend/` | Vue 3 + Vite + TypeScript，功能完整 |
-| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp，面向家庭成员记账；**不支持注册** |
+| PC | `frontend/` | Vue 3 + Vite + TypeScript，功能完整（含注册） |
+| 移动端 H5 | `mobile-h5/` | Vue 3，能力对齐小程序日常记账；账号密码登录与注册；部署 `/mobile/` |
+| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp；记账主路径；支持注册即绑定与绑定已有账号 |
 | 后端 | `server/` | TypeScript 源码，运行时 Node.js + Koa 2 + MySQL + Redis，公开 API |
 
 - PC 前端按页面模块组织：每个页面自带 `api.ts` / `router.ts`，框架自动收集路由。新增页面必须遵循这一约定。
 - 小程序页面落在 `miniapp/miniprogram/pages/`，用微信开发者工具打开 `miniapp/`，执行「工具 -> 构建 npm」后编译。不要把小程序做成另一套浏览器网页，也不要用小程序去实现 PC 专属能力。
-- 小程序当前能力：账本查看/进入/加入、记账增改查、账号绑定。概览、预算、计划、类型配置仍以 PC 为准。
-- 规格必须写明改 PC、Miniapp、API 中的哪一端；未点名的端默认不改。不再存在 Mobile 端。
-- 日常补记在微信小程序或电脑上完成；统计、分账、预算和类型配置在电脑上操作。
-- 不得新增另一套手机浏览器记账入口，也不得把已关停的移动端 H5 加回产品。
+- 小程序当前能力：注册/绑定、账本查看/进入/加入、记账增改查。概览、预算、计划、类型配置仍以 PC 为准。
+- 规格必须写明改 PC、mobile-h5、Miniapp、API 中的哪一端；未点名的端默认不改。
+- 日常补记在微信小程序、移动端 H5 或电脑上完成；统计、分账、预算和类型配置在电脑上操作。
+- 不得把新功能写进已关停的旧 `mobile/` 目录。
 
-**理由：** 客户端只剩电脑网页、微信小程序和后端。恢复手机网页，或把一端的职责塞进另一端，会造成功能回退和错误入口。
+**理由：** 四端（含后端）边界清晰可避免功能回退与错误入口；恢复旧 `mobile/` 或混用栈会制造双份实现。
 
 ### III. 账本隔离与记账权限
 
@@ -66,7 +70,7 @@ Follow-up TODOs: 无
   - 收入只能归属一名成员，不提供「全部」，也不能多选。
   - 归属多名成员的支出，分账时只在这几个人之间分摊，未被选中的成员不承担。
 - 加入账本走分享码；创建者与成员权限以用户手册「权限与数据规则」为准。
-- 小程序首次使用须用**已有账号密码**绑定微信（`/wxBind`），之后静默登录（`/wxLogin`）。不提供小程序内注册。
+- 小程序未绑定微信时：可**注册新账号并绑定当前微信**（`/wxRegister`），或用**已有账号密码**绑定（`/wxBind`）；之后静默登录（`/wxLogin`）。注册成功即绑定，无需再输同一组密码绑一次；若账号已创建但绑定失败，保留账号并引导走绑定。
 - 一个账号只绑定一个微信（`user_wechats` 中 `user_id` 与 `openid` 均唯一），产品不提供解绑；换绑由管理员改库，规格不得自行增加解绑入口。
 
 **理由：** 多人联合记账的正确性建立在隔离和不可抵赖的录入责任上。
@@ -76,13 +80,12 @@ Follow-up TODOs: 无
 对外 HTTP 契约与静态资源路径是部署合同，变更必须向后兼容，除非规格显式批准破坏性升级。
 
 - API 前缀为 `/api/v1`。
-- 生产静态资源：PC 为 `/pc/`，API 由 Nginx 反代 `/api`。
-- `/mobile/` 已退出部署合同。该路径必须直接关停：不提供记账页面，不保留说明页，不跳转到 `/pc/` 或小程序。此关停是已批准的破坏性变更，不再要求向后兼容。
+- 生产静态资源：PC 为 `/pc/`，移动端 H5 为 `/mobile/`，API 由 Nginx 反代 `/api`。
 - 小程序**不经 Nginx 托管静态页**，只请求同一套 `/api`。体验版/正式版的接口根地址必须是已备案的 HTTPS 域名（不含路径和末尾斜杠），并在微信公众平台配置为 request 合法域名。
-- 扩展现有 JSON 接口时，优先新增可选字段/参数，禁止无故改响应形状或删字段。
+- 扩展现有 JSON 接口时，优先新增可选字段/参数，禁止无故改响应形状或删字段。新增公开接口（如 `/wxRegister`）须加入未登录放行名单。
 - 数据库变更必须可回滚；禁止在无迁移方案的情况下改表。
 
-**理由：** 电脑网页与小程序同时依赖同一套 API，破坏性变更会让两端一起坏掉。`/mobile/` 不再是这条合同的一部分。
+**理由：** 电脑网页、H5 与小程序同时依赖同一套 API，破坏性变更会让多端一起坏掉。
 
 ### V. 密钥与部署约束
 
@@ -100,10 +103,10 @@ Follow-up TODOs: 无
 
 规划（`/speckit-plan`）必须复用现有分层，而不是另起炉灶。
 
-- 后端：`server/routes/<模块>` 负责路由，业务放 `server/database/services`。小程序登录绑定走 `server/routes/common` 的 `/wxLogin`、`/wxBind`。
+- 后端：`server/routes/<模块>` 负责路由，业务放 `server/database/services`。小程序登录/注册绑定走 `server/routes/common` 的 `/wxLogin`、`/wxBind`、`/wxRegister`。
 - PC 改动落在 `frontend/src/views/<页面>` 及其 `api.ts`。
+- 移动端 H5 改动落在 `mobile-h5/src/`；不得写入已关停的旧 `mobile/`。
 - 小程序改动落在 `miniapp/miniprogram/pages/<页面>`，请求封装放 `miniapp/miniprogram/apis` 与 `utils`。
-- 移动端 H5（`mobile/`）不再维护。规划不得把新功能放进该目录，也不得恢复其入口。
 - 现有模块：账本（bill）、记账（transaction/record）、类型（billtype）、概览（overview）、预算（budget）、计划（plan）、资产（asset）、AI 解析（ai）、微信绑定（user_wechats）。
 
 ## 规格驱动工作流
@@ -123,4 +126,4 @@ Follow-up TODOs: 无
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 2.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-10-18
+**Version**: 3.0.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-08

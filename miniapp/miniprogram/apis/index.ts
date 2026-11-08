@@ -40,6 +40,25 @@ export function wxBind(data: { bindTicket: string; username: string; password: s
   return request({ url: `${V}/common/wxBind`, method: 'POST', data, auth: false, silent: true })
 }
 
+export function wxRegister(data: {
+  bindTicket: string
+  username: string
+  password: string
+  nickName?: string
+  captchaId: string
+  captchaX: number
+}) {
+  return request<{
+    needBind?: boolean
+    accessToken?: string
+    refreshToken?: string
+    expiresIn?: number
+    userInfo?: Record<string, unknown>
+    accountCreated?: boolean
+    username?: string
+  }>({ url: `${V}/common/wxRegister`, method: 'POST', data, auth: false, silent: true })
+}
+
 export function getBillList() {
   return request<any[]>({ url: `${V}/bill/list` })
 }

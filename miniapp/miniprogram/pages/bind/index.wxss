@@ -15,6 +15,20 @@
   line-height: 1.6;
 }
 
+.switch {
+  margin-top: 32rpx;
+  font-size: 28rpx;
+}
+
+.switch-muted {
+  color: #888;
+}
+
+.switch-link {
+  margin-left: 8rpx;
+  color: #4285f4;
+}
+
 .btn {
   margin-top: 48rpx;
 }

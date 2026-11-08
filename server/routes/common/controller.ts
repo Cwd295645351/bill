@@ -154,7 +154,11 @@ const createJwt = (data: { userId?: string | null }) => {
 }
 
 /** 注册 */
-const register = async (username: string, password: string, nickName: string) => {
+const register = async (
+  username: string,
+  password: string,
+  nickName: string
+): Promise<[string | null, { id: string; username: string; nickName: string } | null]> => {
   try {
     const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
     if (!keys.length || !keys[0]?.privateKey) {
@@ -197,6 +201,68 @@ const register = async (username: string, password: string, nickName: string) =>
     console.error(err)
     return [(err instanceof Error ? err.message : '') || '注册失败', null]
   }
+}
+
+/**
+ * 小程序注册即绑定：创建账号后把当前 bindTicket 对应微信绑到新账号。
+ * 账号已创建但绑定失败时保留账号，由调用方引导走 wxBind。
+ */
+const wxRegister = async ({
+  bindTicket,
+  username,
+  password,
+  nickName
+}: {
+  bindTicket?: string | null
+  username?: string | null
+  password?: string | null
+  nickName?: string | null
+}): Promise<
+  | { status: 'ok'; user: Row }
+  | { status: 'error'; message: string }
+  | { status: 'createdNeedBind'; message: string; username: string }
+> => {
+  const pendingOpenid = await peekBindTicket(bindTicket || '')
+  if (!pendingOpenid) {
+    return { status: 'error', message: '绑定凭证无效或已过期，请重新进入小程序' }
+  }
+
+  const existed = await UserWechat.findOne({ where: { openid: pendingOpenid } })
+  if (existed) {
+    return { status: 'error', message: '当前微信已绑定账号，请直接进入或重新打开小程序' }
+  }
+
+  if (!username || !password) {
+    return { status: 'error', message: '账号密码不匹配' }
+  }
+
+  const [regErr, created] = await register(username, password, nickName || '')
+  if (!created) {
+    return { status: 'error', message: regErr || '注册失败' }
+  }
+
+  const needBindMsg = '账号已创建但绑定失败，请使用该账号完成绑定'
+  const user = await findUserById(created.id)
+  if (!user) {
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+
+  const openid = await consumeBindTicket(bindTicket || '')
+  if (!openid) {
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+
+  try {
+    await UserWechat.create({ userId: user.id, openid, unionid: '' })
+  } catch (e: unknown) {
+    console.error(e)
+    const again = await UserWechat.findOne({ where: { openid } })
+    if (again && again.userId === user.id) {
+      return { status: 'ok', user: user as Row }
+    }
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+  return { status: 'ok', user: user as Row }
 }
 
 
@@ -309,6 +375,7 @@ export {
   verifyPassword,
   wxLogin,
   wxBind,
+  wxRegister,
   updateProfile,
   changePassword,
   updateAvatar,

@@ -44,6 +44,21 @@ export function login(data: { username: string; password: string; captchaId: str
   })
 }
 
+export function register(data: {
+  username: string
+  password: string
+  nickName?: string
+  captchaId: string
+  captchaX: number
+}) {
+  return request<{ id: string; username: string; nickName: string }>({
+    url: '/common/register',
+    method: 'POST',
+    data,
+    silent: true,
+  })
+}
+
 export function refreshToken(token: string) {
   return request({
     url: '/common/refreshToken',

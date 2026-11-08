@@ -2,7 +2,7 @@ import { queryString, readBody, type Row, type HttpContext } from '../../types/d
 import type { Next } from 'koa'
 import KoaRouter from 'koa-router'
 import { ResModel } from '../../model/resModel'
-import { getLoginConfig, updateEncryptionKey, assertAdmin, login, createJwt, register, wxLogin, wxBind, updateProfile, changePassword, updateAvatar, toClientUser } from './controller'
+import { getLoginConfig, updateEncryptionKey, assertAdmin, login, createJwt, register, wxLogin, wxBind, wxRegister, updateProfile, changePassword, updateAvatar, toClientUser } from './controller'
 import { createCaptcha, consumeCaptcha } from '../../utils/captcha'
 import { getAvatarFile } from '../../database/services/avatarService'
 
@@ -177,6 +177,48 @@ router.post('/register', async (ctx: HttpContext, next: Next) => {
   } else {
     ctx.body = new ResModel(null, err, 'error')
   }
+})
+
+// 小程序注册即绑定
+router.post('/wxRegister', async (ctx: HttpContext) => {
+  const character_reg = /^\w{3,20}/
+  const data = readBody(ctx) || {}
+  const { bindTicket, username, password } = data
+  const nickName = data.nickName || ''
+  if (!bindTicket || typeof bindTicket !== 'string') {
+    ctx.body = new ResModel(null, '绑定凭证不能为空', 'error')
+    return
+  }
+  if (username === null || username === undefined || !character_reg.test(username)) {
+    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+    return
+  }
+  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
+    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+    return
+  }
+  /* captcha:wxRegister */
+  {
+    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+    if (captchaErr) {
+      ctx.body = new ResModel(null, captchaErr, 'error')
+      return
+    }
+  }
+  const outcome = await wxRegister({ bindTicket, username, password, nickName })
+  if (outcome.status === 'ok') {
+    ctx.body = new ResModel({ ...writeLoginResult(ctx, outcome.user), needBind: false }, '注册成功')
+    return
+  }
+  if (outcome.status === 'createdNeedBind') {
+    ctx.body = new ResModel(
+      { accountCreated: true, username: outcome.username },
+      outcome.message,
+      'error'
+    )
+    return
+  }
+  ctx.body = new ResModel(null, outcome.message, 'error')
 })
 
 // 修改个人信息（昵称）

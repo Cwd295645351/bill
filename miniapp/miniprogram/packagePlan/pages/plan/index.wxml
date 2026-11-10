@@ -1,6 +1,73 @@
 <view class="page">
-  <view class="body">
-    <van-empty description="请到电脑端查看或管理" />
+  <view class="plan-main">
+    <view class="plan-head">
+      <view class="a-hint">计划只是想买或待办，不会自动变成记账。买完后请再到记账里补一条支出。</view>
+    </view>
+
+    <scroll-view class="plan-list" scroll-y enhanced show-scrollbar="{{ false }}">
+      <block wx:for="{{ sections }}" wx:key="priority">
+        <view class="p-head" style="background: {{ item.color }};">{{ item.label }}</view>
+        <block wx:if="{{ !item.empty }}">
+          <view class="p-card" wx:for="{{ item.items }}" wx:for-item="row" wx:key="id">
+            <view class="title">{{ row.title }}</view>
+            <view class="context">{{ row.context }}</view>
+            <view class="b-ops">
+              <button class="edit" size="mini" data-id="{{ row.id }}" catchtap="onEdit">编辑</button>
+              <button class="del" size="mini" data-id="{{ row.id }}" catchtap="onDel">删除</button>
+            </view>
+          </view>
+        </block>
+        <view wx:else class="a-note">这一档还没有</view>
+      </block>
+    </scroll-view>
+
+    <view class="a-foot">
+      <button class="primary" bindtap="onAdd">新增计划</button>
+    </view>
   </view>
+
   <book-tab-bar bill-id="{{ billId }}" active="plan" />
+
+  <van-popup show="{{ showForm }}" position="bottom" round bind:close="closeForm">
+    <view class="sheet">
+      <view class="sheet-bar">
+        <view class="cancel" bindtap="closeForm">取消</view>
+        <view class="sheet-title">{{ formMode === 'edit' ? '编辑计划' : '新增计划' }}</view>
+        <view class="confirm" bindtap="onSave">保存</view>
+      </view>
+      <van-cell-group>
+        <van-field label="标题" placeholder="请输入标题" value="{{ formTitle }}" bind:change="onTitle" />
+        <van-field label="内容" placeholder="请输入内容" value="{{ formContext }}" bind:change="onContext" />
+      </van-cell-group>
+      <view class="hint">优先级</view>
+      <view class="chips">
+        <view
+          class="chip {{ formPriority === 1 ? 'on' : '' }}"
+          data-value="1"
+          bindtap="onPriority"
+        >高</view>
+        <view
+          class="chip {{ formPriority === 2 ? 'on' : '' }}"
+          data-value="2"
+          bindtap="onPriority"
+        >中</view>
+        <view
+          class="chip {{ formPriority === 3 ? 'on' : '' }}"
+          data-value="3"
+          bindtap="onPriority"
+        >低</view>
+      </view>
+    </view>
+  </van-popup>
+
+  <van-dialog
+    use-slot
+    title="删除这条计划"
+    show="{{ showDel }}"
+    show-cancel-button
+    bind:confirm="confirmDel"
+    bind:cancel="closeDel"
+  >
+    <view class="dialog-msg">删除后不能恢复。</view>
+  </van-dialog>
 </view>

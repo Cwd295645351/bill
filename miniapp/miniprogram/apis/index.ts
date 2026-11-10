@@ -153,6 +153,32 @@ export function budgetDelete(params: { id: string; billId: string; date: number 
   return request({ url: `${V}/budget`, method: 'DELETE', data: params, silent: true })
 }
 
+export function getPlanList(billId: string) {
+  return request<{ count: number; details: any[] }>({
+    url: `${V}/plan/list`,
+    data: { billId },
+    silent: true
+  })
+}
+
+export function planAdd(data: { billId: string; title: string; context: string; priority: number }) {
+  return request({ url: `${V}/plan`, method: 'POST', data, silent: true })
+}
+
+export function planEdit(data: {
+  id: string
+  billId: string
+  title: string
+  context: string
+  priority: number
+}) {
+  return request({ url: `${V}/plan`, method: 'PUT', data, silent: true })
+}
+
+export function planDelete(params: { id: string; billId: string }) {
+  return request({ url: `${V}/plan`, method: 'DELETE', data: params, silent: true })
+}
+
 export function getMonthCost(billId: string) {
   return request<{ totalCost: number }>({ url: `${V}/transaction/currentMonthCost`, data: { billId }, silent: true })
 }

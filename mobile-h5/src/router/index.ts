@@ -47,6 +47,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/budget/BudgetView.vue'),
   },
   {
+    path: '/bill/:id/plan',
+    name: 'bill-plan',
+    component: () => import('@/views/plan/PlanView.vue'),
+  },
+  {
     path: '/record/create',
     name: 'record-create',
     component: () => import('@/views/record-create/RecordCreateView.vue'),

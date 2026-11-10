@@ -27,7 +27,7 @@ const props = defineProps<{
 
 const router = useRouter()
 
-const PC_ONLY = new Set(['overview', 'plan', 'asset'])
+const PC_ONLY = new Set(['overview', 'asset'])
 
 function beforeChange(name: string | number) {
   const key = String(name)
@@ -42,6 +42,10 @@ function beforeChange(name: string | number) {
   }
   if (key === 'budget') {
     router.replace({ name: 'bill-budget', params: { id: props.billId } })
+    return false
+  }
+  if (key === 'plan') {
+    router.replace({ name: 'bill-plan', params: { id: props.billId } })
     return false
   }
   return false

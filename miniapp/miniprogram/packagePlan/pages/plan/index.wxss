@@ -1,14 +1,168 @@
 .page {
-  min-height: 100vh;
-  background: #f5f6f8;
   display: flex;
   flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  background: #f5f6f8;
   box-sizing: border-box;
+  /* 给 fixed 的 book-tab-bar 让位（与预算页一致） */
+  padding-bottom: calc(50px + constant(safe-area-inset-bottom));
   padding-bottom: calc(50px + env(safe-area-inset-bottom));
 }
-.body {
+.plan-main {
   flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.plan-head {
+  flex: none;
+}
+.a-hint {
+  margin: 8px 12px 10px;
+  padding: 10px 12px;
+  color: #666;
+  font-size: 12px;
+  line-height: 1.5;
+  background: #fff;
+  border-radius: 8px;
+}
+.plan-list {
+  flex: 1;
+  min-height: 0;
+  height: 0;
+  padding-bottom: 8px;
+  box-sizing: border-box;
+}
+.p-head {
+  margin: 0 12px 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+.p-card {
+  box-sizing: border-box;
+  width: calc(100% - 24px);
+  margin: 0 12px 10px;
+  padding: 12px;
+  background: #fff;
+  border-radius: 10px;
+}
+.p-card .title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+}
+.p-card .context {
+  margin-top: 6px;
+  color: #666;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.a-note {
+  margin: 0 12px 10px;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.b-ops {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+.b-ops .edit,
+.b-ops .del {
+  flex: 1;
+  max-width: 88px;
+  margin: 0;
+  padding: 0 10px;
+  height: 28px;
+  line-height: 28px;
+  font-size: 12px;
+  border-radius: 14px;
+  border: none;
+}
+.b-ops .edit {
+  color: #4285f4;
+  background: #e8f1ff;
+}
+.b-ops .del {
+  color: #f74f4f;
+  background: #fdecec;
+}
+.a-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+}
+.a-foot .primary {
+  flex: 1;
+  margin: 0;
+  height: 40px;
+  line-height: 40px;
+  color: #fff;
+  font-size: 14px;
+  background: #4285f4;
+  border-radius: 20px;
+  border: none;
+}
+.sheet {
+  padding-bottom: 16px;
+}
+.sheet-bar {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+}
+.sheet-title {
+  font-weight: 600;
+}
+.cancel,
+.confirm {
+  color: #4285f4;
+  font-size: 15px;
+}
+.cancel {
+  color: #999;
+}
+.hint {
+  padding: 8px 16px 0;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.chips {
+  display: flex;
+  gap: 8px;
+  padding: 8px 16px 4px;
+}
+.chip {
+  flex: 1;
+  height: 32px;
+  line-height: 32px;
+  text-align: center;
+  border: 1px solid #ebedf0;
+  border-radius: 16px;
+  background: #fff;
+  color: #666;
+  font-size: 13px;
+}
+.chip.on {
+  color: #fff;
+  background: #4285f4;
+  border-color: #4285f4;
+}
+.dialog-msg {
+  padding: 8px 24px 20px;
+  color: #666;
+  font-size: 14px;
 }

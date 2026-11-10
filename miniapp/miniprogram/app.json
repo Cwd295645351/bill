@@ -3,13 +3,59 @@
     "pages/bills/index",
     "pages/record-add/index",
     "pages/mine/index",
-    "pages/bill-detail/index",
-    "pages/record-create/index",
-    "pages/record-edit/index",
-    "pages/record-search/index",
     "pages/bind/index",
     "pages/join/index"
   ],
+  "subPackages": [
+    {
+      "root": "packageDetail",
+      "name": "detail",
+      "pages": [
+        "pages/bill-detail/index",
+        "pages/record-create/index",
+        "pages/record-edit/index",
+        "pages/record-search/index"
+      ]
+    },
+    {
+      "root": "packageOverview",
+      "name": "overview",
+      "pages": [
+        "pages/overview/index"
+      ]
+    },
+    {
+      "root": "packageBudget",
+      "name": "budget",
+      "pages": [
+        "pages/budget/index"
+      ]
+    },
+    {
+      "root": "packagePlan",
+      "name": "plan",
+      "pages": [
+        "pages/plan/index"
+      ]
+    },
+    {
+      "root": "packageAsset",
+      "name": "asset",
+      "pages": [
+        "pages/asset/index"
+      ]
+    }
+  ],
+  "preloadRule": {
+    "pages/bills/index": {
+      "network": "wifi",
+      "packages": ["detail"]
+    },
+    "packageDetail/pages/bill-detail/index": {
+      "network": "wifi",
+      "packages": ["overview", "budget", "plan", "asset"]
+    }
+  },
   "window": {
     "navigationBarBackgroundColor": "#4285F4",
     "navigationBarTitleText": "记账",

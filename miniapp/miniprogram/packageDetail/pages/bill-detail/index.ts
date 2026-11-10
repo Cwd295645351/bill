@@ -1,8 +1,8 @@
-import { deleteTransaction, getBalance, getBillDetail, getBudget, getMonthCost, getRecordList, inviteBill, quitBill } from '../../apis/index'
-import { guardPage } from '../../utils/auth'
-import { dayEndTs, thisYear, today, yearStartTs } from '../../utils/date'
-import { groupRecords, RecordItem } from '../../utils/records'
-import { getUser, setBillDict, setEditingRecord, setLastBillId } from '../../utils/storage'
+import { deleteTransaction, getBalance, getBillDetail, getBudget, getMonthCost, getRecordList, inviteBill, quitBill } from '../../../apis/index'
+import { guardPage } from '../../../utils/auth'
+import { dayEndTs, thisYear, today, yearStartTs } from '../../../utils/date'
+import { groupRecords, RecordItem } from '../../../utils/records'
+import { getUser, setBillDict, setEditingRecord, setLastBillId } from '../../../utils/storage'
 
 const PAGE_SIZE = 20
 
@@ -141,7 +141,7 @@ Page({
 
   onAdd() {
     setLastBillId(this.data.billId)
-    wx.navigateTo({ url: `/pages/record-create/index?billId=${this.data.billId}` })
+    wx.navigateTo({ url: `/packageDetail/pages/record-create/index?billId=${this.data.billId}` })
   },
 
 
@@ -182,7 +182,7 @@ Page({
     })
   },
   onSearch() {
-    wx.navigateTo({ url: `/pages/record-search/index?billId=${this.data.billId}` })
+    wx.navigateTo({ url: `/packageDetail/pages/record-search/index?billId=${this.data.billId}` })
   },
 
   onEdit(e: WechatMiniprogram.TouchEvent) {
@@ -194,7 +194,7 @@ Page({
       return
     }
     setEditingRecord(record)
-    wx.navigateTo({ url: `/pages/record-edit/index?billId=${this.data.billId}` })
+    wx.navigateTo({ url: `/packageDetail/pages/record-edit/index?billId=${this.data.billId}` })
   },
 
   /** 打开照片预览，不进入编辑 */

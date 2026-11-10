@@ -1,8 +1,8 @@
-import { deleteTransaction, editTransaction, getBillDetail } from '../../apis/index'
-import { guardPage } from '../../utils/auth'
-import { toDayText } from '../../utils/date'
-import { getEditingRecord, getUser, setBillDict, setLastPref } from '../../utils/storage'
-import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../utils/upload-photos'
+import { deleteTransaction, editTransaction, getBillDetail } from '../../../apis/index'
+import { guardPage } from '../../../utils/auth'
+import { toDayText } from '../../../utils/date'
+import { getEditingRecord, getUser, setBillDict, setLastPref } from '../../../utils/storage'
+import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../../utils/upload-photos'
 
 Page({
   data: {

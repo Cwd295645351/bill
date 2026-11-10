@@ -1,7 +1,12 @@
 {
   "description": "家庭记账小程序",
   "packOptions": {
-    "ignore": [],
+    "ignore": [
+      {
+        "type": "suffix",
+        "value": ".map"
+      }
+    ],
     "include": []
   },
   "setting": {

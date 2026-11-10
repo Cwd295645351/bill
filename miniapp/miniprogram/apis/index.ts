@@ -141,6 +141,18 @@ export function getBudget(billId: string, year: number) {
   return request({ url: `${V}/budget/list`, data: { billId, date: year }, silent: true })
 }
 
+export function budgetAdd(data: { billId: string; date: number; costTypeId: string; money: number }) {
+  return request({ url: `${V}/budget`, method: 'POST', data, silent: true })
+}
+
+export function budgetEdit(data: { id: string; billId: string; date: number; money: number }) {
+  return request({ url: `${V}/budget`, method: 'PUT', data, silent: true })
+}
+
+export function budgetDelete(params: { id: string; billId: string; date: number }) {
+  return request({ url: `${V}/budget`, method: 'DELETE', data: params, silent: true })
+}
+
 export function getMonthCost(billId: string) {
   return request<{ totalCost: number }>({ url: `${V}/transaction/currentMonthCost`, data: { billId }, silent: true })
 }

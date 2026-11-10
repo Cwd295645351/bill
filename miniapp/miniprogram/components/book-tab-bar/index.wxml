@@ -1,0 +1,46 @@
+<view class="book-tab">
+  <view class="tabs">
+    <view
+      class="tab {{ active === 'detail' ? 'on' : '' }}"
+      data-key="detail"
+      bindtap="onTap"
+    >
+      <van-icon name="orders-o" size="20px" color="{{ active === 'detail' ? '#4285F4' : '#999' }}" />
+      <text>记账</text>
+    </view>
+    <view
+      class="tab {{ active === 'overview' ? 'on' : '' }}"
+      data-key="overview"
+      bindtap="onTap"
+    >
+      <van-icon name="chart-trending-o" size="20px" color="{{ active === 'overview' ? '#4285F4' : '#999' }}" />
+      <text>概览</text>
+    </view>
+    <view
+      class="tab {{ active === 'budget' ? 'on' : '' }}"
+      data-key="budget"
+      bindtap="onTap"
+    >
+      <van-icon name="balance-list-o" size="20px" color="{{ active === 'budget' ? '#4285F4' : '#999' }}" />
+      <text>预算</text>
+    </view>
+    <view
+      class="tab {{ active === 'plan' ? 'on' : '' }}"
+      data-key="plan"
+      bindtap="onTap"
+    >
+      <van-icon name="todo-list-o" size="20px" color="{{ active === 'plan' ? '#4285F4' : '#999' }}" />
+      <text>计划</text>
+    </view>
+    <view
+      class="tab {{ active === 'asset' ? 'on' : '' }}"
+      data-key="asset"
+      bindtap="onTap"
+    >
+      <van-icon name="gold-coin-o" size="20px" color="{{ active === 'asset' ? '#4285F4' : '#999' }}" />
+      <text>资产</text>
+    </view>
+  </view>
+  <!-- 单独铺安全区，避免 height+padding 在小程序里吃掉背景 -->
+  <view class="safe-bottom"></view>
+</view>

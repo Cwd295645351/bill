@@ -1,0 +1,116 @@
+<view class="page">
+  <view class="budget-main">
+    <view class="budget-head">
+      <view class="a-hero">
+        <view class="label">{{ year }} 年</view>
+        <view class="split">
+          <view>
+            <view class="k">年度预算</view>
+            <view class="v">{{ totalBudgetText }}</view>
+          </view>
+          <view>
+            <view class="k">年度支出</view>
+            <view class="v">{{ totalCostText }}</view>
+          </view>
+        </view>
+        <view class="a-fx">点卡片空白处，打开当年该类型的记账。进度条最多到 100%，超支后花费数字仍会更大。</view>
+      </view>
+
+      <view wx:if="{{ details.length }}" class="a-card">
+        <view class="pie-title">预算占比</view>
+        <view wx:if="{{ !pieLegend.length }}" class="a-note">暂无</view>
+        <view wx:else class="a-pie">
+          <!-- 弹层打开时销毁 canvas，避免原生层级盖住遮罩 -->
+          <ec-canvas
+            wx:if="{{ showPieCanvas }}"
+            id="budgetPie"
+            canvas-id="budget-pie"
+            class="a-disk"
+            ec="{{ ec }}"
+          ></ec-canvas>
+          <view wx:else class="a-disk a-disk-placeholder"></view>
+          <view class="a-legend">
+            <view wx:for="{{ pieLegend }}" wx:key="name" class="legend-row">
+              <view class="dot" style="background: {{ item.color }};"></view>
+              <text class="name">{{ item.name }}</text>
+              <text class="pct">{{ item.pct }}</text>
+              <text class="amt">{{ item.amountText }}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view class="budget-list" scroll-y enhanced show-scrollbar="{{ false }}">
+      <van-empty wx:if="{{ !loading && !details.length }}" description="今年还没有预算" />
+
+      <view
+        wx:for="{{ cards }}"
+        wx:key="id"
+        class="b-card"
+        data-id="{{ item.id }}"
+        data-typeid="{{ item.costTypeId }}"
+        bindtap="onCardTap"
+      >
+        <view class="a-top">
+          <text class="type">{{ item.costTypeName }}</text>
+          <text class="a-note">{{ item.label }}</text>
+        </view>
+        <view class="b-meta">
+          <text>预算 {{ item.budgetText }}</text>
+          <text>花费 <text class="{{ item.over ? 'cost' : '' }}">{{ item.costText }}</text></text>
+        </view>
+        <view class="b-line"><view class="fill" style="width: {{ item.widthPercent }}%; background: {{ item.color }};"></view></view>
+        <view class="b-ops">
+          <button class="edit" size="mini" data-id="{{ item.id }}" catchtap="onEdit">编辑</button>
+          <button class="del" size="mini" data-id="{{ item.id }}" catchtap="onDel">删除</button>
+        </view>
+      </view>
+    </scroll-view>
+
+    <view class="a-foot">
+      <button class="primary" bindtap="onAdd">新增预算</button>
+    </view>
+  </view>
+
+  <book-tab-bar bill-id="{{ billId }}" active="budget" />
+
+  <van-popup show="{{ showForm }}" position="bottom" round bind:close="closeForm">
+    <view class="sheet">
+      <view class="sheet-bar">
+        <view class="cancel" bindtap="closeForm">取消</view>
+        <view class="sheet-title">{{ formMode === 'edit' ? '编辑预算' : '新增预算' }}</view>
+        <view class="confirm" bindtap="onSave">保存</view>
+      </view>
+      <van-cell-group>
+        <van-cell
+          wx:if="{{ formMode === 'create' }}"
+          title="支出类型"
+          is-link
+          value="{{ formTypeName || '请选择' }}"
+          bind:click="openType"
+        />
+        <van-cell wx:else title="支出类型" value="{{ formTypeName }}" />
+        <van-field label="金额" type="digit" placeholder="须大于 0" value="{{ formMoney }}" bind:change="onMoney" />
+      </van-cell-group>
+      <view wx:if="{{ formMode === 'create' }}" class="hint">金额须大于 0；同一类型一年只设一条；删除不影响已有记账。</view>
+    </view>
+  </van-popup>
+
+  <van-popup show="{{ showType }}" position="bottom" round bind:close="closeType">
+    <van-picker
+      columns="{{ typeNames }}"
+      bind:confirm="onTypeConfirm"
+      bind:cancel="closeType"
+    />
+  </van-popup>
+
+  <van-dialog
+    use-slot
+    title="确定删除该预算？"
+    show="{{ showDel }}"
+    show-cancel-button
+    bind:confirm="confirmDel"
+    bind:cancel="closeDel"
+  />
+</view>

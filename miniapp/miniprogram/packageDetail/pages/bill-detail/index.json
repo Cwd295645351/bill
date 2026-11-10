@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "账本明细",
+  "usingComponents": {
+    "book-tab-bar": "/components/book-tab-bar/index"
+  }
+}

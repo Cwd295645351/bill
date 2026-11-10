@@ -1,0 +1,15 @@
+{
+  "navigationBarTitleText": "预算",
+  "usingComponents": {
+    "book-tab-bar": "/components/book-tab-bar/index",
+    "ec-canvas": "/packageBudget/components/ec-canvas/ec-canvas",
+    "van-empty": "@vant/weapp/empty/index",
+    "van-popup": "@vant/weapp/popup/index",
+    "van-cell": "@vant/weapp/cell/index",
+    "van-cell-group": "@vant/weapp/cell-group/index",
+    "van-field": "@vant/weapp/field/index",
+    "van-picker": "@vant/weapp/picker/index",
+    "van-dialog": "@vant/weapp/dialog/index",
+    "van-button": "@vant/weapp/button/index"
+  }
+}

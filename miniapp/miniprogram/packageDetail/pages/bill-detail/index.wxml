@@ -103,4 +103,5 @@
       </view>
     </view>
   </van-popup>
+  <book-tab-bar bill-id="{{ billId }}" active="detail" />
 </view>

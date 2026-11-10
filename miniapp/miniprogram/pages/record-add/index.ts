@@ -100,7 +100,7 @@ Page({
       if (again) {
         if (form && form.resetForAgain) form.resetForAgain()
       } else {
-        wx.navigateTo({ url: `/pages/bill-detail/index?id=${payload.billId}` })
+        wx.navigateTo({ url: `/packageDetail/pages/bill-detail/index?id=${payload.billId}` })
       }
     } finally {
       hideSaveLoading()

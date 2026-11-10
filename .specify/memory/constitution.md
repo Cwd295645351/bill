@@ -1,18 +1,15 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 2.1.0 → 3.0.0
-Bump rationale: MAJOR。原则 II / III / IV 与技术栈落点对齐现行产品：承认
-  mobile-h5（部署 /mobile/），允许微信小程序注册即绑定；删除「小程序不支持
-  注册」「不存在 Mobile」「/mobile/ 永久关停」等过时条文。
+Version change: 3.0.0 → 3.1.0
+Bump rationale: MINOR。原则 II 将「预算」从仅 PC 提升为 PC + mobile-h5 + 小程序
+  均可管理；概览、计划、类型配置、家庭资产仍以 PC 为准（对齐 specs/017）。
 
 Principles amended:
-  II. 多端边界不可混用（三端：PC + mobile-h5 + miniapp + 后端）
-  III. 账本隔离与记账权限（小程序可注册即绑定；一微信一账号不变）
-  IV. 公开契约向后兼容（/mobile/ 为现行 H5 静态资源路径）
+  II. 多端边界不可混用（预算三端可管；概览/计划/类型/资产仍 PC）
 
 Added sections: 无
-Removed sections: 无（改写过时条款）
+Removed sections: 无
 
 Templates reviewed for alignment:
   ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V
@@ -46,15 +43,15 @@ Follow-up TODOs: 无
 | 端 | 目录 | 职责 |
 |----|------|------|
 | PC | `frontend/` | Vue 3 + Vite + TypeScript，功能完整（含注册） |
-| 移动端 H5 | `mobile-h5/` | Vue 3，能力对齐小程序日常记账；账号密码登录与注册；部署 `/mobile/` |
-| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp；记账主路径；支持注册即绑定与绑定已有账号 |
+| 移动端 H5 | `mobile-h5/` | Vue 3，能力对齐小程序日常记账与当年预算；账号密码登录与注册；部署 `/mobile/` |
+| 微信小程序 | `miniapp/` | 原生 + TypeScript + Vant Weapp；记账主路径与当年预算；支持注册即绑定与绑定已有账号 |
 | 后端 | `server/` | TypeScript 源码，运行时 Node.js + Koa 2 + MySQL + Redis，公开 API |
 
 - PC 前端按页面模块组织：每个页面自带 `api.ts` / `router.ts`，框架自动收集路由。新增页面必须遵循这一约定。
 - 小程序页面落在 `miniapp/miniprogram/pages/`，用微信开发者工具打开 `miniapp/`，执行「工具 -> 构建 npm」后编译。不要把小程序做成另一套浏览器网页，也不要用小程序去实现 PC 专属能力。
-- 小程序当前能力：注册/绑定、账本查看/进入/加入、记账增改查。概览、预算、计划、类型配置仍以 PC 为准。
+- 小程序与 H5 当前能力：注册/绑定（或账号登录）、账本查看/进入/加入、记账增改查、**当年预算查看与增删改**。概览、计划、类型配置、家庭资产仍以 PC 为准。
 - 规格必须写明改 PC、mobile-h5、Miniapp、API 中的哪一端；未点名的端默认不改。
-- 日常补记在微信小程序、移动端 H5 或电脑上完成；统计、分账、预算和类型配置在电脑上操作。
+- 日常补记与当年预算管理可在微信小程序、移动端 H5 或电脑上完成；统计、分账、类型配置、计划与家庭资产在电脑上操作。
 - 不得把新功能写进已关停的旧 `mobile/` 目录。
 
 **理由：** 四端（含后端）边界清晰可避免功能回退与错误入口；恢复旧 `mobile/` 或混用栈会制造双份实现。
@@ -126,4 +123,4 @@ Follow-up TODOs: 无
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 3.0.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-08
+**Version**: 3.1.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-10

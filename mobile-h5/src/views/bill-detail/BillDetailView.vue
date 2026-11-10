@@ -147,6 +147,8 @@
         </van-cell-group>
       </div>
     </van-popup>
+
+    <BookTabBar v-if="billId" :bill-id="billId" active="detail" />
   </div>
 </template>
 
@@ -162,6 +164,7 @@ import {
   getMonthCost,
   getRecordList,
 } from '@/api/transaction'
+import BookTabBar from '@/components/BookTabBar.vue'
 import { useBillContextStore } from '@/stores/bill-context'
 import { useSessionStore } from '@/stores/session'
 import { dayEndTs, moneyText, thisYear, today, yearStartTs } from '@/utils/date'
@@ -456,7 +459,7 @@ onMounted(init)
 <style scoped>
 .detail-page {
   min-height: 100vh;
-  padding-bottom: 88px;
+  padding-bottom: 120px;
 }
 .summary {
   display: flex;

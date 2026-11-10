@@ -29,15 +29,8 @@ export function getMonthCost(billId: string) {
   })
 }
 
-/** 年度预算（date 传年份，与小程序 getBudget 一致） */
-export function getBudget(billId: string, year: number) {
-  return request<{ totalBudget: number; currCost: number }>({
-    url: '/budget/list',
-    method: 'GET',
-    params: { billId, date: year },
-    silent: true,
-  })
-}
+/** 年度预算：复用 budget 模块，保持明细页旧 import 可用 */
+export { getBudget, getBudgetList } from './budget'
 
 /** 区间收支汇总（含投资） */
 export function getBalance(billId: string, beginDate: number, endDate: number) {

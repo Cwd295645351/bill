@@ -1,7 +1,7 @@
-import { addTransaction, getBillDetail } from '../../apis/index'
-import { guardPage } from '../../utils/auth'
-import { setBillDict, setLastBillId, setLastPref } from '../../utils/storage'
-import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../utils/upload-photos'
+import { addTransaction, getBillDetail } from '../../../apis/index'
+import { guardPage } from '../../../utils/auth'
+import { setBillDict, setLastBillId, setLastPref } from '../../../utils/storage'
+import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../../utils/upload-photos'
 
 /** 从账本详情进入的记账页，保留页面栈，未保存也可以返回 */
 Page({

@@ -335,7 +335,25 @@ function onPreviewImages(record: RecordItem) {
   showImagePreview({ images: urls, startPosition: 0 })
 }
 
+async function applyPrefillAndMaybeSearch() {
+  const q = route.query
+  if (q.type === '1' || q.type === '2') type.value = Number(q.type)
+  if (typeof q.beginDate === 'string' && q.beginDate) beginDate.value = q.beginDate
+  if (typeof q.endDate === 'string' && q.endDate) endDate.value = q.endDate
+  if (typeof q.costTypeId === 'string' && q.costTypeId) {
+    categoryId.value = q.costTypeId
+    const list = type.value === 2 ? incomesTypes.value : costTypes.value
+    const hit = list.find((c: any) => c.id === q.costTypeId)
+    categoryName.value = hit?.name || '指定分类'
+  }
+  if (q.autoSearch === '1') onSearch()
+}
+
 onMounted(async () => {
+  if (!billId.value) {
+    // 兼容仅靠 query.billId 进入
+    billId.value = String(route.query.billId || '')
+  }
   if (!billId.value) return
   const res = await getBillDetail(billId.value)
   if (res.retCode === 0 && res.data) {
@@ -343,6 +361,7 @@ onMounted(async () => {
     costTypes.value = res.data.costTypes || []
     incomesTypes.value = res.data.incomesTypes || []
   }
+  await applyPrefillAndMaybeSearch()
 })
 </script>
 

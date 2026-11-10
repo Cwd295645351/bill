@@ -1,0 +1,6 @@
+<view class="page">
+  <view class="body">
+    <van-empty description="请到电脑端查看或管理" />
+  </view>
+  <book-tab-bar bill-id="{{ billId }}" active="asset" />
+</view>

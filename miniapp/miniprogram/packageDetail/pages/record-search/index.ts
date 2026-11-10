@@ -1,8 +1,8 @@
-import { getBillDetail, getRecordList } from '../../apis/index'
-import { guardPage } from '../../utils/auth'
-import { dayEndTs, dayStartTs } from '../../utils/date'
-import { groupRecords, RecordItem } from '../../utils/records'
-import { getUser, setEditingRecord } from '../../utils/storage'
+import { getBillDetail, getRecordList } from '../../../apis/index'
+import { guardPage } from '../../../utils/auth'
+import { dayEndTs, dayStartTs } from '../../../utils/date'
+import { groupRecords, RecordItem } from '../../../utils/records'
+import { getUser, setEditingRecord } from '../../../utils/storage'
 
 /** Vant Field 的 change 事件在默认配置下直接把字符串作为 detail */
 function fieldText(detail: unknown): string {
@@ -48,8 +48,22 @@ Page({
     userId: ''
   },
 
+  pendingAutoSearch: false,
+
   onLoad(query: Record<string, string>) {
-    this.setData({ billId: query.billId || '' })
+    const type = query.type === '2' ? 2 : query.type === '1' ? 1 : 1
+    const patch: Record<string, any> = {
+      billId: query.billId || '',
+      type,
+      beginDate: query.beginDate || '',
+      endDate: query.endDate || ''
+    }
+    if (query.costTypeId) {
+      patch.categoryId = query.costTypeId
+      patch.categoryName = '指定分类'
+    }
+    this.setData(patch)
+    this.pendingAutoSearch = query.autoSearch === '1'
   },
 
   async onShow() {
@@ -57,18 +71,28 @@ Page({
     if (!ok) return
     const user = getUser()
     if (user && user.userId !== this.data.userId) this.setData({ userId: user.userId })
-    if (this.data.userNames.length > 1) return
-    const res = await getBillDetail(this.data.billId)
-    if (res.retCode !== 0 || !res.data) return
-    const users = res.data.users || []
-    this.setData({
-      costTypes: res.data.costTypes || [],
-      incomesTypes: res.data.incomesTypes || [],
-      userNames: ['全部'].concat(users.map((item: any) => item.name)),
-      userIds: [''].concat(users.map((item: any) => item.id)),
-      users: users.map((item: { id: string }) => ({ id: item.id }))
-    })
-    this.refreshCategories()
+    if (this.data.userNames.length <= 1) {
+      const res = await getBillDetail(this.data.billId)
+      if (res.retCode !== 0 || !res.data) return
+      const users = res.data.users || []
+      this.setData({
+        costTypes: res.data.costTypes || [],
+        incomesTypes: res.data.incomesTypes || [],
+        userNames: ['全部'].concat(users.map((item: any) => item.name)),
+        userIds: [''].concat(users.map((item: any) => item.id)),
+        users: users.map((item: { id: string }) => ({ id: item.id }))
+      })
+      this.refreshCategories()
+      if (this.data.categoryId) {
+        const list = this.data.type === 2 ? this.data.incomesTypes : this.data.costTypes
+        const hit = list.find((item: any) => item.id === this.data.categoryId)
+        if (hit) this.setData({ categoryName: hit.name })
+      }
+    }
+    if (this.pendingAutoSearch) {
+      this.pendingAutoSearch = false
+      this.onSearch()
+    }
   },
 
   refreshCategories() {
@@ -200,7 +224,7 @@ Page({
       return
     }
     setEditingRecord(record)
-    wx.navigateTo({ url: `/pages/record-edit/index?billId=${this.data.billId}` })
+    wx.navigateTo({ url: `/packageDetail/pages/record-edit/index?billId=${this.data.billId}` })
   },
 
   /** 打开照片预览，不进入编辑 */

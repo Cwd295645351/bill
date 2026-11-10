@@ -29,7 +29,7 @@ Page({
   onOpen(e: WechatMiniprogram.TouchEvent) {
     const id = e.currentTarget.dataset.id
     setLastBillId(id)
-    wx.navigateTo({ url: `/pages/bill-detail/index?id=${id}` })
+    wx.navigateTo({ url: `/packageDetail/pages/bill-detail/index?id=${id}` })
   },
 
   onCreate() {

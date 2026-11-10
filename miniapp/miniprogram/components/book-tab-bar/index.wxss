@@ -1,0 +1,35 @@
+.book-tab {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  background: #ffffff;
+  border-top: 1px solid #eee;
+}
+.tabs {
+  display: flex;
+  height: 50px;
+  background: #ffffff;
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: #999;
+  font-size: 10px;
+  background: #ffffff;
+}
+.tab.on {
+  color: #4285f4;
+  font-weight: 600;
+}
+.safe-bottom {
+  width: 100%;
+  background: #ffffff;
+  height: constant(safe-area-inset-bottom);
+  height: env(safe-area-inset-bottom);
+}

@@ -169,9 +169,31 @@
                 </template>
               </el-select>
             </el-form-item>
+            <el-form-item class="form-item" size="large" label="照片">
+              <div class="edit-photos">
+                <div class="edit-photo" v-for="(img, index) in addImages" :key="img.id || img.viewUrl">
+                  <el-image :src="img.viewUrl" fit="cover" :preview-src-list="addPreviewUrls" :initial-index="index" />
+                  <button type="button" class="photo-remove" title="删除" @click.stop="removeAddImage(index)">
+                    <el-icon :size="12"><Close /></el-icon>
+                  </button>
+                </div>
+                <label v-if="addImages.length < 9" class="edit-photo-add">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/gif,image/webp"
+                    multiple
+                    hidden
+                    :disabled="photoUploading || saveLoading"
+                    @change="onPickAddPhotos"
+                  />
+                  <span>{{ photoUploading ? '上传中…' : '+' }}</span>
+                </label>
+              </div>
+              <div class="photo-tip">最多 9 张，单张不超过 10MB；单条新增与编辑均可附照片</div>
+            </el-form-item>
             <el-form-item class="form-item" size="large">
-              <el-button :disabled="saveLoading" @click="addInfo">保存</el-button>
-              <el-button @click="changeAddContainer">取消</el-button>
+              <el-button :disabled="saveLoading || photoUploading" :loading="saveLoading || photoUploading" @click="addInfo">保存</el-button>
+              <el-button :disabled="saveLoading || photoUploading" @click="changeAddContainer">取消</el-button>
             </el-form-item>
           </el-form>
         </div>
@@ -231,7 +253,7 @@
         </el-form-item>
         <el-form-item class="form-item" size="large" label="照片">
           <div class="edit-photos">
-            <div class="edit-photo" v-for="(img, index) in editImages" :key="img.id">
+            <div class="edit-photo" v-for="(img, index) in editImages" :key="img.id || img.viewUrl">
               <el-image :src="img.viewUrl" fit="cover" :preview-src-list="editPreviewUrls" :initial-index="index" />
               <button type="button" class="photo-remove" title="删除" @click.stop="removeEditImage(index)">
                 <el-icon :size="12"><Close /></el-icon>
@@ -249,13 +271,13 @@
               <span>{{ photoUploading ? '上传中…' : '+' }}</span>
             </label>
           </div>
-          <div class="photo-tip">最多 9 张，单张不超过 10MB；新记一笔不能附照片</div>
+          <div class="photo-tip">最多 9 张，单张不超过 10MB；单条新增与编辑均可附照片</div>
         </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
           <el-button size="large" :loading="btnLoading || photoUploading" type="primary" @click="submitEditTransaction">确定</el-button>
-          <el-button size="large" :disabled="btnLoading || photoUploading" @click="editDialog = false">取消</el-button>
+          <el-button size="large" :disabled="btnLoading || photoUploading" @click="closeEditDialog">取消</el-button>
         </div>
       </template>
     </el-dialog>
@@ -369,15 +391,19 @@ const {
   onEditBelongChange,
   editIncomeBelong,
   editImages,
+  addImages,
   showDeleteDialog,
   showEditDialog,
+  closeEditDialog,
   submitDeleteTransaction,
   submitEditTransaction,
   addInfo,
   batchAdd,
   changeAddContainer,
   removeEditImage,
+  removeAddImage,
   addEditImages,
+  addAddImages,
 } = useAddEdit({ search, type })
 
 const { parseBatch, loading } = useParse(costTypes)
@@ -386,6 +412,7 @@ const previewVisible = ref(false)
 const previewUrls = ref<string[]>([])
 const previewIndex = ref(0)
 const editPreviewUrls = computed(() => editImages.value.map((img) => img.viewUrl))
+const addPreviewUrls = computed(() => addImages.value.map((img) => img.viewUrl))
 
 /** 时间线打开照片预览（账本成员均可看，不进入编辑） */
 const previewImages = (detail: Information) => {
@@ -397,10 +424,17 @@ const previewImages = (detail: Information) => {
   previewVisible.value = true
 }
 
-const onPickEditPhotos = async (e: Event) => {
+const onPickEditPhotos = (e: Event) => {
   const input = e.target as HTMLInputElement
   if (!input.files || !input.files.length) return
-  await addEditImages(input.files)
+  addEditImages(input.files)
+  input.value = ''
+}
+
+const onPickAddPhotos = (e: Event) => {
+  const input = e.target as HTMLInputElement
+  if (!input.files || !input.files.length) return
+  addAddImages(input.files)
   input.value = ''
 }
 
@@ -745,62 +779,70 @@ const handleBatchSave = async () => {
       width: 310px;
     }
   }
-  .edit-photos {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 310px;
-  }
-  .edit-photo {
-    position: relative;
+}
+/* 新增表单与编辑弹窗共用照片区样式 */
+.edit-photos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 310px;
+}
+.edit-photo {
+  position: relative;
+  width: 72px;
+  height: 72px;
+  .el-image {
     width: 72px;
     height: 72px;
-    .el-image {
-      width: 72px;
-      height: 72px;
-      border-radius: 4px;
-    }
-    .photo-remove {
-      position: absolute;
-      top: 0;
-      right: 0;
-      z-index: 2;
-      width: 20px;
-      height: 20px;
-      padding: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border: none;
-      border-radius: 0 4px 0 6px;
-      color: #fff;
-      background: rgba(0, 0, 0, 0.5);
-      cursor: pointer;
-      line-height: 1;
-      &:hover {
-        background: rgba(0, 0, 0, 0.7);
-      }
-    }
+    border-radius: 4px;
   }
-  .edit-photo-add {
-    width: 72px;
-    height: 72px;
+  .photo-remove {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    width: 20px;
+    height: 20px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 1px dashed #c0c4cc;
-    border-radius: 4px;
-    color: #909399;
-    font-size: 28px;
+    border: none;
+    border-radius: 0 4px 0 6px;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.5);
     cursor: pointer;
-    user-select: none;
+    line-height: 1;
+    &:hover {
+      background: rgba(0, 0, 0, 0.7);
+    }
   }
-  .photo-tip {
-    margin-top: 6px;
-    color: #999;
-    font-size: 12px;
-    line-height: 1.4;
+}
+.edit-photo-add {
+  box-sizing: border-box;
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #c0c4cc;
+  border-radius: 4px;
+  color: #909399;
+  background: #fafafa;
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+  &:hover {
+    border-color: #409eff;
+    color: #409eff;
   }
+}
+.photo-tip {
+  margin-top: 6px;
+  color: #999;
+  font-size: 12px;
+  line-height: 1.4;
 }
 .batch-parse-dialog {
   width: 960px;

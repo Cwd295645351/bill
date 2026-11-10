@@ -1,9 +1,20 @@
 /** 明细类型，1=支出；2=收入 */
 export type InformationType = 1 | 2
 
-/** 记账照片 */
+/** 记账照片（列表/接口已挂接） */
 export interface RecordImage {
   id: string
+  sort: number
+  viewUrl: string
+}
+
+/**
+ * PC 新增/编辑表单中的照片草稿。
+ * 已挂接原图有 id；新选本地文件有 file，保存时再上传。
+ */
+export interface PhotoDraft {
+  id?: string
+  file?: File
   sort: number
   viewUrl: string
 }

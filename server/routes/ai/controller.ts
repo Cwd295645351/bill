@@ -1,8 +1,8 @@
-import type { Row } from '../../types/domain'
-import * as AI_CONFIG from '../../config/ai'
+import type { AiErrorCategory } from '../../utils/ai'
+import { AiClientError, chatCompletions, DEFAULT_TIMEOUT_MS, messageFor } from '../../utils/ai'
 
 /** 批量解析可能含多行文本，与 Nginx proxy_read_timeout 对齐为 5 分钟 */
-const REQUEST_TIMEOUT = 5 * 60 * 1000
+const REQUEST_TIMEOUT = DEFAULT_TIMEOUT_MS
 
 /** 获取东八区当前日期 */
 const getCurrentDate = () => {
@@ -99,50 +99,62 @@ ${JSON.stringify(costTypes)}
 `.trim()
 }
 
-/** 调用 OpenAI Chat Completions 兼容接口批量解析支出记录 */
-const parseBatch = async (lines: string[], costTypes: { id?: string; name?: string }[]) => {
-  if (!AI_CONFIG.apiKey) {
-    return ['AI 服务未配置，请联系管理员', null]
-  }
+type ParseBatchSuccess = {
+  ok: true
+  data: { index: number; costTypeId: string; costTypeName: string; money: number; date: string }[]
+  usage: unknown
+  errorCategory: 'none'
+  upstreamRequested: true
+}
 
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+type ParseBatchFailure = {
+  ok: false
+  message: string
+  usage: unknown
+  errorCategory: AiErrorCategory
+  upstreamRequested: boolean
+}
 
+type ParseBatchOutcome = ParseBatchSuccess | ParseBatchFailure
+
+/**
+ * 经统一 AiClient 调用上游批量解析支出记录。
+ * 调用方须已完成未配置检测与日额度占用；本函数假定将请求上游。
+ */
+const parseBatch = async (lines: string[], costTypes: { id?: string; name?: string }[]): Promise<ParseBatchOutcome> => {
   try {
-    const response = await fetch(`${AI_CONFIG.baseURL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${AI_CONFIG.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: AI_CONFIG.model,
-        messages: [{ role: 'user', content: buildBatchPrompt(lines, costTypes) }],
-        stream: false
-      }),
-      signal: controller.signal
+    const { content, usage } = await chatCompletions({
+      messages: [{ role: 'user', content: buildBatchPrompt(lines, costTypes) }],
+      timeoutMs: REQUEST_TIMEOUT
     })
-
-    if (!response.ok) {
-      const errorBody = await response.text().catch(() => '')
-      console.error(`AI 服务请求失败，HTTP 状态码：${response.status}`, errorBody.slice(0, 300))
-      return [`AI 服务请求失败（${response.status}）`, null]
-    }
-
-    const result = (await response.json()) as { choices?: { message?: { content?: string } }[] }
-    const content = result.choices?.[0]?.message?.content
     const parsed = parseModelResponse(content)
-    return [null, normalizeParsedResults(parsed, lines, costTypes)]
+    return {
+      ok: true,
+      data: normalizeParsedResults(parsed, lines, costTypes),
+      usage,
+      errorCategory: 'none',
+      upstreamRequested: true
+    }
   } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'AbortError') {
-      console.error(`AI 服务请求超时（${REQUEST_TIMEOUT / 1000}s）`)
-      return ['AI 服务请求超时，请稍后重试', null]
+    if (err instanceof AiClientError) {
+      return {
+        ok: false,
+        message: err.message,
+        usage: null,
+        errorCategory: err.category,
+        upstreamRequested: err.category !== 'not_configured'
+      }
     }
     console.error('批量 AI 解析失败：', err instanceof Error ? err.message : err)
-    return ['AI 解析失败，请稍后重试', null]
-  } finally {
-    clearTimeout(timeout)
+    return {
+      ok: false,
+      message: messageFor('upstream_invalid'),
+      usage: null,
+      errorCategory: 'upstream_invalid',
+      upstreamRequested: true
+    }
   }
 }
 
+export type { ParseBatchOutcome }
 export { parseBatch }

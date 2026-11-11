@@ -1,6 +1,8 @@
 import type { CostType } from '@/types/bill'
 import { ref, type Ref } from 'vue'
 import dayjs from 'dayjs'
+import { storeToRefs } from 'pinia'
+import { useBillStore } from '@/store'
 import { parseBatchTransactions } from '../api'
 
 interface ParsedItem {
@@ -12,6 +14,7 @@ interface ParsedItem {
 
 export const useParse = (costTypes: Ref<CostType[]>) => {
   const loading = ref(false)
+  const { bill } = storeToRefs(useBillStore())
 
   /** 批量解析：由后端代理调用 AI 服务 */
   const parseBatch = async (text: string) => {
@@ -33,8 +36,13 @@ export const useParse = (costTypes: Ref<CostType[]>) => {
 
     loading.value = true
     try {
+      const billId = bill.value?.id
       const [requestError, response] = await parseBatchTransactions({
-        data: { text, costTypes: costTypes.value },
+        data: {
+          text,
+          costTypes: costTypes.value,
+          ...(billId ? { billId } : {}),
+        },
       })
       if (requestError || response?.retCode !== 0 || !Array.isArray(response?.data)) {
         ElMessage.error(response?.message || '批量解析失败')

@@ -1,71 +1,67 @@
-# Implementation Plan: [FEATURE]
+# 实现计划：[功能名称]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**功能分支**: `[###-feature-name]` | **日期**: [DATE] | **规格**: [link]
 
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**输入**: `/specs/[###-feature-name]/spec.md` 中的功能规格
 
-**Note**: This template is filled in by the `__SPECKIT_COMMAND_PLAN__` command; its definition describes the execution workflow.
+**说明**: 本模板由 `/speckit-plan` 填写；其定义描述执行工作流。
 
-## Summary
+## 摘要
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[从功能规格提取：主要需求 + 来自研究的技术路径]
 
-## Technical Context
+## 技术上下文
 
 <!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
+  请将本节替换为本项目的技术细节。下列结构仅作引导。
 -->
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
+**语言/版本**: [例如 TypeScript / Node.js，或写「待澄清」]
 
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
+**主要依赖**: [例如 Koa、Vue 3，或写「待澄清」]
 
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]
+**存储**: [若适用，例如 MySQL、Redis、文件，或不适用]
 
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**测试**: [例如手工验收 / 既有测试约定，或写「待澄清」]
 
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**目标平台**: [例如 Linux 服务端、电脑网页 `/pc/`，或写「待澄清」]
 
-**Project Type**: [e.g., library/cli/web-service/mobile-app/compiler/desktop-app or NEEDS CLARIFICATION]
+**项目类型**: [例如 monorepo 增量 / Web 服务，或写「待澄清」]
 
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]
+**性能目标**: [领域相关，或写「待澄清」]
 
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]
+**约束**: [领域相关，或写「待澄清」]
 
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**规模/范围**: [领域相关，或写「待澄清」]
 
-## Constitution Check
+## 宪章检查
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*门禁：须在阶段 0 研究前通过；阶段 1 设计后再复核一次。*
 
-[Gates determined based on constitution file]
+[依据 constitution 文件填写门禁]
 
-## Project Structure
+## 项目结构
 
-### Documentation (this feature)
+### 文档（本功能）
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (__SPECKIT_COMMAND_PLAN__ command output)
-├── research.md          # Phase 0 output (__SPECKIT_COMMAND_PLAN__ command)
-├── data-model.md        # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
-├── quickstart.md        # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
-├── contracts/           # Phase 1 output (__SPECKIT_COMMAND_PLAN__ command)
-└── tasks.md             # Phase 2 output (__SPECKIT_COMMAND_TASKS__ command - NOT created by __SPECKIT_COMMAND_PLAN__)
+├── plan.md              # 本文件（/speckit-plan 输出）
+├── research.md          # 阶段 0 输出
+├── data-model.md        # 阶段 1 输出
+├── quickstart.md        # 阶段 1 输出
+├── contracts/           # 阶段 1 输出
+└── tasks.md             # 阶段 2 输出（/speckit-tasks；本命令不创建）
 ```
 
-### Source Code (repository root)
+### 源码（仓库根）
+
 <!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
+  请将下列占位树替换为本功能的真实目录；删除未用选项，交付的计划中不得保留「选项」字样。
 -->
 
 ```text
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
+# ［未用则删］选项 1：单项目（默认）
 src/
 ├── models/
 ├── services/
@@ -77,7 +73,7 @@ tests/
 ├── integration/
 └── unit/
 
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+# ［未用则删］选项 2：前后端分离（检测到 frontend + backend）
 backend/
 ├── src/
 │   ├── models/
@@ -92,22 +88,21 @@ frontend/
 │   └── services/
 └── tests/
 
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+# ［未用则删］选项 3：移动端 + API
 api/
-└── [same as backend above]
+└── [同 backend]
 
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+ios/ 或 android/
+└── [平台目录]
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**结构决策**: [说明所选结构，并引用上方真实目录]
 
-## Complexity Tracking
+## 复杂度跟踪
 
-> **Fill ONLY if Constitution Check has violations that must be justified**
+> **仅当宪章检查存在必须正当化的违规时填写**
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+| 违规项 | 为何需要 | 更简单方案及否决原因 |
+|--------|----------|----------------------|
+| [例如第 4 个工程] | [当前需求] | [为何 3 个不够] |
+| [例如仓储模式] | [具体问题] | [为何不能直连数据访问] |

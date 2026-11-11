@@ -144,40 +144,40 @@ Given that feature description, do this:
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
-      # Specification Quality Checklist: [FEATURE NAME]
+      # 规格质量清单：[功能名称]
 
-      **Purpose**: Validate specification completeness and quality before proceeding to planning
-      **Created**: [DATE]
-      **Feature**: [Link to spec.md]
+      **目的**: 在进入规划前，校验规格完整性与质量
+      **创建日期**: [DATE]
+      **功能**: [指向 spec.md 的链接]
 
-      ## Content Quality
+      ## 内容质量
 
-      - [ ] No implementation details (languages, frameworks, APIs)
-      - [ ] Focused on user value and business needs
-      - [ ] Written for non-technical stakeholders
-      - [ ] All mandatory sections completed
+      - [ ] 无实现细节（语言、框架、API）
+      - [ ] 聚焦用户价值与业务需要
+      - [ ] 面向非技术干系人可读
+      - [ ] 所有必填章节已完成
 
-      ## Requirement Completeness
+      ## 需求完整性
 
-      - [ ] No [NEEDS CLARIFICATION] markers remain
-      - [ ] Requirements are testable and unambiguous
-      - [ ] Success criteria are measurable
-      - [ ] Success criteria are technology-agnostic (no implementation details)
-      - [ ] All acceptance scenarios are defined
-      - [ ] Edge cases are identified
-      - [ ] Scope is clearly bounded
-      - [ ] Dependencies and assumptions identified
+      - [ ] 无残留 `[NEEDS CLARIFICATION]` 标记
+      - [ ] 需求可测试且无歧义
+      - [ ] 成功标准可度量
+      - [ ] 成功标准与具体技术无关（无实现细节）
+      - [ ] 已定义全部验收场景
+      - [ ] 已识别边界情况
+      - [ ] 范围边界清晰
+      - [ ] 已标明依赖与假设
 
-      ## Feature Readiness
+      ## 功能就绪度
 
-      - [ ] All functional requirements have clear acceptance criteria
-      - [ ] User scenarios cover primary flows
-      - [ ] Feature meets measurable outcomes defined in Success Criteria
-      - [ ] No implementation details leak into specification
+      - [ ] 全部功能需求有明确验收标准
+      - [ ] 用户场景覆盖主流程
+      - [ ] 功能满足成功标准中的可度量结果
+      - [ ] 规格中未泄漏实现细节
 
-      ## Notes
+      ## 备注
 
-      - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
+      - 未通过项须先改规格，再进入 `/speckit-clarify` 或 `/speckit-plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -282,6 +282,7 @@ Report completion to the user with:
 - Avoid HOW to implement (no tech stack, APIs, code structure).
 - Written for business stakeholders, not developers.
 - DO NOT create any checklists that are embedded in the spec. That will be a separate command.
+- **本仓库中文规格**（见 constitution 原则 V 与 `spec-template.md`）：结构标题用中文（功能规格、用户故事、优先级说明、独立测试、验收场景、边界情况、需求、功能需求、关键实体、成功标准、可度量结果、假设、澄清记录、会话）；强制用语「必须 / 不得 / 应当 / 可以」；验收「前提 / 当 / 则」。禁止 `MUST`/`Given`/`User Story`/`Acceptance Scenarios` 等英文结构词。可保留 `FR-001`/`SC-001`/`P1` 与 `[NEEDS CLARIFICATION]`。
 
 ### Section Requirements
 

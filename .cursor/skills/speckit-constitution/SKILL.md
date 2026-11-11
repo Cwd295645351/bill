@@ -105,7 +105,8 @@ Follow this execution flow:
    - Replace every placeholder with concrete text (no bracketed tokens left except intentionally retained template slots that the project has chosen not to define yet—explicitly justify any left).
    - Preserve heading hierarchy and comments can be removed once replaced unless they still add clarifying guidance.
    - Ensure each Principle section: succinct name line, paragraph (or bullet list) capturing non‑negotiable rules, explicit rationale if not obvious.
-   - Ensure Governance section lists amendment procedure, versioning policy, and compliance review expectations.
+   - Ensure 治理（Governance）section lists amendment procedure, versioning policy, and compliance review expectations.
+   - 本仓库宪章模板结构标题须中文：核心原则、治理、版本/批准日期/最近修订（见 `.specify/templates/constitution-template.md` 与 constitution 原则 V）。
 
 4. Produce a Sync Impact Report as an HTML comment at the top of the constitution file after update.
    This report is temporary scratch material for human review of the amendment, not governance

@@ -180,9 +180,9 @@ Execution steps:
 6. Integration after EACH accepted answer (incremental update approach):
     - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
     - For the first integrated answer in this session:
-       - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
-       - Under it, create (if not present) a `### Session YYYY-MM-DD` subheading for today.
-    - Append a bullet line immediately after acceptance: `- Q: <question> → A: <final answer>`.
+       - Ensure a `## 澄清记录` section exists (create it just after the highest-level contextual/overview section per the spec template if missing). If an older `## Clarifications` section exists, rename it to `## 澄清记录` on first write in this session.
+       - Under it, create (if not present) a `### 会话 YYYY-MM-DD` subheading for today (rename legacy `### Session YYYY-MM-DD` if present).
+    - Append a bullet line immediately after acceptance: `- 问：<question> → 答：<final answer>`（兼容旧格式 `- Q: … → A: …` 的已有条目，新写入一律用中文）。
     - Then immediately apply the clarification to the most appropriate section(s):
        - Functional ambiguity → Update or add a bullet in Functional Requirements.
        - User interaction / actor distinction → Update User Stories or Actors subsection (if present) with clarified role, constraint, or scenario.
@@ -196,12 +196,13 @@ Execution steps:
     - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
 7. Validation (performed after EACH write plus final pass):
-   - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
+   - 澄清记录会话 contains exactly one bullet per accepted answer (no duplicates).
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
    - No contradictory earlier statement remains (scan for now-invalid alternative choices removed).
-   - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
+   - Markdown structure valid; only allowed new headings for this workflow: `## 澄清记录`, `### 会话 YYYY-MM-DD`（兼容迁移旧的 Clarifications / Session）.
    - Terminology consistency: same canonical term used across all updated sections.
+   - 本仓库规格结构标题与验收用语须为中文（见 constitution 原则 V）：用户故事 / 优先级说明 / 独立测试 / 前提·当·则 等。
 
 8. Write the updated spec back to `FEATURE_SPEC`.
 

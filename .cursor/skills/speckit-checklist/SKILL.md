@@ -257,7 +257,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - ✅ "Are [edge cases/scenarios] addressed in requirements?"
    - ✅ "Does the spec define [missing aspect]?"
 
-7. **Structure Reference**: Generate the checklist following the canonical template in `.specify/templates/checklist-template.md` for title, meta section, category headings, ownership note, notes section, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, an ownership note explaining that `[x]` means reviewer approval of requirements quality, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001, and notes that `/speckit-implement` reads checklist state but does not modify markers.
+7. **Structure Reference**: Generate the checklist following the canonical template in `.specify/templates/checklist-template.md` for title, meta section, category headings, ownership note, notes section, and ID formatting. 本仓库结构标题须中文：目的、创建日期、功能、说明、评审归属、标记含义、类别、备注（见 constitution 原则 V）。If template is unavailable, use: 中文 H1 标题，目的/创建日期 元信息，评审归属说明（`[x]` 表示需求质量已通过评审），`##` 类别小节含 `- [ ] CHK### <条目>`（ID 自 CHK001 递增），以及备注说明 `/speckit-implement` 读取勾选状态但不改标记。
 
 8. **Report**: Output full path to checklist file, item count, and summarize whether the run created a new file or appended to an existing one. Summarize:
    - Focus areas selected

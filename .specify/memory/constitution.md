@@ -1,23 +1,25 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 3.1.0 → 3.2.0
-Bump rationale: MINOR。原则 II 将「计划」从仅 PC 提升为 PC + mobile-h5 + 小程序
-  均可管理；概览、类型配置、家庭资产仍以 PC 为准（对齐 specs/019-mobile-plan）。
-  预算三端可管（3.1.0）保持不变。
+Version change: 3.2.0 → 3.3.0
+Bump rationale: MINOR。原则 V 固化「规格与设计文档中文用语」：
+  功能需求用「必须/不得/应当/可以」；验收场景用「前提/当/则」；
+  规格与 plan/research/tasks/清单/宪章模板等结构标题中文化。
 
 Principles amended:
-  II. 多端边界不可混用（预算+计划三端可管；概览/类型/资产仍 PC）
+  V. 密钥与部署约束（规格与设计文档中文用语 / 结构标题）
 
 Added sections: 无
 Removed sections: 无
 
 Templates reviewed for alignment:
-  ✅ .specify/templates/plan-template.md — Constitution Check 仍对照原则 I–V
-  ✅ .specify/templates/spec-template.md — 无需修改
-  ✅ .specify/templates/tasks-template.md — 无需修改
+  ✅ .specify/templates/spec-template.md — 结构与强制用语中文化
+  ✅ .specify/templates/plan-template.md — 结构标题中文化
+  ✅ .specify/templates/tasks-template.md — 结构标题中文化
+  ✅ .specify/templates/constitution-template.md — 结构标题中文化
+  ✅ .specify/templates/checklist-template.md — 结构标题中文化
 
-Follow-up TODOs: 交付时同步 docs/用户手册.md（specs/019 T023）
+Follow-up TODOs: 无
 -->
 
 # 记亿由薪 Constitution
@@ -94,8 +96,13 @@ Follow-up TODOs: 交付时同步 docs/用户手册.md（specs/019 T023）
 - 小程序 `project.config.json` 的正式 `appid` 可按发布环境修改，但不要把密钥或生产接口地址写入可提交源码。
 - 生产启动与 Nginx 配置遵循 `deploy/README.md`、`deploy/linux.md`、`deploy/windows.md`；小程序发布步骤见 `deploy/README.md`「微信小程序」。
 - 代码标识符使用英文；注释、规格、手册使用简体中文。
+- 规格「功能需求」中的强制性用语使用「必须 / 不得 / 应当 / 可以」，**不得**使用 `MUST` / `MUST NOT` / `SHOULD` / `MAY` 等英文关键字（专有名词、接口路径、环境变量名除外）。
+- 规格「验收场景」使用「前提 / 当 / 则」，**不得**使用 `Given` / `When` / `Then`。
+- 规格结构标题使用中文：功能规格、功能分支、创建日期、状态、输入、澄清记录、会话、用户场景与测试、用户故事、优先级、优先级说明、独立测试、验收场景、边界情况、需求、功能需求、关键实体、成功标准、可度量结果、假设。
+- 设计文档结构标题使用中文：实现计划（摘要、技术上下文、宪章检查、项目结构、复杂度跟踪）、研究记录（决策、理由、备选方案）、数据模型、快速验收、契约、任务列表（阶段、目的、目标、独立测试、检查点、依赖与执行顺序、实施策略、备注）。
+- 宪章模板与自定义清单模板结构标题使用中文：核心原则、治理、版本/批准日期/最近修订；清单的目的、创建日期、功能、说明、评审归属、标记含义、类别、备注。编号标识（如 `FR-001`、`SC-001`、`P1`、`T001`、`CHK001`、`[US1]`、`[P]`）与 `[NEEDS CLARIFICATION]` 标记可保留以便工具识别。
 
-**理由：** 密钥泄漏和部署路径漂移是本项目最贵的运维事故。
+**理由：** 密钥泄漏和部署路径漂移是本项目最贵的运维事故；规格与设计文档中英混排会降低评审可读性并与「规格/文档用中文」冲突。
 
 ## 技术栈与模块落点
 
@@ -124,4 +131,4 @@ Follow-up TODOs: 交付时同步 docs/用户手册.md（specs/019 T023）
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 3.2.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-10
+**Version**: 3.3.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-11

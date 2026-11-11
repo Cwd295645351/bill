@@ -1,0 +1,30 @@
+---
+description: specs 下规格与计划/研究/任务文档结构标题与强制用语中文化
+globs: specs/**/{spec,plan,research,data-model,quickstart,tasks}.md
+alwaysApply: false
+---
+
+# 规格与设计文档中文用语
+
+撰写或修改 `specs/` 下文档时：
+
+## 规格 `spec.md`
+
+- 结构标题：功能规格、用户故事、优先级说明、独立测试、验收场景、边界情况、需求、功能需求、关键实体、成功标准、可度量结果、假设、澄清记录、会话
+- 强制用语：**必须 / 不得 / 应当 / 可以**（禁止 `MUST` 等）
+- 验收场景：**前提 / 当 / 则**（禁止 `Given` / `When` / `Then`）
+
+## 计划 / 研究 / 任务等
+
+- `plan.md`：实现计划、摘要、技术上下文、宪章检查、项目结构、复杂度跟踪…
+- `research.md`：研究记录；条目用 **决策 / 理由 / 备选方案**（禁止 Decision/Rationale/Alternatives considered 作标题）
+- `tasks.md`：任务列表、阶段、目的、目标、独立测试、检查点、依赖与执行顺序、实施策略、备注
+- `data-model.md` / `quickstart.md` / `contracts/*.md`：数据模型、快速验收、契约
+- 模板：`constitution-template.md`（核心原则、治理、版本…）、`checklist-template.md`（目的、创建日期、评审归属、标记含义、备注…）
+
+## 可保留英文
+
+- `FR-001` / `SC-001` / `P1` / `T001` / `CHK001` / `[US1]` / `[P]`、`[NEEDS CLARIFICATION]`
+- 专有名词、路径、环境变量名
+
+以 `.specify/memory/constitution.md` 原则 V 与 `.specify/templates/` 为准

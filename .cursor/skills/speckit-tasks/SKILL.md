@@ -74,16 +74,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 4. **Generate tasks.md**: Use TASKS_TEMPLATE_CONTENT (from the JSON output above) as the structure. For compatibility with older setup scripts that omit TASKS_TEMPLATE_CONTENT, read TASKS_TEMPLATE instead. Fill with:
    - Correct feature name from plan.md
-   - Phase 1: Setup tasks (project initialization)
-   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
-   - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-   - Final Phase: Polish & cross-cutting concerns
+   - 阶段 1：准备（共享基础设施）
+   - 阶段 2：基础能力（阻塞性前置）
+   - 阶段 3+：按 spec.md 优先级每个用户故事一阶段
+   - 每阶段含：目标、独立测试、测试（若规格要求）、实现任务；检查点用中文
+   - 最后阶段：打磨与横切
    - All tasks must follow the strict checklist format (see Task Generation Rules below)
    - Clear file paths for each task
-   - Dependencies section showing story completion order
-   - Parallel execution examples per story
-   - Implementation strategy section (MVP first, incremental delivery)
+   - 「依赖与执行顺序」「实施策略」等结构标题须中文（见 constitution 原则 V 与 `tasks-template.md`）
+   - 可保留任务编号 `T001`、并行标记 `[P]`、故事标记 `[US1]`
 
 ## Mandatory Post-Execution Hooks
 

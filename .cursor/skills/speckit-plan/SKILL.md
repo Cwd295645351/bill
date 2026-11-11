@@ -58,12 +58,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **Load context**: Read FEATURE_SPEC and `.specify/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
-   - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
-   - Fill Constitution Check section from constitution
+   - Fill 技术上下文 (mark unknowns as "NEEDS CLARIFICATION" / 待澄清)
+   - Fill 宪章检查 section from constitution
    - Evaluate gates (ERROR if violations unjustified)
-   - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
-   - Phase 1: Generate data-model.md, contracts/, quickstart.md
-   - Re-evaluate Constitution Check post-design
+   - 阶段 0: Generate research.md（研究记录；决策/理由/备选方案）
+   - 阶段 1: Generate data-model.md（数据模型）、contracts/（契约）、quickstart.md（快速验收）
+   - Re-evaluate 宪章检查 post-design
+   - 本仓库 plan/research 等结构标题须中文（见 constitution 原则 V）
 
 ## Mandatory Post-Execution Hooks
 
@@ -122,12 +123,15 @@ Command ends after Phase 1 design. Report branch, IMPL_PLAN path, and generated 
      Task: "Find best practices for {tech} in {domain}"
    ```
 
-3. **Consolidate findings** in `research.md` using format:
-   - Decision: [what was chosen]
-   - Rationale: [why chosen]
-   - Alternatives considered: [what else evaluated]
+3. **Consolidate findings** in `research.md` using format（本仓库中文标题）:
+   - **决策**: [what was chosen]
+   - **理由**: [why chosen]
+   - **备选方案**: [what else evaluated]
+   - 文档主标题用「研究记录：…」；元信息用「功能分支 / 日期」
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
+
+本仓库 `plan.md` 结构标题须中文（实现计划、摘要、技术上下文、宪章检查、项目结构、复杂度跟踪等），见 constitution 原则 V 与 `plan-template.md`。
 
 ### Phase 1: Design & Contracts
 

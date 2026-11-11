@@ -1,50 +1,50 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# [项目名称] 宪章
+<!-- 示例：记亿由薪 Constitution、某产品宪章 等 -->
 
-## Core Principles
+## 核心原则
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### [原则_1_名称]
+<!-- 示例：I. 存量优先，增量规格化 -->
+[原则_1_描述]
+<!-- 示例：规格描述本次要交付的行为变化；现有代码仅作实现上下文；禁止无边界重构 -->
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### [原则_2_名称]
+<!-- 示例：II. 多端边界不可混用 -->
+[原则_2_描述]
+<!-- 示例：必须保留现有客户端分工；规格须写明改哪一端；未点名的端默认不改 -->
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### [原则_3_名称]
+<!-- 示例：III. 账本隔离与记账权限 -->
+[原则_3_描述]
+<!-- 示例：账本为数据隔离单位；记账人不可改；归属人规则不得削弱 -->
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### [原则_4_名称]
+<!-- 示例：IV. 公开契约向后兼容 -->
+[原则_4_描述]
+<!-- 示例：对外 HTTP 契约变更须向后兼容；优先新增可选字段；数据库变更须可回滚 -->
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### [原则_5_名称]
+<!-- 示例：V. 密钥与部署约束；文档中文用语 -->
+[原则_5_描述]
+<!-- 示例：密钥不得进仓库；注释/规格/手册用简体中文；规格结构标题与强制用语中文化 -->
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## [章节_2_名称]
+<!-- 示例：技术栈与模块落点、安全要求、性能标准 等 -->
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+[章节_2_内容]
+<!-- 示例：技术栈要求、合规标准、部署策略 等 -->
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## [章节_3_名称]
+<!-- 示例：规格驱动工作流、评审流程、质量门禁 等 -->
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+[章节_3_内容]
+<!-- 示例：Code Review 要求、测试门禁、发布审批流程 等 -->
 
-## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
+## 治理
+<!-- 示例：宪章优先于临时约定；修改原则须先改本文件并升版本 -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+[治理规则]
+<!-- 示例：PR/评审须核对合规；复杂度须由用户价值证明；运行时开发指引见 [指导文件] -->
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+**版本**: [宪章版本] | **批准日期**: [批准日期] | **最近修订**: [最近修订日期]
+<!-- 示例：版本: 3.3.0 | 批准日期: 2026-09-15 | 最近修订: 2026-11-11 -->

@@ -63,6 +63,9 @@ declare module 'koa-redis' {
     get(key: string): Promise<string | null>
     set(key: string, value: string, mode: string, ttl: number): Promise<unknown>
     del(key: string): Promise<unknown>
+    incr(key: string): Promise<number>
+    decr(key: string): Promise<number>
+    expire(key: string, seconds: number): Promise<number>
   }
   interface RedisStore {
     client: RedisClient

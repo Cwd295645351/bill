@@ -1,0 +1,359 @@
+import type { Row, WhereBag } from '../../types/domain'
+import { Asset, AssetRecord, Member } from '../../database/index'
+import { Op } from 'sequelize'
+import { getRecentRecordsGrouped, placeRecordDate, recomputeLatestAmount } from './record-service'
+import { getBillRates, toCny } from './fx'
+
+const CURRENCIES = ['CNY', 'HKD', 'USD']
+const CHANNELS = [
+  '微信', '支付宝', '平安银行', '中国银行', '招商银行', '建设银行', '中信银行',
+  '交通银行', '微众银行', '广发银行', '兴业银行', '且慢', '众安', '股票', '固定资产', '公积金', '未知'
+]
+const TURNAROUND_CYCLES = ['T+0', 'T+1', '长期', '不可提现']
+
+/** 币种只允许人民币、港币、美元。空值用默认值 */
+const readCurrency = (value: unknown, fallback: string): [string, null] | [null, string] => {
+  if (value === undefined || value === null || value === '') return [null, fallback]
+  const code = String(value).toUpperCase()
+  if (!CURRENCIES.includes(code)) return ['币种只能是人民币、港币或美元', null]
+  return [null, code]
+}
+
+const channelName = (value: unknown) => {
+  const channel = String(value || '').trim()
+  return CHANNELS.includes(channel) ? channel : '未知'
+}
+
+/** 渠道和周转周期是资产属性；渠道缺省为未知，周期缺省为 T+0 */
+const readAssetAttributes = (type: unknown, channelValue: unknown, cycleValue: unknown): [string, null] | [null, { channel: string | null; turnaroundCycle: string }] => {
+  if (type === 'debt') return [null, { channel: null, turnaroundCycle: 'T+0' }]
+  const channel = channelValue == null ? '' : String(channelValue).trim()
+  if (channel && !CHANNELS.includes(channel)) return ['渠道不在可选范围内', null]
+  const cycle = cycleValue == null || cycleValue === '' ? 'T+0' : String(cycleValue)
+  if (!TURNAROUND_CYCLES.includes(cycle)) return ['周转周期只能是T+0、T+1、长期或不可提现', null]
+  return [null, { channel: channel || null, turnaroundCycle: cycle }]
+}
+
+/** 年交保费留空表示未填；填写时不能小于 0 */
+const readPremium = (fourMoneyType: unknown, annualPremium: unknown): [string, null] | [null, true] => {
+  if (fourMoneyType !== 'insurance') return [null, true]
+  if (annualPremium === undefined || annualPremium === null || annualPremium === '') return [null, true]
+  const premium = Number(annualPremium)
+  if (!Number.isFinite(premium) || premium < 0) return ['年交保费不能小于0', null]
+  return [null, true]
+}
+
+/** 金额允许为 0。空值和非法值分开提示 */
+const readNonNegativeAmount = (value: unknown, emptyMessage: string, invalidMessage: string): [string, null] | [null, number] => {
+  if (value === undefined || value === null || value === '') return [emptyMessage, null]
+  const amount = Number(value)
+  if (!Number.isFinite(amount) || amount < 0) return [invalidMessage, null]
+  return [null, amount]
+}
+
+/** 非保险分类不保留险种和年交保费 */
+const insurancePatch = (fourMoneyType: unknown, insuranceCategory: unknown, annualPremium: unknown) => {
+  if (fourMoneyType !== 'insurance') return { insuranceCategory: null, annualPremium: null }
+  const premium = annualPremium === undefined || annualPremium === null || annualPremium === '' ? null : Number(annualPremium)
+  return {
+    insuranceCategory: insuranceCategory ? String(insuranceCategory) : null,
+    annualPremium: premium != null && Number.isFinite(premium) ? premium : null
+  }
+}
+
+/** 获取资产列表
+ * @param {string} billId 账本id
+ * @param {string} memberId 成员id
+ * @param {string} type 资产类型
+ * @param {string} fourMoneyType 四笔钱类型
+ * @returns {Array} [错误信息, 资产列表]
+ */
+export const getAssetList = async ({ billId, memberId, type, fourMoneyType }: Row) => {
+  if (!billId) return ['账本id不能为空', null]
+  const query: WhereBag = { isDel: false }
+  if (memberId) query.memberId = memberId
+  if (billId) query.billId = billId
+  if (type) query.type = type
+  if (fourMoneyType) query.fourMoneyType = fourMoneyType
+
+  const res = await Asset.findAll({
+    where: query,
+    order: [['id', 'DESC']],
+    include: [{ model: Member, as: 'member' }]
+  })
+  return [null, res]
+}
+
+/** 创建资产
+ * @param {string} name 资产名称
+ * @param {string} billId 账本id
+ * @param {string} memberId 成员id
+ * @param {string} type 资产类型
+ * @param {string} fourMoneyType 四笔钱类型
+ * @param {number} latestAmount 最新金额
+ * @param {string} insuranceCategory 保险分类
+ * @param {number} annualPremium 年交保费
+ * @returns {Array} [错误信息, 资产对象]
+ */
+export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency, channel, turnaroundCycle }: Row) => {
+  if (!name) return ['资产名称不能为空', null]
+  if (!billId) return ['账本id不能为空', null]
+  if (!memberId) return ['成员id不能为空', null]
+  if (!type) return ['资产类型不能为空', null]
+  const [currencyErr, currencyCode] = readCurrency(currency, 'CNY')
+  if (currencyErr || !currencyCode) return [currencyErr, null]
+  const [attributeErr, attributes] = readAssetAttributes(type, channel, turnaroundCycle)
+  if (attributeErr || !attributes) return [attributeErr || '资产属性保存失败', null]
+  const moneyType = type === 'debt' ? null : fourMoneyType
+  if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
+  const [premiumErr] = readPremium(moneyType, annualPremium)
+  if (premiumErr) return [premiumErr, null]
+  const [amountErr, amount] = readNonNegativeAmount(latestAmount, '最新金额不能为空', '最新金额必须大于等于0')
+  if (amountErr || amount == null) return [amountErr, null]
+  const member = await Member.findOne({ where: { id: memberId, billId, isDel: false } })
+  if (!member) return ['成员不存在', null]
+  const recordedAt = Date.now()
+  const res = await Asset.create({
+    name,
+    billId,
+    memberId,
+    type,
+    currency: currencyCode,
+    fourMoneyType: moneyType,
+    channel: attributes.channel,
+    turnaroundCycle: attributes.turnaroundCycle,
+    latestAmount: amount,
+    isDebt: type === 'debt',
+    lastUpdatedDate: recordedAt,
+    ...insurancePatch(moneyType, insuranceCategory, annualPremium)
+  })
+  if (res) {
+    await AssetRecord.create({
+      assetId: res.id,
+      amount,
+      date: recordedAt
+    })
+    return [null, res]
+  }
+  return ['创建资产失败', null]
+}
+
+/** 编辑资产
+ * @param {string} id 资产id
+ * @param {string} name 资产名称
+ * @param {string} memberId 成员id
+ * @param {string} type 资产类型
+ * @param {string} fourMoneyType 四笔钱类型
+ * @param {number} latestAmount 最新金额
+ * @param {string} insuranceCategory 保险分类
+ * @param {number} annualPremium 年交保费
+ * @returns {Array} [错误信息, 资产对象]
+ */
+export const editAsset = async ({ id, name, memberId, type, fourMoneyType, latestAmount, insuranceCategory, annualPremium, currency, channel, turnaroundCycle }: Row) => {
+  if (!id) return ['资产id不能为空', null]
+  if (!name) return ['资产名称不能为空', null]
+  if (!memberId) return ['成员id不能为空', null]
+  if (!type) return ['资产类型不能为空', null]
+  const moneyType = type === 'debt' ? null : fourMoneyType
+  if (type !== 'debt' && !moneyType) return ['四笔钱类型不能为空', null]
+  const [premiumErr] = readPremium(moneyType, annualPremium)
+  if (premiumErr) return [premiumErr, null]
+  const [amountErr, amount] = readNonNegativeAmount(latestAmount, '最新金额不能为空', '最新金额必须大于等于0')
+  if (amountErr || amount == null) return [amountErr, null]
+  const current = await Asset.findOne({ where: { id, isDel: false } })
+  if (!current) return ['编辑资产失败，资产可能已被删除', null]
+  if (currency !== undefined && currency !== null && currency !== '' && String(currency).toUpperCase() !== String(current.currency || 'CNY')) {
+    return ['要换币种需删除后重新登记', null]
+  }
+  const [attributeErr, attributes] = readAssetAttributes(type, channel, turnaroundCycle)
+  if (attributeErr || !attributes) return [attributeErr || '资产属性保存失败', null]
+  const member = await Member.findOne({ where: { id: memberId, billId: current.billId, isDel: false } })
+  if (!member) return ['成员不存在', null]
+  const amountChanged = Number(current.latestAmount) !== amount
+  // 本来就是负债、只是在四笔钱卡片里改分类时，保留新的四笔钱。改成负债或新登记的负债则清空
+  const storedMoney = type === 'debt' ? (String(current.type) === 'debt' && fourMoneyType ? fourMoneyType : null) : moneyType
+  const [affected] = await Asset.update(
+    {
+      name,
+      memberId,
+      type,
+      fourMoneyType: storedMoney,
+      channel: attributes.channel,
+      turnaroundCycle: attributes.turnaroundCycle,
+      isDebt: type === 'debt',
+      ...insurancePatch(storedMoney, insuranceCategory, annualPremium)
+    },
+    { where: { id, isDel: false } }
+  )
+  if (!affected) return ['编辑资产失败，资产可能已被删除', null]
+  if (amountChanged) {
+    const date = await placeRecordDate(String(id), Date.now())
+    const recordRes = await AssetRecord.create({ assetId: id, amount, date })
+    if (!recordRes) return ['创建资产记录失败', null]
+    await recomputeLatestAmount(String(id))
+  }
+  const res = await Asset.findByPk(id)
+  return [null, res]
+}
+
+/** 获取资产列表（含变化统计与分类汇总）
+ * 用于资产总览页面，对每项资产补充"上次盘点金额"以计算变化，
+ * 并按资产类型分组，同时返回资产和负债两部分数据。
+ *
+ * @param {string} billId   账本 id（必填）
+ * @param {string} memberId 成员 id（可选，不传则返回全部成员）
+ * @returns {Array} [错误信息, {
+ *   assetAmount: number,               // 资产总额
+ *   debtAmount:  number,               // 负债总额
+ *   netAmount:   number,               // 净资产
+ *   assetGroups: [{                    // 资产分组（流动资金/固定资产/投资理财/应收款）
+ *     type:       string,              // 类型标识（如 living）
+ *     typeName:   string,              // 中文名（如 流动资金）
+ *     amount:     number,              // 该类型合计金额
+ *     change:     number|null,         // 合计变化金额；整组都没有上一次盘点时为空
+ *     changeRate: number|null,         // 合计变化百分比；没有可比的上一次盘点时为空
+ *     percent:    number,              // 占资产总额百分比
+ *     assets: [{                       // 具体资产
+ *       id, name, memberId, memberName,
+ *       fourMoneyType, latestAmount,
+ *       prevAmount,                    // 上一次盘点金额
+ *       change,                        // 变化金额
+ *       changeRate,                    // 变化百分比（null 表示无前值）
+ *       percent                        // 占本组百分比
+ *     }]
+ *   }],
+ *   debtGroups: [{                     // 负债分组（结构同上）
+ *     ...
+ *   }]
+ * }]
+ */
+export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
+  if (!billId) return ['账本id不能为空', null]
+
+  const query: WhereBag = { billId, isDel: false }
+  if (memberId) query.memberId = memberId
+
+  const allAssets = await Asset.findAll({
+    where: query,
+    order: [['type', 'ASC'], ['id', 'DESC']],
+    include: [{ model: Member, as: 'member' }]
+  })
+  if (!allAssets.length) return [null, { assetAmount: 0, debtAmount: 0, netAmount: 0, assetGroups: [], debtGroups: [] }]
+
+  const assetIds = allAssets.map((a: Row) => a.id)
+  const rates = await getBillRates(String(billId))
+  const recentMap = await getRecentRecordsGrouped(assetIds, 2)
+  const prevMap: Record<string, number | null> = {}
+  Object.keys(recentMap).forEach((assetId) => {
+    const list = recentMap[assetId] || []
+    const asset = allAssets.find((item: Row) => item.id === assetId)
+    prevMap[assetId] = list.length >= 2 ? toCny(list[1].amount, asset?.currency, rates) : null
+  })
+
+  const cnyOf = (asset: Row) => toCny(asset.latestAmount, asset.currency, rates)
+
+  // 拆分资产与负债。合计用人民币
+  const assetItems = allAssets.filter((a: Row) => !a.isDebt)
+  const debtItems = allAssets.filter((a: Row) => a.isDebt)
+
+  const assetAmount = assetItems.reduce((sum: number, a: Row) => sum + cnyOf(a), 0)
+  const debtAmount = debtItems.reduce((sum: number, a: Row) => sum + cnyOf(a), 0)
+  const netAmount = Math.round((assetAmount - debtAmount) * 100) / 100
+
+  const typeNameMap: Record<string, string> = {
+    living: '流动资金',
+    steady: '固定资产',
+    longterm: '投资理财',
+    receivable: '应收款',
+    debt: '负债'
+  }
+
+  // 通用分组方法
+  const buildGroups = (items: Row[], totalForPercent: number) => {
+    const groupMap: Record<string, {
+      type: string
+      typeName: string
+      amount: number
+      prevAmount: number
+      change: number
+      hasPrev: boolean
+      assets: Row[]
+    }> = {}
+    items.forEach((asset) => {
+      const key = String(asset.type || '')
+      if (!groupMap[key]) {
+        groupMap[key] = { type: key, typeName: typeNameMap[key] || key, amount: 0, prevAmount: 0, change: 0, hasPrev: false, assets: [] }
+      }
+      const prevNumber = asset.id ? prevMap[asset.id] ?? null : null
+      const current = cnyOf(asset)
+      const rawAmount = Math.abs(Number(asset.latestAmount) || 0)
+      const change = prevNumber !== null ? Math.round((current - prevNumber) * 100) / 100 : null
+
+      groupMap[key].amount += current
+      // 只累加有上一次盘点的资产。较上次看的是这一笔自己的上一条，不用总览截至日
+      if (prevNumber !== null && change !== null) {
+        groupMap[key].prevAmount += prevNumber
+        groupMap[key].change += change
+        groupMap[key].hasPrev = true
+      }
+
+      groupMap[key].assets.push({
+        id: asset.id,
+        name: asset.name,
+        memberId: asset.memberId,
+        memberName: asset.member?.name || '',
+        type: asset.type,
+        fourMoneyType: asset.fourMoneyType,
+        channel: asset.isDebt ? '' : channelName(asset.channel),
+        turnaroundCycle: asset.isDebt ? 'T+0' : asset.turnaroundCycle || 'T+0',
+        currency: asset.currency || 'CNY',
+        rawAmount,
+        latestAmount: current,
+        isDebt: Boolean(asset.isDebt),
+        insuranceCategory: asset.insuranceCategory || '',
+        annualPremium: asset.annualPremium == null ? null : toCny(asset.annualPremium, asset.currency, rates),
+        prevAmount: prevNumber,
+        change,
+        percent: 0
+      })
+    })
+
+    return Object.values(groupMap).map((g) => {
+      const groupChange = g.hasPrev ? Math.round(g.change * 100) / 100 : null
+      return {
+        type: g.type,
+        typeName: g.typeName,
+        amount: Math.round(g.amount * 100) / 100,
+        change: groupChange,
+        percent: totalForPercent > 0 ? g.amount / totalForPercent : 0,
+        assets: g.assets.map((asset) => ({
+          ...asset,
+          percent: g.amount > 0 ? Math.abs(Number(asset.latestAmount) || 0) / g.amount : 0
+        }))
+      }
+    })
+  }
+
+  return [null, {
+    assetAmount,
+    debtAmount,
+    netAmount,
+    assetGroups: buildGroups(assetItems, assetAmount),
+    debtGroups: buildGroups(debtItems, debtAmount)
+  }]
+}
+
+/** 删除资产
+ * @param {string} id 资产id
+ * @returns {Array} [错误信息, 是否成功]
+ */
+export const delAsset = async ({ id }: Row) => {
+  if (!id) return ['资产id不能为空', null]
+  const [affected] = await Asset.update({ isDel: true }, { where: { id, isDel: false } })
+  const res = affected ? await Asset.findByPk(id) : null
+
+  if (!res) return ['删除资产失败，资产可能已被删除', null]
+  // 软删除关联的资产记录
+  await AssetRecord.update({ isDel: true }, { where: { assetId: id, isDel: false } })
+  return [null, true]
+}

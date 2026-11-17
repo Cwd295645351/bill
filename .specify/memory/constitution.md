@@ -1,23 +1,19 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 3.2.0 → 3.3.0
-Bump rationale: MINOR。原则 V 固化「规格与设计文档中文用语」：
-  功能需求用「必须/不得/应当/可以」；验收场景用「前提/当/则」；
-  规格与 plan/research/tasks/清单/宪章模板等结构标题中文化。
+Version change: 3.3.0 → 3.4.0
+Bump rationale: MINOR。技术栈落点改为按业务领域放在 server/modules。
+  路由与业务同居一模块，不再要求入口在 server/routes、业务在 server/database/services。
+  原则 I、原则 IV 的原文未改。
 
 Principles amended:
-  V. 密钥与部署约束（规格与设计文档中文用语 / 结构标题）
+  技术栈与模块落点（目录落点）
 
 Added sections: 无
 Removed sections: 无
 
 Templates reviewed for alignment:
-  ✅ .specify/templates/spec-template.md — 结构与强制用语中文化
-  ✅ .specify/templates/plan-template.md — 结构标题中文化
-  ✅ .specify/templates/tasks-template.md — 结构标题中文化
-  ✅ .specify/templates/constitution-template.md — 结构标题中文化
-  ✅ .specify/templates/checklist-template.md — 结构标题中文化
+  无模板措辞变更。本次只改后端落点。
 
 Follow-up TODOs: 无
 -->
@@ -108,11 +104,11 @@ Follow-up TODOs: 无
 
 规划（`/speckit-plan`）必须复用现有分层，而不是另起炉灶。
 
-- 后端：`server/routes/<模块>` 负责路由，业务放 `server/database/services`。小程序登录/注册绑定走 `server/routes/common` 的 `/wxLogin`、`/wxBind`、`/wxRegister`。
+- 后端按业务领域放在 `server/modules/<领域>`。每个领域的路由与业务同居该目录，对外只通过该目录的 `index.ts`。数据存放 `server/database` 只负责连接、表、启动补表，以及新建账本的默认分类名单。小程序登录/注册绑定走 `server/modules/auth` 的 `/wxLogin`、`/wxBind`、`/wxRegister`。
 - PC 改动落在 `frontend/src/views/<页面>` 及其 `api.ts`。
 - 移动端 H5 改动落在 `mobile-h5/src/`；不得写入已关停的旧 `mobile/`。
 - 小程序改动落在 `miniapp/miniprogram/pages/<页面>`，请求封装放 `miniapp/miniprogram/apis` 与 `utils`。
-- 现有模块：账本（bill）、记账（transaction/record）、类型（billtype）、概览（overview）、预算（budget）、计划（plan）、资产（asset）、AI 解析（ai）、微信绑定（user_wechats）。
+- 现有模块：账本（bill）、记账（transaction）、类型与概览规则（catalog，对外前缀仍是 billtype）、概览（overview）、预算（budget）、计划（plan）、资产（asset）、智能解析（ai）、账号与微信绑定（auth）、账本权限（access，无路由）。
 
 ## 规格驱动工作流
 
@@ -131,4 +127,4 @@ Follow-up TODOs: 无
 - 计划阶段若违反原则，必须在 Constitution Check 中写明理由；无理由则不得进入实现。
 - 复杂度必须被规格中的用户价值证明；禁止「顺便重构」。
 
-**Version**: 3.3.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-11
+**Version**: 3.4.0 | **Ratified**: 2026-09-15 | **Last Amended**: 2026-11-17

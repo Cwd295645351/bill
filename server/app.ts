@@ -36,17 +36,16 @@ try {
 }
 
 const { store: redisSessionStore } = nodeRequire('./utils/redis') as typeof import('./utils/redis')
-const { applyJwtUser } = nodeRequire('./utils/jwtUser') as typeof import('./utils/jwtUser')
 const { connectDB } = nodeRequire('./database/index') as typeof import('./database/index')
-const common = loadDefault<Router>('./routes/common/index')
-const bill = loadDefault<Router>('./routes/bill/index')
-const transaction = loadDefault<Router>('./routes/transaction/index')
-const budget = loadDefault<Router>('./routes/budget/index')
-const overview = loadDefault<Router>('./routes/overview/index')
-const plan = loadDefault<Router>('./routes/plan/index')
-const asset = loadDefault<Router>('./routes/asset/index')
-const billtype = loadDefault<Router>('./routes/billtype/index')
-const ai = loadDefault<Router>('./routes/ai/index')
+const common = loadDefault<Router>('./modules/auth/index')
+const bill = loadDefault<Router>('./modules/bill/index')
+const transaction = loadDefault<Router>('./modules/transaction/index')
+const budget = loadDefault<Router>('./modules/budget/index')
+const overview = loadDefault<Router>('./modules/overview/index')
+const plan = loadDefault<Router>('./modules/plan/index')
+const asset = loadDefault<Router>('./modules/asset/index')
+const billtype = loadDefault<Router>('./modules/catalog/index')
+const ai = loadDefault<Router>('./modules/ai/index')
 
 const app = new Koa()
 const serverRoot = resolveServerRoot(__dirname)
@@ -163,12 +162,6 @@ app.use(
   })
 )
 
-// 以 JWT 内的 userId 覆盖请求头，阻止伪造 userid 访问他人账本
-app.use(async (ctx: Context, next: Next) => {
-  applyJwtUser(ctx)
-  await next()
-})
-
 // 单张照片上限 10MB；超过时由上传接口返回「单张照片不能超过 10MB」
 app.use(
   koaBody({
@@ -192,17 +185,17 @@ app.use(
   })
 )
 
-// 原先把 routes() 和 allowedMethods() 一起传给 use，Koa 只注册第一个
-const mount = (router: Router, allowed = router.allowedMethods()) => {
+// 每个路由同时注册路径和它自己允许的方法，避免用错方法被看成没有这个地址
+const mount = (router: Router) => {
   app.use(router.routes())
-  void allowed
+  app.use(router.allowedMethods())
 }
 
 mount(common)
 mount(bill)
 mount(transaction)
 mount(budget)
-mount(overview, budget.allowedMethods())
+mount(overview)
 mount(plan)
 mount(asset)
 mount(billtype)

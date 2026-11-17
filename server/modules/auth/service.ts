@@ -1,0 +1,372 @@
+import type { Row } from '../../types/domain'
+import type { ViewOrigin } from '../../http/view-origin'
+import { KEYUTIL, KJUR, b64tohex } from 'jsrsasign'
+import { xssData } from '../../utils/xss'
+import { BillUser, Encryption, User, UserWechat } from '../../database/index'
+import { generateRsaKeyPair, ensureEncryptionKey, type EncryptionStore } from '../../database/ensureEncryption'
+import { code2session } from '../../utils/wechat'
+import { createBindTicket, peekBindTicket, consumeBindTicket } from '../../utils/redis'
+
+import { genPassword } from '../../utils/cryp'
+import { resolveAvatarUrl, uploadAvatar as saveAvatarToOss } from './avatar-service'
+
+const USER_ATTRS = ['id', 'nickName', 'avatarUrl', 'incomes', 'expenses']
+
+// 获取登录配置（表为空时自动生成密钥，避免全新部署无法登录）
+const getLoginConfig = async (): Promise<[string | null, { publicKey?: string } | null]> => {
+  try {
+    const res = await ensureEncryptionKey(Encryption as unknown as EncryptionStore)
+    return [null, res as { publicKey?: string } | null]
+  } catch (err: unknown) {
+    console.error(err)
+    return [err instanceof Error ? err.message : '获取登录配置失败', null]
+  }
+}
+
+/** 仅允许环境变量指定的登录用户轮换 RSA 密钥。未配置则拒绝所有人。 */
+const assertAdmin = async (userId: string | null | undefined) => {
+  const adminUsername = process.env.ADMIN_USERNAME
+  if (!adminUsername) return '未配置管理员，拒绝更新密钥'
+  if (!userId) return '请先登录'
+  const user = await User.findByPk(userId, { attributes: ['username'] })
+  if (!user || user.username !== adminUsername) return '非管理员没有权限生成密钥'
+  return null
+}
+
+// 更新密钥
+const updateEncryptionKey = async () => {
+  const { publicKey, privateKey } = generateRsaKeyPair()
+  try {
+    const exist = await Encryption.findOne()
+    if (exist) {
+      await Encryption.update({ publicKey, privateKey }, { where: { id: exist.id } })
+    } else {
+      await Encryption.create({ publicKey, privateKey })
+    }
+    return [null, true]
+  } catch (err: unknown) {
+    console.error(err)
+    return [err, null]
+  }
+}
+
+/** RSA 解密登录密码并校验账号，供密码登录与微信绑定共用 */
+const verifyPassword = async (username: string, password: string) => {
+  try {
+    const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+    if (!keys.length || !keys[0]?.privateKey) {
+      return ['登录密钥未初始化，请联系管理员', null]
+    }
+    // Node.js 22+ 已禁用 crypto.privateDecrypt 的 RSA_PKCS1_PADDING，改用 jsrsasign 与前端保持一致
+    const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+    const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
+    username = xssData(username)
+    const hashedPassword = xssData(genPassword(decryptoPassword))
+    console.log('hashedPassword', hashedPassword)
+    const res = await User.findOne({
+      where: { username, password: hashedPassword },
+      attributes: USER_ATTRS
+    })
+    if (res) return [null, res]
+    return ['账号密码不匹配', null]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '登录失败', null]
+  }
+}
+
+const login = async (username: string, password: string) => verifyPassword(username, password)
+
+const findUserById = async (userId: string | null | undefined) => {
+  return User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+}
+
+/** 小程序静默登录：已绑定直接返回用户，未绑定返回一次性 bindTicket */
+const wxLogin = async (
+  code: string
+): Promise<[string | null, { needBind: true; bindTicket: string } | { needBind: false; user: Row } | null]> => {
+  const [err, session] = await code2session(code)
+  if (err || !session) return [err || '微信登录失败', null]
+  const bind = await UserWechat.findOne({ where: { openid: session.openid } })
+  if (!bind) {
+    const bindTicket = await createBindTicket(session.openid)
+    return [null, { needBind: true, bindTicket }]
+  }
+  const user = await findUserById(bind.userId)
+  if (!user) return ['绑定的账号不存在', null]
+  return [null, { needBind: false, user: user as Row }]
+}
+
+/**
+ * 用账号密码把当前微信绑定到已有用户。
+ * openid 已绑定则直接登录；账号已绑定其他微信则拒绝。
+ */
+const wxBind = async ({
+  bindTicket,
+  username,
+  password
+}: {
+  bindTicket?: string | null
+  username?: string | null
+  password?: string | null
+}) => {
+  const pendingOpenid = await peekBindTicket(bindTicket || '')
+  if (!pendingOpenid) return ['绑定凭证无效或已过期，请重新进入小程序', null]
+
+  const existed = await UserWechat.findOne({ where: { openid: pendingOpenid } })
+  if (existed) {
+    const boundUser = await findUserById(existed.userId)
+    if (!boundUser) return ['绑定的账号不存在', null]
+    await consumeBindTicket(bindTicket || '')
+    return [null, boundUser]
+  }
+
+  if (!username || !password) return ['账号密码不匹配', null]
+  const [err, user] = await verifyPassword(username, password)
+  if (err) return [err, null]
+
+  const byUser = await UserWechat.findOne({ where: { userId: user.id } })
+  if (byUser) return ['该账号已绑定其他微信，请联系管理员', null]
+
+  const openid = await consumeBindTicket(bindTicket || '')
+  if (!openid) return ['绑定凭证无效或已过期，请重新进入小程序', null]
+
+  try {
+    await UserWechat.create({ userId: user.id, openid, unionid: '' })
+  } catch (e: unknown) {
+    console.error(e)
+    const again = await UserWechat.findOne({ where: { openid } })
+    if (again && again.userId === user.id) return [null, user]
+    return ['该账号已绑定其他微信，请联系管理员', null]
+  }
+  return [null, user]
+}
+
+/** 注册 */
+const register = async (
+  username: string,
+  password: string,
+  nickName: string
+): Promise<[string | null, { id: string; username: string; nickName: string } | null]> => {
+  try {
+    const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+    if (!keys.length || !keys[0]?.privateKey) {
+      return ['登录密钥未初始化，请联系管理员', null]
+    }
+    const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+    const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
+
+    username = xssData(username)
+    nickName = xssData(nickName || username)
+
+    // 密码强度校验（解密后的明文校验）
+    if (decryptoPassword.length < 8) {
+      return ['密码至少需要8位', null]
+    }
+    if (!/[a-z]/.test(decryptoPassword)) {
+      return ['密码必须包含小写字母', null]
+    }
+    if (!/[A-Z]/.test(decryptoPassword)) {
+      return ['密码必须包含大写字母', null]
+    }
+    if (!/\d/.test(decryptoPassword)) {
+      return ['密码必须包含数字', null]
+    }
+
+    // 检查用户名是否已存在
+    const exist = await User.findOne({ where: { username } })
+    if (exist) {
+      return ['用户名已存在', null]
+    }
+
+    const hashedPassword = xssData(genPassword(decryptoPassword))
+    const res = await User.create({
+      username,
+      password: hashedPassword,
+      nickName
+    })
+    return [null, { id: res.id, username: res.username, nickName: res.nickName }]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '注册失败', null]
+  }
+}
+
+/**
+ * 小程序注册即绑定：创建账号后把当前 bindTicket 对应微信绑到新账号。
+ * 账号已创建但绑定失败时保留账号，由调用方引导走 wxBind。
+ */
+const wxRegister = async ({
+  bindTicket,
+  username,
+  password,
+  nickName
+}: {
+  bindTicket?: string | null
+  username?: string | null
+  password?: string | null
+  nickName?: string | null
+}): Promise<
+  | { status: 'ok'; user: Row }
+  | { status: 'error'; message: string }
+  | { status: 'createdNeedBind'; message: string; username: string }
+> => {
+  const pendingOpenid = await peekBindTicket(bindTicket || '')
+  if (!pendingOpenid) {
+    return { status: 'error', message: '绑定凭证无效或已过期，请重新进入小程序' }
+  }
+
+  const existed = await UserWechat.findOne({ where: { openid: pendingOpenid } })
+  if (existed) {
+    return { status: 'error', message: '当前微信已绑定账号，请直接进入或重新打开小程序' }
+  }
+
+  if (!username || !password) {
+    return { status: 'error', message: '账号密码不匹配' }
+  }
+
+  const [regErr, created] = await register(username, password, nickName || '')
+  if (!created) {
+    return { status: 'error', message: regErr || '注册失败' }
+  }
+
+  const needBindMsg = '账号已创建但绑定失败，请使用该账号完成绑定'
+  const user = await findUserById(created.id)
+  if (!user) {
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+
+  const openid = await consumeBindTicket(bindTicket || '')
+  if (!openid) {
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+
+  try {
+    await UserWechat.create({ userId: user.id, openid, unionid: '' })
+  } catch (e: unknown) {
+    console.error(e)
+    const again = await UserWechat.findOne({ where: { openid } })
+    if (again && again.userId === user.id) {
+      return { status: 'ok', user: user as Row }
+    }
+    return { status: 'createdNeedBind', message: needBindMsg, username: created.username }
+  }
+  return { status: 'ok', user: user as Row }
+}
+
+
+
+/** 将用户行转为客户端 JSON，并把 avatar objectKey 换成签名 URL */
+const toClientUser = (user: Row | null | undefined, origin?: ViewOrigin | null) => {
+  if (!user) return null
+  const plain = typeof (user as any).toJSON === 'function' ? (user as any).toJSON() : { ...(user as any) }
+  const id = String(plain.id || '')
+  plain.avatarUrl = resolveAvatarUrl(plain.avatarUrl, id, origin)
+  return plain
+}
+
+const decryptPasswordCipher = async (cipherText: string) => {
+  const keys = await Encryption.findAll({ attributes: ['privateKey'], limit: 1 })
+  if (!keys.length || !keys[0]?.privateKey) {
+    throw new Error('登录密钥未初始化，请联系管理员')
+  }
+  const privateKey = KEYUTIL.getKey(keys[0].privateKey)
+  return KJUR.crypto.Cipher.decrypt(b64tohex(String(cipherText)), privateKey, 'RSA')
+}
+
+const assertPasswordStrength = (plain: string) => {
+  if (plain.length < 8) return '密码至少需要8位'
+  if (!/[a-z]/.test(plain)) return '密码必须包含小写字母'
+  if (!/[A-Z]/.test(plain)) return '密码必须包含大写字母'
+  if (!/\d/.test(plain)) return '密码必须包含数字'
+  return null
+}
+
+/** 修改密码：校验旧密码，哈希新密码 */
+const changePassword = async (
+  userId: string | null | undefined,
+  oldPasswordCipher: string,
+  newPasswordCipher: string
+): Promise<[string | null, { requireRelogin: true } | null]> => {
+  if (!userId) return ['请先登录', null]
+  try {
+    const oldPlain = await decryptPasswordCipher(oldPasswordCipher)
+    const newPlain = await decryptPasswordCipher(newPasswordCipher)
+    const strengthErr = assertPasswordStrength(newPlain)
+    if (strengthErr) return [strengthErr, null]
+    if (oldPlain === newPlain) return ['新密码不能与旧密码相同', null]
+
+    const user = await User.findOne({
+      where: { id: userId, isDel: false },
+      attributes: ['id', 'password']
+    })
+    if (!user) return ['用户不存在', null]
+
+    const oldHash = xssData(genPassword(oldPlain))
+    if (String(user.password) !== oldHash) return ['旧密码不正确', null]
+
+    const newHash = xssData(genPassword(newPlain))
+    await User.update({ password: newHash }, { where: { id: userId, isDel: false } })
+    return [null, { requireRelogin: true }]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '修改密码失败', null]
+  }
+}
+
+/** 上传头像并返回富化用户信息 */
+const updateAvatar = async (
+  userId: string | null | undefined,
+  file: { filepath?: string; size?: number } | null | undefined,
+  origin?: ViewOrigin | null
+): Promise<[string | null, Row | null]> => {
+  if (!userId) return ['请先登录', null]
+  const [err] = await saveAvatarToOss({ file, userId })
+  if (err) return [err, null]
+  const user = await User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+  if (!user) return ['用户不存在', null]
+  return [null, toClientUser(user as Row, origin) as Row]
+}
+
+const NICK_REG = /^[\u4E00-\u9FA5A-Za-z0-9_]{1,20}$/
+
+/** 更新当前用户昵称，并同步各账本成员显示名 */
+const updateProfile = async (
+  userId: string | null | undefined,
+  nickNameRaw: string,
+  origin?: ViewOrigin | null
+) => {
+  if (!userId) return ['请先登录', null]
+  const nickName = xssData(String(nickNameRaw || '').trim())
+  if (!nickName || !NICK_REG.test(nickName)) {
+    return ['昵称须为 1～20 位中文、英文、数字或下划线', null]
+  }
+  try {
+    const [affected] = await User.update({ nickName }, { where: { id: userId, isDel: false } })
+    if (!affected) return ['用户不存在', null]
+    await BillUser.update({ userName: nickName }, { where: { userId } })
+    const user = await User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
+    if (!user) return ['用户不存在', null]
+    return [null, toClientUser(user as Row, origin)]
+  } catch (err: unknown) {
+    console.error(err)
+    return [(err instanceof Error ? err.message : '') || '更新失败', null]
+  }
+}
+
+export {
+  getLoginConfig,
+  updateEncryptionKey,
+  assertAdmin,
+  login,
+  register,
+  verifyPassword,
+  wxLogin,
+  wxBind,
+  wxRegister,
+  updateProfile,
+  changePassword,
+  updateAvatar,
+  toClientUser
+}
+

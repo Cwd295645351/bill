@@ -1,9 +1,11 @@
 import { addTransaction, getBillDetail, getBillList } from '../../apis/index'
+import { appShareBehavior } from '../../behaviors/app-share'
 import { guardPage } from '../../utils/auth'
 import { getLastBillId, setBillDict, setLastBillId, setLastPref } from '../../utils/storage'
 import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../utils/upload-photos'
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     bills: [] as any[],
     billNames: [] as string[],

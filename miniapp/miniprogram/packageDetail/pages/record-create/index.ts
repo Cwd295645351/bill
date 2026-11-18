@@ -1,10 +1,12 @@
 import { addTransaction, getBillDetail } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { setBillDict, setLastBillId, setLastPref } from '../../../utils/storage'
 import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../../utils/upload-photos'
 
 /** 从账本详情进入的记账页，保留页面栈，未保存也可以返回 */
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     bill: null as any,

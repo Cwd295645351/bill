@@ -1,4 +1,5 @@
 import { budgetAdd, budgetDelete, budgetEdit, getBillDetail, getBudget } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { budgetTone } from '../../utils/budget-tone'
 // ec-canvas 自带的 echarts 构建产物（随预算分包，避免撑爆主包）
@@ -33,6 +34,7 @@ function fieldText(detail: unknown): string {
 }
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     year: new Date().getFullYear(),

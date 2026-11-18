@@ -1,12 +1,15 @@
 import { deleteTransaction, getBalance, getBillDetail, getBudget, getMonthCost, getRecordList, inviteBill, quitBill } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { dayEndTs, thisYear, today, yearStartTs } from '../../../utils/date'
 import { groupRecords, RecordItem } from '../../../utils/records'
+import { appShareMessage } from '../../../utils/share'
 import { getUser, setBillDict, setEditingRecord, setLastBillId } from '../../../utils/storage'
 
 const PAGE_SIZE = 20
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     billName: '',
@@ -33,7 +36,6 @@ Page({
   },
 
   onLoad(query: Record<string, string>) {
-    wx.hideShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
     this.setData({ billId: query.id || '' })
   },
 
@@ -230,17 +232,20 @@ Page({
     })
   },
 
-  onShareAppMessage() {
+  onShareAppMessage(res: WechatMiniprogram.Page.IShareAppMessageOption) {
+    // 右上角菜单：只分享小程序，不生成邀请码
+    if (res.from !== 'button') return appShareMessage()
+
     const billId = this.data.billId
     const name = this.data.billName
-    const promise = inviteBill(billId).then((res) => {
-      if (res.retCode !== 0 || !res.data) {
-        wx.showToast({ title: res.message || '只有创建者可以邀请', icon: 'none' })
-        return { title: name || '记账', path: '/pages/bills/index' }
+    const promise = inviteBill(billId).then((ret) => {
+      if (ret.retCode !== 0 || !ret.data) {
+        wx.showToast({ title: ret.message || '只有创建者可以邀请', icon: 'none' })
+        return appShareMessage()
       }
       return {
         title: `邀请你加入账本「${name}」`,
-        path: `/pages/join/index?code=${encodeURIComponent(res.data)}&name=${encodeURIComponent(name)}`
+        path: `/pages/join/index?code=${encodeURIComponent(ret.data)}&name=${encodeURIComponent(name)}`
       }
     })
     return {

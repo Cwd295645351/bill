@@ -1,10 +1,12 @@
 import { deleteTransaction, editTransaction, getBillDetail } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { toDayText } from '../../../utils/date'
 import { getEditingRecord, getUser, setBillDict, setLastPref } from '../../../utils/storage'
 import { hideSaveLoading, showSaveLoading, uploadPendingPhotos } from '../../../utils/upload-photos'
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     bill: null as any,

@@ -1,4 +1,5 @@
 import { getPlanList, planAdd, planDelete, planEdit } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { groupPlansByPriority, PLAN_PRIORITY_META, type PlanItem } from '../../../utils/plan-group'
 
@@ -9,6 +10,7 @@ function fieldText(detail: unknown): string {
 }
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     loading: false,

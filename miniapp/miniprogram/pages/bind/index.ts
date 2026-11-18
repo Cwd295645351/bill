@@ -1,4 +1,5 @@
 import { getLoginConfig, wxBind, wxRegister } from '../../apis/index'
+import { appShareBehavior } from '../../behaviors/app-share'
 import { ensureLogin, openAfterLogin } from '../../utils/auth'
 import { encryptPassword } from '../../utils/rsa'
 import { showTip } from '../../utils/tip'
@@ -14,6 +15,7 @@ function fieldText(detail: unknown): string {
 }
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     mode: 'bind' as Mode,
     username: '',

@@ -76,7 +76,16 @@
   <view class="fab" bindtap="onAdd">
     <van-icon name="plus" size="28px" color="#ffffff" />
   </view>
-  <van-popup show="{{ membersVisible }}" position="bottom" round bind:close="onCloseMembers">
+  <book-tab-bar bill-id="{{ billId }}" active="detail" />
+  <!-- 抬高层级并置于 tab-bar 之后，避免成员管理被底部导航挡住 -->
+  <van-popup
+    show="{{ membersVisible }}"
+    position="bottom"
+    round
+    root-portal
+    z-index="{{ 3000 }}"
+    bind:close="onCloseMembers"
+  >
     <view class="members-sheet">
       <view class="members-title">成员管理</view>
       <view wx:if="{{ !members.length }}" class="members-empty">暂无成员</view>
@@ -103,5 +112,4 @@
       </view>
     </view>
   </van-popup>
-  <book-tab-bar bill-id="{{ billId }}" active="detail" />
 </view>

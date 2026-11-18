@@ -1,6 +1,8 @@
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: ''
   },

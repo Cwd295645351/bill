@@ -1,10 +1,12 @@
 import { joinBill, updateProfile, changePassword, uploadAvatar, getLoginConfig } from '../../apis/index'
+import { appShareBehavior } from '../../behaviors/app-share'
 import { ensureLogin } from '../../utils/auth'
 import { clearManualLogout, getManualLogout, getUser, patchUser, setManualLogout } from '../../utils/storage'
 import { encryptPassword } from '../../utils/rsa'
 import { showTip } from '../../utils/tip'
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     loggedOut: false,
     nickName: '',

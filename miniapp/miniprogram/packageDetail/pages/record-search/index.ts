@@ -1,4 +1,5 @@
 import { getBillDetail, getRecordList } from '../../../apis/index'
+import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { dayEndTs, dayStartTs } from '../../../utils/date'
 import { groupRecords, RecordItem } from '../../../utils/records'
@@ -14,6 +15,7 @@ function fieldText(detail: unknown): string {
 const PAGE_SIZE = 20
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     billId: '',
     type: 1,

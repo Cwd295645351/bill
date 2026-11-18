@@ -1,10 +1,12 @@
 import { createBill, deleteBill, getBillList, quitBill } from '../../apis/index'
+import { appShareBehavior } from '../../behaviors/app-share'
 import { guardPage } from '../../utils/auth'
 import { getUser, setLastBillId } from '../../utils/storage'
 
 const NAME_REG = /^[\u4E00-\u9FA5A-Za-z0-9_]{3,10}$/
 
 Page({
+  behaviors: [appShareBehavior],
   data: {
     bills: [] as any[],
     loading: true,

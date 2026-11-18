@@ -1,8 +1,10 @@
 import { joinBill } from '../../apis/index'
+import { appShareBehavior } from '../../behaviors/app-share'
 import { ensureLogin } from '../../utils/auth'
 import { getManualLogout, getUser, isExpired } from '../../utils/storage'
 
 Page({
+  behaviors: [appShareBehavior],
   prompted: false,
   data: {
     code: '',

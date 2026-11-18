@@ -3,8 +3,8 @@
   "packOptions": {
     "ignore": [
       {
-        "type": "suffix",
-        "value": ".map"
+        "value": ".map",
+        "type": "suffix"
       }
     ],
     "include": []

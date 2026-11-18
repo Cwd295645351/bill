@@ -238,3 +238,24 @@
   font-size: 12px;
   line-height: 1.5;
 }
+.sheet-side {
+  width: 32px;
+}
+.type-list {
+  background: #fff;
+}
+.type-item {
+  height: 48px;
+  line-height: 48px;
+  text-align: center;
+  font-size: 16px;
+  color: #323233;
+  border-bottom: 1px solid #ebedf0;
+}
+.type-item.on {
+  color: #4285f4;
+  font-weight: 600;
+}
+.type-item-hover {
+  background: #f2f3f5;
+}

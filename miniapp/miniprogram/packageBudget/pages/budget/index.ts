@@ -44,6 +44,8 @@ Page({
     costTypes: [] as any[],
     typeNames: [] as string[],
     typeIds: [] as string[],
+    /** 类型列表高度，按条数收缩，最多约占半屏 */
+    typeListHeight: 240,
     showForm: false,
     showType: false,
     showDel: false,
@@ -200,6 +202,12 @@ Page({
     const costTypes = res.retCode === 0 && res.data ? res.data.costTypes || [] : []
     const used = new Set((this.data.details || []).map((d: any) => d.costTypeId))
     const available = costTypes.filter((t: any) => !t.hidden && !used.has(t.id))
+    const rowHeight = 48
+    const windowHeight = wx.getWindowInfo().windowHeight
+    const typeListHeight = Math.min(
+      Math.max(available.length, 1) * rowHeight,
+      Math.floor(windowHeight * 0.55)
+    )
     this.hidePieForOverlay()
     this.setData({
       showForm: true,
@@ -210,7 +218,8 @@ Page({
       formMoney: '',
       costTypes: available,
       typeNames: available.map((t: any) => t.name),
-      typeIds: available.map((t: any) => t.id)
+      typeIds: available.map((t: any) => t.id),
+      typeListHeight
     })
   },
 
@@ -253,11 +262,15 @@ Page({
     }
     this.setData({ showType: true })
   },
-  onTypeConfirm(e: WechatMiniprogram.CustomEvent) {
-    const index = Array.isArray(e.detail.index) ? e.detail.index[0] : e.detail.index
+  /** 点选支出类型后直接回填并关闭，不依赖滚轮确认 */
+  onPickType(e: WechatMiniprogram.TouchEvent) {
+    const index = Number(e.currentTarget.dataset.index)
+    const formTypeId = this.data.typeIds[index]
+    const formTypeName = this.data.typeNames[index]
+    if (!formTypeId) return
     this.setData({
-      formTypeId: this.data.typeIds[index] || '',
-      formTypeName: this.data.typeNames[index] || '',
+      formTypeId,
+      formTypeName,
       showType: false
     })
   },

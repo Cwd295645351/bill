@@ -97,12 +97,32 @@
     </view>
   </van-popup>
 
-  <van-popup show="{{ showType }}" position="bottom" round bind:close="closeType">
-    <van-picker
-      columns="{{ typeNames }}"
-      bind:confirm="onTypeConfirm"
-      bind:cancel="closeType"
-    />
+  <!-- 独立弹层且抬高层级，避免被「新增预算」弹层挡住导致点选无效 -->
+  <van-popup
+    show="{{ showType }}"
+    position="bottom"
+    round
+    root-portal
+    z-index="{{ 3000 }}"
+    bind:close="closeType"
+  >
+    <view class="type-sheet">
+      <view class="sheet-bar">
+        <view class="cancel" bindtap="closeType">取消</view>
+        <view class="sheet-title">支出类型</view>
+        <view class="sheet-side"></view>
+      </view>
+      <scroll-view class="type-list" scroll-y style="height: {{ typeListHeight }}px;">
+        <view
+          wx:for="{{ typeNames }}"
+          wx:key="*this"
+          class="type-item {{ typeIds[index] === formTypeId ? 'on' : '' }}"
+          data-index="{{ index }}"
+          hover-class="type-item-hover"
+          bindtap="onPickType"
+        >{{ item }}</view>
+      </scroll-view>
+    </view>
   </van-popup>
 
   <van-dialog

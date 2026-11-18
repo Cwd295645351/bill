@@ -13,7 +13,7 @@ export function createBill(name: string) {
 }
 
 export function deleteBill(id: string) {
-  return request({ url: '/bill', method: 'DELETE', data: { id }, silent: true })
+  return request({ url: '/bill', method: 'DELETE', params: { id }, silent: true })
 }
 
 export function inviteBill(id: string) {

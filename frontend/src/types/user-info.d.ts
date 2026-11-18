@@ -16,6 +16,8 @@ export interface UserInfo {
   incomes: number
   /** 总支出 */
   expenses: number
+  /** 是否运营管理员（登录下发；未配置时恒为 false） */
+  isAdmin?: boolean
 }
 
 /** 刷新token返回的用户信息 */

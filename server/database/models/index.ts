@@ -1,9 +1,11 @@
 import type { Sequelize } from 'sequelize'
+import { defineAiAuditModels } from './ai-audit'
 import { defineAssetModels } from './asset'
 import { defineAuthModels } from './auth'
 import { defineBillModels } from './bill'
 import { defineBudgetModels } from './budget'
 import { defineCatalogModels } from './catalog'
+import { defineCatalogDefaultModels } from './catalog-defaults'
 import { createDefineModel } from './helpers'
 import { definePlanModels } from './plan'
 import { defineTransactionModels } from './transaction'
@@ -13,18 +15,22 @@ function initModels(sequelize: Sequelize) {
   const auth = defineAuthModels(defineModel)
   const bill = defineBillModels(defineModel)
   const catalog = defineCatalogModels(defineModel)
+  const catalogDefaults = defineCatalogDefaultModels(defineModel)
   const plan = definePlanModels(defineModel)
   const budget = defineBudgetModels(defineModel)
   const asset = defineAssetModels(defineModel)
   const transaction = defineTransactionModels(defineModel)
+  const aiAudit = defineAiAuditModels(defineModel)
 
   const { User, UserWechat, Encryption } = auth
   const { Bill, BillUser } = bill
   const { BillCostType, BillIncomeType, BillPayMethod, BillOverviewRule, BillOverviewRuleYear } = catalog
+  const { CatalogDefault } = catalogDefaults
   const { BillPlanBuy } = plan
   const { BillBudget, BillBudgetDetail } = budget
   const { Member, Asset, AssetRecord, BillExchangeRate, AssetRetirePlan } = asset
   const { Transaction, TransactionImage } = transaction
+  const { AiCallAudit } = aiAudit
 
   Bill.hasMany(BillUser, { foreignKey: 'billId', as: 'billUsers' })
   Bill.hasMany(BillCostType, { foreignKey: 'billId', as: 'costTypes' })
@@ -63,7 +69,9 @@ function initModels(sequelize: Sequelize) {
     BillExchangeRate,
     AssetRetirePlan,
     Transaction,
-    TransactionImage
+    TransactionImage,
+    AiCallAudit,
+    CatalogDefault
   }
 }
 

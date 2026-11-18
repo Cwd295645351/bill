@@ -31,12 +31,23 @@ const router = createRouter({
 
 router.beforeEach((to: RouteLocationNormalized) => {
   if (to.meta?.public) return true
-  if (isAuthenticated(getUserInfo())) return true
-  const redirect = sanitizeRedirect(to.fullPath)
-  return {
-    path: '/login',
-    query: redirect ? { redirect } : {},
+
+  const userInfo = getUserInfo()
+  if (!isAuthenticated(userInfo)) {
+    const redirect = sanitizeRedirect(to.fullPath)
+    return {
+      path: '/login',
+      query: redirect ? { redirect } : {},
+    }
   }
+
+  // 运营后台：在进入页面前拦截，避免非管理员先闪一下再跳走
+  if (to.matched.some((record) => record.meta?.requiresAdmin === true) && userInfo?.isAdmin !== true) {
+    ElMessage.warning('非管理员没有权限')
+    return { path: '/layout/bill' }
+  }
+
+  return true
 })
 
 export default router

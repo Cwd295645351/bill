@@ -13,7 +13,8 @@ export function defineAuthModels(defineModel: DefineModel) {
         avatarUrl: { type: DataTypes.STRING(512), allowNull: true, defaultValue: '', field: 'avatar_url' },
         incomes: decimalMoney('incomes'),
         expenses: decimalMoney('expenses'),
-        isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' }
+        isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' },
+        createdAt: { type: DataTypes.DATE, allowNull: true, field: 'created_at' }
       },
       { tableName: 'users' }
     )

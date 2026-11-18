@@ -24,7 +24,7 @@ const MAX_COST_TYPE_LENGTH = 100
 
 /**
  * 批量解析支出记录。
- * 编排顺序（不得颠倒）：① 输入校验 → ② 可选 billId 成员校验 → ③ 未配置检测
+ * 编排顺序（不得颠倒）：① 输入校验 → ② billId 必填与成员校验 → ③ 未配置检测
  * → ④ Redis 日额度占用（含不可用失败关闭）→ ⑤ 上游调用 → ⑥ 审计
  */
 router.post('/parse-batch', async (ctx: HttpContext) => {
@@ -33,7 +33,7 @@ router.post('/parse-batch', async (ctx: HttpContext) => {
   const body = readBody(ctx) || {}
   const { text, costTypes, billId: rawBillId } = body
   const billId =
-    rawBillId === undefined || rawBillId === null || rawBillId === '' ? null : String(rawBillId)
+    rawBillId === undefined || rawBillId === null || rawBillId === '' ? '' : String(rawBillId)
 
   const durationMs = () => Date.now() - started
   const audit = (fields: {
@@ -45,7 +45,7 @@ router.post('/parse-batch', async (ctx: HttpContext) => {
   }) => {
     writeAiAudit({
       userId,
-      billId,
+      billId: billId || null,
       capability: 'parse-batch',
       durationMs: durationMs(),
       ...fields
@@ -96,13 +96,18 @@ router.post('/parse-batch', async (ctx: HttpContext) => {
     return
   }
 
-  // ② 可选 billId 成员校验
-  if (billId) {
-    if (!userId) {
-      audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
-      ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
-      return
-    }
+  // ② billId 必填与成员校验（缺账本不计次、不打上游）
+  if (!billId) {
+    audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
+    ctx.body = new ResModel(null, '请选择账本', 'error')
+    return
+  }
+  if (!userId) {
+    audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
+    ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
+    return
+  }
+  {
     const member = await requireMember(userId, billId)
     if (!member.ok) {
       audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })

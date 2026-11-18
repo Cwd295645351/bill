@@ -6,7 +6,7 @@ import KoaRouter from 'koa-router'
 import { ResModel } from '../../http/res-model'
 import jwt from 'jsonwebtoken'
 import { loadSecrets } from '../../config/secrets'
-import { getLoginConfig, updateEncryptionKey, assertAdmin, login, register, wxLogin, wxBind, wxRegister, updateProfile, changePassword, updateAvatar, toClientUser } from './service'
+import { getLoginConfig, updateEncryptionKey, assertAdmin, isAdminUser, login, register, wxLogin, wxBind, wxRegister, updateProfile, changePassword, updateAvatar, toClientUser } from './service'
 import { createCaptcha, consumeCaptcha } from '../../utils/captcha'
 import { getAvatarFile } from './avatar-service'
 
@@ -57,22 +57,23 @@ router.post('/login', async (ctx: HttpContext, next: Next) => {
   }
   const [err, res] = await login(username, password)
   if (res) {
-    ctx.body = new ResModel(writeLoginResult(ctx, res as Row), '登录成功')
+    ctx.body = new ResModel(await writeLoginResult(ctx, res as Row), '登录成功')
   } else ctx.body = new ResModel(null, err, 'error')
 })
 
 /** 组装与密码登录一致的令牌响应，并写入 session 供 H5 / PC 刷新令牌 */
-const writeLoginResult = (ctx: HttpContext, user: Row) => {
+const writeLoginResult = async (ctx: HttpContext, user: Row) => {
   const userId = user.id
   const userInfo = toClientUser(user, viewOriginOf(ctx)) || (typeof user.toJSON === 'function' ? user.toJSON() : user)
   const { accessToken, refreshToken, EXPIRES_TIME } = createJwt({ userId })
   ctx.session!.bill_userId = userId
   ctx.session!.bill_refreshToken = refreshToken
+  const isAdmin = await isAdminUser(String(userId))
   return {
     accessToken,
     refreshToken,
     expiresIn: EXPIRES_TIME,
-    userInfo
+    userInfo: { ...userInfo, isAdmin }
   }
 }
 
@@ -92,7 +93,7 @@ router.post('/wxLogin', async (ctx: HttpContext) => {
     ctx.body = new ResModel({ needBind: true, bindTicket: res.bindTicket }, '需要绑定账号')
     return
   }
-  ctx.body = new ResModel({ ...writeLoginResult(ctx, res.user), needBind: false }, '登录成功')
+  ctx.body = new ResModel({ ...(await writeLoginResult(ctx, res.user)), needBind: false }, '登录成功')
 })
 
 // 小程序首次绑定已有账号
@@ -125,7 +126,7 @@ router.post('/wxBind', async (ctx: HttpContext) => {
     ctx.body = new ResModel(null, err, 'error')
     return
   }
-  ctx.body = new ResModel({ ...writeLoginResult(ctx, user), needBind: false }, '绑定成功')
+  ctx.body = new ResModel({ ...(await writeLoginResult(ctx, user)), needBind: false }, '绑定成功')
 })
 
 // 登出
@@ -219,7 +220,7 @@ router.post('/wxRegister', async (ctx: HttpContext) => {
   }
   const outcome = await wxRegister({ bindTicket, username, password, nickName })
   if (outcome.status === 'ok') {
-    ctx.body = new ResModel({ ...writeLoginResult(ctx, outcome.user), needBind: false }, '注册成功')
+    ctx.body = new ResModel({ ...(await writeLoginResult(ctx, outcome.user)), needBind: false }, '注册成功')
     return
   }
   if (outcome.status === 'createdNeedBind') {

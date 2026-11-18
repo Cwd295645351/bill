@@ -46,6 +46,7 @@ const plan = loadDefault<Router>('./modules/plan/index')
 const asset = loadDefault<Router>('./modules/asset/index')
 const billtype = loadDefault<Router>('./modules/catalog/index')
 const ai = loadDefault<Router>('./modules/ai/index')
+const admin = loadDefault<Router>('./modules/admin/index')
 
 const app = new Koa()
 const serverRoot = resolveServerRoot(__dirname)
@@ -200,6 +201,7 @@ mount(plan)
 mount(asset)
 mount(billtype)
 mount(ai)
+mount(admin)
 
 // error-handling
 app.on('error', (err: Error, ctx: Context) => {

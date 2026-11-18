@@ -23,6 +23,22 @@ const getLoginConfig = async (): Promise<[string | null, { publicKey?: string } 
   }
 }
 
+/** 运营后台鉴权：未配置 / 非管理员用短句；密钥轮换可继续用更具体文案 */
+const checkAdminAccess = async (userId: string | null | undefined) => {
+  const adminUsername = process.env.ADMIN_USERNAME
+  if (!adminUsername) return '未配置管理员'
+  if (!userId) return '请先登录'
+  const user = await User.findByPk(userId, { attributes: ['username'] })
+  if (!user || user.username !== adminUsername) return '非管理员没有权限'
+  return null
+}
+
+/** 当前用户是否为环境变量指定的管理员（不下发 ADMIN_USERNAME） */
+const isAdminUser = async (userId: string | null | undefined) => {
+  const err = await checkAdminAccess(userId)
+  return !err
+}
+
 /** 仅允许环境变量指定的登录用户轮换 RSA 密钥。未配置则拒绝所有人。 */
 const assertAdmin = async (userId: string | null | undefined) => {
   const adminUsername = process.env.ADMIN_USERNAME
@@ -183,7 +199,8 @@ const register = async (
     const res = await User.create({
       username,
       password: hashedPassword,
-      nickName
+      nickName,
+      createdAt: new Date()
     })
     return [null, { id: res.id, username: res.username, nickName: res.nickName }]
   } catch (err: unknown) {
@@ -358,6 +375,8 @@ export {
   getLoginConfig,
   updateEncryptionKey,
   assertAdmin,
+  checkAdminAccess,
+  isAdminUser,
   login,
   register,
   verifyPassword,

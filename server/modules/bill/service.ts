@@ -1,8 +1,8 @@
 import type { Row } from '../../types/domain'
 import { Bill, BillUser, BillCostType, BillIncomeType, BillPayMethod, sequelize } from '../../database/index'
 import { encode, decode } from '../../utils/cryp'
-import * as InitData from '../../database/initDatas'
 import { requireCreator, requireMember } from '../access'
+import { listActiveCatalogDefaults } from '../admin'
 
 /** 账本是否存在。不附带类型、预算或计划 */
 export const billExists = async (billId: string | null | undefined) => {
@@ -37,23 +37,27 @@ export const createBill = async ({ userId, name, nickName }: Row) => {
   if (findBill) {
     return ['该名称的账本已存在', null]
   }
+  const defaults = await listActiveCatalogDefaults()
+  if (!defaults.cost.length || !defaults.income.length || !defaults.pay_method.length) {
+    return ['默认类型模板未配置完整，无法创建账本', null]
+  }
   const tx = await sequelize.transaction()
   try {
     const billRes = await Bill.create(
-      { name: name, creator: userId, planBuyCount: 0, isDel: false },
+      { name: name, creator: userId, planBuyCount: 0, isDel: false, createdAt: new Date() },
       { transaction: tx }
     )
     await BillUser.create({ billId: billRes.id, userId, userName: nickName }, { transaction: tx })
     await BillCostType.bulkCreate(
-      InitData.costTypes.map((c: Row) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      defaults.cost.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
       { transaction: tx }
     )
     await BillIncomeType.bulkCreate(
-      InitData.incomesTypes.map((c: Row) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      defaults.income.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
       { transaction: tx }
     )
     await BillPayMethod.bulkCreate(
-      InitData.payMethods.map((c: Row) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
+      defaults.pay_method.map((c) => ({ id: c.id, billId: billRes.id, name: c.name, isDel: false })),
       { transaction: tx }
     )
     await tx.commit()

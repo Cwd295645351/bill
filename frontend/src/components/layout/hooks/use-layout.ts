@@ -17,6 +17,7 @@ const NAME_TO_TAB: Record<string, string> = {
   Budget: 'budget',
   Plan: 'plan',
   Asset: 'asset',
+  Admin: 'admin',
 }
 
 export const useLayout = () => {
@@ -50,7 +51,7 @@ export const useLayout = () => {
   const menus = ref<Menu[]>(billsMenu)
   /** 已上传头像的可访问 URL；空则显示默认 icon */
   const avatarSrc = ref('')
-  const userInfo = ref<UserInfo>({ accessToken: '', refreshToken: '', userId: '', expiresIn: 0, avatarUrl: '', nickName: '', expenses: 0, incomes: 0 })
+  const userInfo = ref<UserInfo>(getUserInfo())
 
   const buildRecordMenus = (id: string): Menu[] => [
     { label: '记账', value: 'record', route: billTabPath(id, 'record') },
@@ -60,11 +61,19 @@ export const useLayout = () => {
     { label: '资产', value: 'asset', route: billTabPath(id, 'asset') },
   ]
 
+  /** 仅管理员追加「后台」入口（菜单隐藏不是鉴权） */
+  const withAdminMenu = (base: Menu[]): Menu[] => {
+    if (userInfo.value?.isAdmin === true) {
+      return [...base, { label: '后台', value: 'admin', route: '/layout/admin' }]
+    }
+    return base
+  }
+
   const syncMenusFromBillId = (id: string | null | undefined) => {
     if (id) {
-      menus.value = buildRecordMenus(id)
+      menus.value = withAdminMenu(buildRecordMenus(id))
     } else {
-      menus.value = billsMenu
+      menus.value = withAdminMenu(billsMenu)
     }
   }
 
@@ -136,6 +145,10 @@ export const useLayout = () => {
     if (tab.value === currentMenu.value) return
     currentMenu.value = tab.value
     sessionStorage.setItem('tabValue', tab.value)
+    if (tab.value === 'admin') {
+      router.push('/layout/admin')
+      return
+    }
     const id = (billId.value as string) || sessionStorage.getItem('billId') || ''
     if (tab.value !== 'bills' && id && isBillTab(tab.value)) {
       router.push(billTabPath(id, tab.value as BillTab))

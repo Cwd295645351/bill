@@ -1,4 +1,3 @@
-import type { Row } from '../../types/domain'
 /**
  * 概览多人分账。纯计算，不访问数据库。
  * 金额在内部使用整数「分」，避免浮点误差。
@@ -317,7 +316,113 @@ const buildSettlement = ({
     })
   })
 
-  const outsiders = Object.keys(paid)
+  const parties: SettlementParty[] = []
+  memberList.forEach((member: SettlementMember) => {
+    parties.push({
+      userId: member.userId,
+      name: names[member.userId] || member.name,
+      netCents: (paid[member.userId] || 0) - (borne[member.userId] || 0)
+    })
+  })
+  Object.keys(paid)
+    .filter((userId) => !memberIds.has(userId))
+    .forEach((userId) => {
+      parties.push({
+        userId,
+        name: names[userId] || '未知',
+        netCents: (paid[userId] || 0) - (borne[userId] || 0)
+      })
+    })
+
+  const settled = linesFromNets(memberList, parties)
+
+  return {
+    members: memberList.map((member: SettlementMember) => ({
+      userId: member.userId,
+      name: member.name,
+      income: fromCents(incomeCents[member.userId] || 0),
+      effectiveIncome: fromCents(effectiveCents[member.userId] || 0),
+      weight: equalSplit ? 1 : fromCents(Math.max(effectiveCents[member.userId] || 0, 0)),
+      paid: fromCents(paid[member.userId] || 0),
+      borne: fromCents(borne[member.userId] || 0),
+      exclusive: fromCents(exclusiveBorne[member.userId] || 0),
+      sharedShare: fromCents(sharedBorne[member.userId] || 0),
+      publicShare: fromCents(publicBorne[member.userId] || 0),
+      net: fromCents((paid[member.userId] || 0) - (borne[member.userId] || 0))
+    })),
+    lines: settled.lines,
+    transfers: settled.transfers,
+    pies: {
+      all: toSlices(allSlices),
+      members:
+        memberList.length <= 1
+          ? []
+          : memberList.map((member: SettlementMember) => ({
+              userId: member.userId,
+              name: member.name,
+              slices: toSlices(memberSlices[member.userId])
+            }))
+    },
+    parties
+  }
+}
+
+/** 参与人净额，单位为分。成员和付款的非成员都在内 */
+interface SettlementParty {
+  userId: string
+  name: string
+  netCents: number
+}
+
+interface SettlementSlice {
+  costTypeId: string
+  name: string
+  money: number
+}
+
+interface YearSettlement {
+  members: {
+    userId: string
+    name: string
+    income: number
+    effectiveIncome: number
+    weight: number
+    paid: number
+    borne: number
+    exclusive: number
+    sharedShare: number
+    publicShare: number
+    net: number
+  }[]
+  lines: string[]
+  transfers: { fromUserId?: string; fromName?: string; toUserId?: string; toName?: string; amount: number }[]
+  pies: {
+    all: SettlementSlice[]
+    members: { userId: string; name: string; slices: SettlementSlice[] }[]
+  }
+  parties: SettlementParty[]
+}
+
+/**
+ * 按净额生成与单次分摊相同的转账句子。
+ * @param memberList 当前成员，顺序与 bill_users.id 一致
+ * @param parties 各参与人净额，分
+ * @returns 一组结算句子和转账
+ */
+const linesFromNets = (memberList: SettlementMember[], parties: SettlementParty[]) => {
+  const memberIds = new Set(memberList.map((member) => member.userId))
+  const names: Record<string, string> = {}
+  const netCents: Record<string, number> = {}
+  parties.forEach((party) => {
+    names[party.userId] = party.name
+    netCents[party.userId] = (netCents[party.userId] || 0) + party.netCents
+  })
+  memberList.forEach((member) => {
+    if (netCents[member.userId] == null) netCents[member.userId] = 0
+    if (!names[member.userId]) names[member.userId] = member.name
+  })
+
+  const outsiders = Object.keys(netCents)
     .filter((userId) => !memberIds.has(userId))
     .sort((left, right) => {
       const byName = String(names[left] || '').localeCompare(String(names[right] || ''), 'zh')
@@ -325,16 +430,23 @@ const buildSettlement = ({
       return String(left).localeCompare(String(right))
     })
 
-  const orderedIds = [...memberList.map((member: SettlementMember) => member.userId), ...outsiders]
+  const orderedIds = [...memberList.map((member) => member.userId), ...outsiders]
   const creditors: { userId: string; name: string; remain: number }[] = []
   const debtors: { userId: string; name: string; remain: number }[] = []
-  orderedIds.forEach((userId: string) => {
-    const net = (paid[userId] || 0) - (borne[userId] || 0)
+  orderedIds.forEach((userId) => {
+    const net = netCents[userId] || 0
     if (net > 0) creditors.push({ userId, name: names[userId], remain: net })
     else if (net < 0) debtors.push({ userId, name: names[userId], remain: -net })
   })
 
-  const transfers: Row[] = []
+  const transfers: {
+    fromUserId: string
+    fromName: string
+    toUserId: string
+    toName: string
+    amount: number
+    cents: number
+  }[] = []
   let creditorIndex = 0
   debtors.forEach((debtor) => {
     while (debtor.remain > 0 && creditorIndex < creditors.length) {
@@ -359,7 +471,7 @@ const buildSettlement = ({
   const outsiderInvolved = transfers.some(
     (item) => !item.fromUserId || !memberIds.has(item.fromUserId) || !item.toUserId || !memberIds.has(item.toUserId)
   )
-  let lines
+  let lines: string[]
   if (memberList.length <= 1 && transfers.length === 0) {
     lines = ['无需分账']
   } else if (memberList.length === 2 && !outsiderInvolved) {
@@ -374,19 +486,6 @@ const buildSettlement = ({
   }
 
   return {
-    members: memberList.map((member: SettlementMember) => ({
-      userId: member.userId,
-      name: member.name,
-      income: fromCents(incomeCents[member.userId] || 0),
-      effectiveIncome: fromCents(effectiveCents[member.userId] || 0),
-      weight: equalSplit ? 1 : fromCents(Math.max(effectiveCents[member.userId] || 0, 0)),
-      paid: fromCents(paid[member.userId] || 0),
-      borne: fromCents(borne[member.userId] || 0),
-      exclusive: fromCents(exclusiveBorne[member.userId] || 0),
-      sharedShare: fromCents(sharedBorne[member.userId] || 0),
-      publicShare: fromCents(publicBorne[member.userId] || 0),
-      net: fromCents((paid[member.userId] || 0) - (borne[member.userId] || 0))
-    })),
     lines,
     transfers: transfers.map(({ fromUserId, fromName, toUserId, toName, amount }) => ({
       fromUserId,
@@ -394,19 +493,92 @@ const buildSettlement = ({
       toUserId,
       toName,
       amount
-    })),
+    }))
+  }
+}
+
+/** 把各年已经取整的扇区金额相加，再按金额从高到低、名称中文排序 */
+const mergeSlices = (groups: SettlementSlice[][]) => {
+  const bucket = new Map<string, { costTypeId: string; name: string; cents: number }>()
+  groups.forEach((slices) => {
+    slices.forEach((slice) => {
+      const key = slice.costTypeId || ''
+      const current = bucket.get(key) || { costTypeId: key, name: slice.name || '未分类', cents: 0 }
+      current.cents += toCents(slice.money)
+      if (slice.name) current.name = slice.name
+      bucket.set(key, current)
+    })
+  })
+  return [...bucket.values()]
+    .filter((item) => item.cents > 0)
+    .sort((a, b) => b.cents - a.cents || String(a.name).localeCompare(String(b.name), 'zh'))
+    .map((item) => ({ costTypeId: item.costTypeId, name: item.name, money: fromCents(item.cents) }))
+}
+
+const sumMoney = (
+  rows: YearSettlement['members'],
+  key: 'income' | 'effectiveIncome' | 'paid' | 'borne' | 'exclusive' | 'sharedShare' | 'publicShare' | 'net'
+) => fromCents(rows.reduce((sum, row) => sum + toCents(row[key] || 0), 0))
+
+/**
+ * 各年已经取整后，把净额和成员份额相加，只生成一组结算。
+ * @param memberList 当前成员
+ * @param results 各自然年的分摊结果
+ * @returns 与单次分摊相同形状的公开结果，不含 parties
+ */
+const mergeSettlementResults = (memberList: SettlementMember[], results: YearSettlement[]) => {
+  const partyMap = new Map<string, SettlementParty>()
+  results.forEach((result) => {
+    result.parties.forEach((party) => {
+      const current = partyMap.get(party.userId) || { userId: party.userId, name: party.name, netCents: 0 }
+      current.netCents += party.netCents
+      if (party.name) current.name = party.name
+      partyMap.set(party.userId, current)
+    })
+  })
+  const settled = linesFromNets(memberList, [...partyMap.values()])
+  const members = memberList.map((member) => {
+    const rows = results
+      .map((result) => result.members.find((item) => item.userId === member.userId))
+      .filter((item): item is YearSettlement['members'][number] => !!item)
+    return {
+      userId: member.userId,
+      name: member.name,
+      income: sumMoney(rows, 'income'),
+      effectiveIncome: sumMoney(rows, 'effectiveIncome'),
+      weight: 0,
+      paid: sumMoney(rows, 'paid'),
+      borne: sumMoney(rows, 'borne'),
+      exclusive: sumMoney(rows, 'exclusive'),
+      sharedShare: sumMoney(rows, 'sharedShare'),
+      publicShare: sumMoney(rows, 'publicShare'),
+      net: sumMoney(rows, 'net')
+    }
+  })
+  return {
+    members,
+    lines: settled.lines,
+    transfers: settled.transfers,
     pies: {
-      all: toSlices(allSlices),
+      all: mergeSlices(results.map((result) => result.pies.all)),
       members:
         memberList.length <= 1
           ? []
-          : memberList.map((member: SettlementMember) => ({
+          : memberList.map((member) => ({
               userId: member.userId,
               name: member.name,
-              slices: toSlices(memberSlices[member.userId])
+              slices: mergeSlices(
+                results.map((result) => result.pies.members.find((item) => item.userId === member.userId)?.slices || [])
+              )
             }))
     }
   }
 }
 
-export { buildSettlement, toCents, allocatePublic }
+/** 去掉内部净额，避免写进公开响应 */
+const withoutParties = (result: YearSettlement) => {
+  const { parties, ...rest } = result
+  return rest
+}
+
+export { buildSettlement, toCents, allocatePublic, mergeSettlementResults, withoutParties }

@@ -1,6 +1,165 @@
 <view class="page">
-  <view class="body">
-    <van-empty description="请到电脑端查看或管理" />
-  </view>
+  <scroll-view class="body" scroll-y>
+    <view class="card">
+      <view class="dims">
+        <view class="dim {{ dimension === 'month' ? 'on' : '' }}" data-dim="month" bindtap="setDimension">月</view>
+        <view class="dim {{ dimension === 'year' ? 'on' : '' }}" data-dim="year" bindtap="setDimension">年</view>
+      </view>
+      <view class="stepper">
+        <view data-step="-1" bindtap="shift">{{ prevLabel }}</view>
+        <view class="center" bindtap="openCenter">{{ titleText }}</view>
+        <view data-step="1" bindtap="shift">{{ nextLabel }}</view>
+      </view>
+      <view class="range">
+        <picker mode="date" value="{{ begin }}" bindchange="onBegin">
+          <view class="date">
+            <van-icon name="calendar-o" size="16px" color="#4285F4" />
+            <text>{{ beginText }}</text>
+          </view>
+        </picker>
+        <text class="to">至</text>
+        <picker mode="date" value="{{ end }}" bindchange="onEnd">
+          <view class="date">
+            <van-icon name="calendar-o" size="16px" color="#4285F4" />
+            <text>{{ endText }}</text>
+          </view>
+        </picker>
+      </view>
+    </view>
+
+    <view wx:if="{{ loadError }}" class="muted">{{ loadError }}</view>
+    <view wx:if="{{ loading && !lines.length && !loadError }}" class="muted">加载中</view>
+
+    <block wx:if="{{ ready }}">
+      <view class="card sums">
+        <view><text>总支出</text><text class="num out">{{ totalCost }}</text></view>
+        <view><text>总投资</text><text class="num out">{{ investCost }}</text></view>
+        <view><text>总消费</text><text class="num out">{{ consumptionCost }}</text></view>
+        <view><text>总收入</text><text class="num in">{{ totalIncome }}</text></view>
+      </view>
+
+      <view class="card">
+        <view class="title">收入</view>
+        <view wx:if="{{ !incomes.length }}" class="muted inner">这段时间没有收入</view>
+        <view wx:for="{{ incomes }}" wx:key="userId" class="income">
+          <text>{{ item.name }}收入</text>
+          <text class="num in">{{ item.moneyText }}</text>
+        </view>
+      </view>
+
+      <view class="card">
+        <view class="title">结算建议</view>
+        <view wx:for="{{ lines }}" wx:key="index" class="line">{{ item }}</view>
+      </view>
+
+      <view class="card struct">
+        <view class="title">支出结构</view>
+        <view wx:if="{{ showMembers }}" class="members">
+          <view class="chip {{ memberId === '' ? 'on' : '' }}" data-id="" bindtap="selectMember">全部</view>
+          <view
+            wx:for="{{ members }}"
+            wx:key="userId"
+            class="chip {{ memberId === item.userId ? 'on' : '' }}"
+            data-id="{{ item.userId }}"
+            bindtap="selectMember"
+          >{{ item.name }}</view>
+        </view>
+        <view wx:if="{{ emptyStructure }}" class="muted inner">暂无</view>
+        <block wx:else>
+          <view class="chart">
+            <view class="donut">
+              <view
+                wx:for="{{ slices }}"
+                wx:key="costTypeId"
+                class="wedge"
+                style="background: {{ item.color }}; clip-path: {{ item.clip }};"
+                data-id="{{ item.costTypeId }}"
+                data-name="{{ item.name }}"
+                bindtap="openCategory"
+              />
+              <view class="hole" />
+            </view>
+          </view>
+          <view class="legend">
+            <view
+              wx:for="{{ slices }}"
+              wx:key="costTypeId"
+              class="legend-item"
+              data-id="{{ item.costTypeId }}"
+              data-name="{{ item.name }}"
+              bindtap="openCategory"
+            >
+              <view class="dot" style="background: {{ item.color }};" />
+              <view class="legend-copy">
+                <text class="name">{{ item.name }}</text>
+                <text class="pct">{{ item.percent }}%</text>
+              </view>
+            </view>
+          </view>
+          <view
+            wx:for="{{ slices }}"
+            wx:key="costTypeId"
+            class="row"
+            data-id="{{ item.costTypeId }}"
+            data-name="{{ item.name }}"
+            bindtap="openCategory"
+          >
+            <view class="dot" style="background: {{ item.color }};" />
+            <view class="row-main">
+              <view class="row-top">
+                <text class="name">{{ item.name }}</text>
+                <text class="meta">{{ item.percent }}%</text>
+                <text class="meta">共 {{ item.count }} 笔</text>
+                <text class="num">{{ item.moneyText }}</text>
+              </view>
+              <view class="bar"><view style="width: {{ item.bar }}; background: {{ item.color }};" /></view>
+            </view>
+            <text class="chev">›</text>
+          </view>
+        </block>
+      </view>
+    </block>
+  </scroll-view>
   <book-tab-bar bill-id="{{ billId }}" active="overview" />
+
+  <van-popup show="{{ showMonth }}" position="bottom" round bind:close="closeMonth">
+    <view class="sheet">
+      <view class="sheet-bar">
+        <view data-step="-1" bindtap="shiftPicker">上一年</view>
+        <text>{{ pickerYear }}年</text>
+        <view data-step="1" bindtap="shiftPicker">下一年</view>
+      </view>
+      <view class="months">
+        <view wx:for="{{ months }}" wx:key="*this" data-month="{{ item }}" bindtap="pickMonth">{{ item }}月</view>
+      </view>
+    </view>
+  </van-popup>
+
+  <van-popup show="{{ showYear }}" position="bottom" round bind:close="closeYear">
+    <view class="sheet years">
+      <view wx:for="{{ yearOptions }}" wx:key="*this" data-year="{{ item }}" bindtap="pickYear">{{ item }}年</view>
+    </view>
+  </van-popup>
+
+  <van-popup show="{{ showRecords }}" position="bottom" round bind:close="closeRecords">
+    <view class="sheet records-sheet">
+      <view class="sheet-bar">
+        <view bindtap="closeRecords">关闭</view>
+        <text class="sheet-title">{{ recordsTitle }}</text>
+        <view />
+      </view>
+      <scroll-view class="sheet-body" scroll-y>
+        <view wx:if="{{ recordsLoading }}" class="muted inner">加载中</view>
+        <view wx:elif="{{ !records.length }}" class="muted inner">暂无</view>
+        <view wx:for="{{ records }}" wx:key="id" class="record">
+          <view class="record-top">
+            <text>{{ item.date }}</text>
+            <text class="num">{{ item.moneyText }}</text>
+          </view>
+          <view class="meta">{{ item.payerName }} · {{ item.belongName }}</view>
+          <view wx:if="{{ item.remark }}" class="meta">{{ item.remark }}</view>
+        </view>
+      </scroll-view>
+    </view>
+  </van-popup>
 </view>

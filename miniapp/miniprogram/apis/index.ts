@@ -183,6 +183,24 @@ export function getMonthCost(billId: string) {
   return request<{ totalCost: number }>({ url: `${V}/transaction/currentMonthCost`, data: { billId }, silent: true })
 }
 
+export function getMobileOverview(billId: string, beginDate: string, endDate: string) {
+  return request({
+    url: `${V}/overview/mobile`,
+    data: { billId, beginDate, endDate },
+    silent: true
+  })
+}
+
+export function getMobileRecords(data: {
+  billId: string
+  beginDate: string
+  endDate: string
+  costTypeId: string
+  memberId?: string
+}) {
+  return request({ url: `${V}/overview/mobile/records`, data, silent: true })
+}
+
 export function getBalance(billId: string, beginDate: number, endDate: number) {
   return request<{ totalCost: number; totalIncomes: number; investCost: number }>({
     url: `${V}/overview/balance`,

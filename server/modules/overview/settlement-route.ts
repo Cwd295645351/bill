@@ -2,7 +2,7 @@ import type { Row } from '../../types/domain'
 import { BillUser, BillOverviewRule, BillOverviewRuleYear, Transaction, User } from '../../database'
 import dayjs from 'dayjs'
 import { Op } from 'sequelize'
-import { buildSettlement } from './settlement'
+import { buildSettlement, mergeSettlementResults, withoutParties } from './settlement'
 import { requireMember } from '../access'
 
 const fixMoney = (n: number | string | null | undefined) => Number(Number(n).toFixed(2))
@@ -123,47 +123,37 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
     if (typeof item.userId === 'string' && item.userId) memberIds.add(item.userId)
   }
 
-  const queryYear = data.beginDate ? dayjs(Number(data.beginDate)).year() : dayjs().year()
+  const beginTs = Number(data.beginDate)
+  const endTs = Number(data.endDate)
+  const explicitInputs = Array.isArray(data.quantityInputs) && data.quantityInputs.length ? data.quantityInputs : null
+  const segments = explicitInputs ? [{ year: dayjs(beginTs).year(), begin: beginTs, end: endTs }] : yearSegments(beginTs, endTs)
+  const years = [...new Set(segments.map((segment) => segment.year))]
   const savedYears = await BillOverviewRuleYear.findAll({
-    where: { billId: data.billId, year: queryYear }
+    where: { billId: data.billId, year: { [Op.in]: years } }
   })
-  const savedYearMap = new Map<string, { quantity: number; belongUserId: string }>()
+  const savedByYear = new Map<number, Map<string, { quantity: number; belongUserId: string }>>()
   ;(savedYears as Row[]).forEach((item) => {
-    savedYearMap.set(String(item.ruleId), {
+    const year = Number(item.year)
+    const bucket = savedByYear.get(year) || new Map<string, { quantity: number; belongUserId: string }>()
+    bucket.set(String(item.ruleId), {
       quantity: Number(item.quantity) || 0,
       belongUserId: item.belongUserId ? String(item.belongUserId) : ''
     })
+    savedByYear.set(year, bucket)
   })
-
-  let rawInputs = data.quantityInputs
-  if (!Array.isArray(rawInputs) || !rawInputs.length) {
-    rawInputs = (enabledRules as Row[])
-      .filter((r) => r.ruleType === 'quantity')
-      .map((r) => {
-        const saved = savedYearMap.get(String(r.id))
-        return {
-          ruleId: r.id,
-          quantity: saved ? saved.quantity : 0,
-          belongUserId: saved ? saved.belongUserId : ''
-        }
-      })
-  }
-
-  const [inputErr, quantityInputs] = normalizeQuantityInputs(rawInputs, enabledRules as Row[], memberIds)
-  if (inputErr) return [inputErr, null]
 
   const rows = await Transaction.findAll({
     where: {
       billId: data.billId,
-      date: { [Op.between]: [data.beginDate, data.endDate] },
+      date: { [Op.between]: [beginTs, endTs] },
       isDel: false
     },
-    attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+    attributes: ['id', 'type', 'money', 'date', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'remark']
   })
 
   const outsiderIds = [
     ...new Set(
-      (rows as Row[]).map((row) => row.userId).filter((userId): userId is string => !!userId && !memberIds.has(userId))
+      (rows as Row[]).map((row) => row.userId).filter((id): id is string => !!id && !memberIds.has(id))
     )
   ]
   const outsiderUsers = outsiderIds.length
@@ -171,29 +161,69 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
     : []
   const outsiderNames = new Map<string, string>(outsiderUsers.map((item: Row) => [item.id || '', item.nickName || '']))
   const memberNames = new Map<string, string>(billUsers.map((item: Row) => [item.userId || '', item.userName || '']))
+  const members = billUsers.map((item: Row) => ({ userId: String(item.userId || ''), name: String(item.userName || '') }))
+  const rules = (enabledRules as Row[]).map((item) => ({
+    id: String(item.id || ''),
+    name: item.name,
+    ruleType: item.ruleType,
+    unitPrice: item.unitPrice,
+    costTypeId: item.costTypeId
+  }))
 
-  const result = buildSettlement({
-    members: billUsers.map((item: Row) => ({ userId: item.userId, name: item.userName })),
-    rules: enabledRules.map((item: Row) => ({
-      id: item.id,
-      name: item.name,
-      ruleType: item.ruleType,
-      unitPrice: item.unitPrice,
-      costTypeId: item.costTypeId
-    })),
-    quantityInputs: quantityInputs || [],
-    transactions: rows.map((row: Row) => ({
-      id: row.id,
-      type: row.type,
-      money: row.money,
-      userId: row.userId,
-      payerName: memberNames.get(row.userId || '') || outsiderNames.get(row.userId || '') || '未知',
-      belongUserId: row.belongUserId,
-      belongUserName: row.belongUserName,
-      costTypeId: row.costTypeId,
-      costTypeName: row.costTypeName
-    }))
-  })
-  return [null, result]
+  const results = []
+  for (const segment of segments) {
+    const savedYearMap = savedByYear.get(segment.year) || new Map<string, { quantity: number; belongUserId: string }>()
+    const rawInputs = explicitInputs
+      ? explicitInputs
+      : (enabledRules as Row[])
+          .filter((rule) => rule.ruleType === 'quantity')
+          .map((rule) => {
+            const saved = savedYearMap.get(String(rule.id))
+            return {
+              ruleId: rule.id,
+              quantity: saved ? saved.quantity : 0,
+              belongUserId: saved ? saved.belongUserId : ''
+            }
+          })
+    const [inputErr, quantityInputs] = normalizeQuantityInputs(rawInputs, enabledRules as Row[], memberIds)
+    if (inputErr) return [inputErr, null]
+    const segmentRows = (rows as Row[]).filter((row) => {
+      const time = Number(row.date)
+      return time >= segment.begin && time <= segment.end
+    })
+    results.push(
+      buildSettlement({
+        members,
+        rules,
+        quantityInputs: quantityInputs || [],
+        transactions: segmentRows.map((row) => ({
+          id: row.id,
+          type: row.type,
+          money: row.money,
+          userId: row.userId,
+          payerName: memberNames.get(row.userId || '') || outsiderNames.get(row.userId || '') || '未知',
+          belongUserId: row.belongUserId,
+          belongUserName: row.belongUserName,
+          costTypeId: row.costTypeId,
+          costTypeName: row.costTypeName
+        }))
+      })
+    )
+  }
+
+  const settled = results.length === 1 ? withoutParties(results[0]) : mergeSettlementResults(members, results)
+  return [null, settled]
+}
+
+/** 按自然年切开闭区间。上一年结束于该年最后一毫秒，下一年从下一毫秒开始 */
+const yearSegments = (beginTs: number, endTs: number) => {
+  const segments: { year: number; begin: number; end: number }[] = []
+  let cursor = beginTs
+  while (cursor <= endTs) {
+    const end = Math.min(dayjs(cursor).endOf('year').valueOf(), endTs)
+    segments.push({ year: dayjs(cursor).year(), begin: cursor, end })
+    cursor = end + 1
+  }
+  return segments
 }
 

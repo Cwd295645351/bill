@@ -6,6 +6,7 @@ import { ResModel } from '../../http/res-model'
 
 import { getBlance, getCosts } from './query-service'
 import { getSettlement } from './settlement-route'
+import { getMobileOverview, getMobileRecords } from './mobile-view'
 import { toTimestamp } from '../../utils/dateUtil'
 import VERSION from '../../config/version'
 
@@ -45,6 +46,42 @@ router.post('/settlement', async (ctx: HttpContext, next: Next) => {
       quantityInputs: data.quantityInputs
     }
     const [err, res] = await getSettlement(params, currentUserId(ctx))
+    if (res) ctx.body = new ResModel(res, '查询成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
+
+// 手机概览。只读，不接收数量输入
+router.get('/mobile/records', async (ctx: HttpContext, next: Next) => {
+  const query = ctx.query
+  const billId = queryString(query.billId)
+  const beginDate = queryString(query.beginDate)
+  const endDate = queryString(query.endDate)
+  const costTypeId = queryString(query.costTypeId)
+  if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
+  else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
+  else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
+  else if (!costTypeId) ctx.body = new ResModel(null, '分类不能为空', 'error')
+  else {
+    const [err, res] = await getMobileRecords(
+      { billId, beginDate, endDate, costTypeId, memberId: queryString(query.memberId) },
+      currentUserId(ctx)
+    )
+    if (res) ctx.body = new ResModel(res, '查询成功')
+    else ctx.body = new ResModel(null, err, 'error')
+  }
+})
+
+router.get('/mobile', async (ctx: HttpContext, next: Next) => {
+  const query = ctx.query
+  const billId = queryString(query.billId)
+  const beginDate = queryString(query.beginDate)
+  const endDate = queryString(query.endDate)
+  if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
+  else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
+  else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
+  else {
+    const [err, res] = await getMobileOverview({ billId, beginDate, endDate }, currentUserId(ctx))
     if (res) ctx.body = new ResModel(res, '查询成功')
     else ctx.body = new ResModel(null, err, 'error')
   }

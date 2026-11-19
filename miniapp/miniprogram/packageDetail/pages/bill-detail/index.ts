@@ -3,7 +3,7 @@ import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 import { dayEndTs, thisYear, today, yearStartTs } from '../../../utils/date'
 import { groupRecords, RecordItem } from '../../../utils/records'
-import { appShareMessage } from '../../../utils/share'
+import { SHARE_IMAGE, appShareMessage } from '../../../utils/share'
 import { getUser, setBillDict, setEditingRecord, setLastBillId } from '../../../utils/storage'
 
 const PAGE_SIZE = 20
@@ -245,12 +245,14 @@ Page({
       }
       return {
         title: `邀请你加入账本「${name}」`,
-        path: `/pages/join/index?code=${encodeURIComponent(ret.data)}&name=${encodeURIComponent(name)}`
+        path: `/pages/join/index?code=${encodeURIComponent(ret.data)}&name=${encodeURIComponent(name)}`,
+        imageUrl: SHARE_IMAGE
       }
     })
     return {
       title: `邀请你加入账本「${name}」`,
       path: '/pages/bills/index',
+      imageUrl: SHARE_IMAGE,
       promise
     }
   }

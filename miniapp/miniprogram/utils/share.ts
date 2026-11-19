@@ -1,3 +1,6 @@
+/** 分享封面：约 5:4，主色与导航栏一致 */
+export const SHARE_IMAGE = '/assets/share/share-cover.jpg'
+
 /** 打开右上角「转发」「分享到朋友圈」 */
 export function enableAppShare() {
   wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] })
@@ -7,7 +10,8 @@ export function enableAppShare() {
 export function appShareMessage() {
   return {
     title: '记账',
-    path: '/pages/bills/index'
+    path: '/pages/bills/index',
+    imageUrl: SHARE_IMAGE
   }
 }
 
@@ -18,6 +22,7 @@ export function appShareMessage() {
 export function appShareTimeline() {
   return {
     title: '记账',
-    query: ''
+    query: '',
+    imageUrl: SHARE_IMAGE
   }
 }

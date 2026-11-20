@@ -183,10 +183,15 @@ export function getMonthCost(billId: string) {
   return request<{ totalCost: number }>({ url: `${V}/transaction/currentMonthCost`, data: { billId }, silent: true })
 }
 
-export function getMobileOverview(billId: string, beginDate: string, endDate: string) {
+export function getMobileOverview(billId: string, beginDate: string, endDate: string, cumulativeIncome?: boolean) {
   return request({
     url: `${V}/overview/mobile`,
-    data: { billId, beginDate, endDate },
+    data: {
+      billId,
+      beginDate,
+      endDate,
+      ...(cumulativeIncome ? { cumulativeIncome: 'true' } : {})
+    },
     silent: true
   })
 }

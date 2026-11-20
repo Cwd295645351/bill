@@ -27,6 +27,16 @@
       </view>
     </view>
 
+    <view class="card cumulative">
+      <view class="cumulative-row">
+        <text>按累计收入分</text>
+        <view class="switch {{ cumulativeIncome ? 'on' : '' }} {{ crossYear ? 'disabled' : '' }}" bindtap="onToggle">
+          <view class="knob" />
+        </view>
+      </view>
+      <view wx:if="{{ incomeNote }}" class="note">{{ incomeNote }}</view>
+    </view>
+
     <view wx:if="{{ loadError }}" class="muted">{{ loadError }}</view>
     <view wx:if="{{ loading && !lines.length && !loadError }}" class="muted">加载中</view>
 
@@ -35,7 +45,7 @@
         <view><text>总支出</text><text class="num out">{{ totalCost }}</text></view>
         <view><text>总投资</text><text class="num out">{{ investCost }}</text></view>
         <view><text>总消费</text><text class="num out">{{ consumptionCost }}</text></view>
-        <view><text>总收入</text><text class="num in">{{ totalIncome }}</text></view>
+        <view><text>{{ incomeTitle }}</text><text class="num in">{{ totalIncome }}</text></view>
       </view>
 
       <view class="card">

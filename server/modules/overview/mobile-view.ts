@@ -70,10 +70,26 @@ export const getMobileOverview = async (query: Row, userId: string | null | unde
   const [rangeErr, range] = parseRange(String(query.beginDate || ''), String(query.endDate || ''))
   if (rangeErr || !range) return [rangeErr, null]
 
+  const cumulativeIncome = query.cumulativeIncome === true
   const [balanceErr, balance] = await getBlance({ billId, beginDate: range.begin, endDate: range.end }, userId)
   if (!balance || typeof balance === 'string') return [balanceErr, null]
-  const [settleErr, settlement] = await getSettlement({ billId, beginDate: range.begin, endDate: range.end }, userId)
+  const [settleErr, settlement] = await getSettlement(
+    { billId, beginDate: range.begin, endDate: range.end, cumulativeIncome },
+    userId
+  )
   if (!settlement || typeof settlement === 'string') return [settleErr, null]
+  const rangesDiffer =
+    Number(settlement.incomeBeginDate) !== Number(settlement.expenseBeginDate) ||
+    Number(settlement.incomeEndDate) !== Number(settlement.expenseEndDate)
+  let totalIncome = Number(balance.totalIncomes) || 0
+  if (rangesDiffer) {
+    const [incomeErr, incomeBalance] = await getBlance(
+      { billId, beginDate: settlement.incomeBeginDate, endDate: settlement.incomeEndDate },
+      userId
+    )
+    if (!incomeBalance || typeof incomeBalance === 'string') return [incomeErr, null]
+    totalIncome = Number(incomeBalance.totalIncomes) || 0
+  }
 
   const expenses = (await Transaction.findAll({
     where: { billId, date: { [Op.between]: [range.begin, range.end] }, isDel: false, type: 1 },
@@ -151,8 +167,13 @@ export const getMobileOverview = async (query: Row, userId: string | null | unde
     .map((member) => ({
       userId: String(member.userId || ''),
       name: String(member.name || ''),
-      money: Number(member.income) || 0
+      money: fixMoney(Number(member.income) || 0)
     }))
+  const effectiveIncomes = (settlement.members || []).map((member) => ({
+    userId: String(member.userId || ''),
+    name: String(member.name || ''),
+    money: fixMoney(Number(member.effectiveIncome) || 0)
+  }))
 
   return [
     null,
@@ -160,13 +181,18 @@ export const getMobileOverview = async (query: Row, userId: string | null | unde
       totalCost: Number(balance.totalCost) || 0,
       investCost: Number(balance.investCost) || 0,
       consumptionCost: fixMoney(Number(balance.totalCost) - Number(balance.investCost)),
-      totalIncome: Number(balance.totalIncomes) || 0,
+      totalIncome,
       incomes,
+      effectiveIncomes,
       lines: settlement.lines || [],
       members,
       categories,
       minYear,
-      maxYear
+      maxYear,
+      expenseBeginDate: Number(settlement.expenseBeginDate),
+      expenseEndDate: Number(settlement.expenseEndDate),
+      incomeBeginDate: Number(settlement.incomeBeginDate),
+      incomeEndDate: Number(settlement.incomeEndDate)
     }
   ]
 }

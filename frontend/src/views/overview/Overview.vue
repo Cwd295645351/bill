@@ -3,22 +3,27 @@
     <div class="belong-user-module">
       <div class="title">收支概览</div>
       <div class="total-context">
-        <div class="line">
-          总支出：<span class="color-red">{{ belongUsers.totalCost }}</span>
+        <div class="metric">
+          <div class="metric-label">总支出</div>
+          <div class="metric-value color-red">{{ moneyText(belongUsers.totalCost) }}</div>
         </div>
-        <div class="line">
-          总投资：<span class="color-red">{{ belongUsers.investCost }}</span>
+        <div class="metric">
+          <div class="metric-label">总投资</div>
+          <div class="metric-value color-red">{{ moneyText(belongUsers.investCost) }}</div>
         </div>
-        <div class="line">
-          总消费：<span class="color-red">{{ belongUsers.consumptionCost.toFixed(2) }}</span>
+        <div class="metric">
+          <div class="metric-label">总消费</div>
+          <div class="metric-value color-red">{{ moneyText(belongUsers.consumptionCost) }}</div>
         </div>
-        <div class="line">
-          总收入：<span class="color-green">{{ belongUsers.totalIncomes }}</span>
+        <div class="metric">
+          <div class="metric-label">{{ incomeLabel }}</div>
+          <div class="metric-value color-green">{{ moneyText(belongUsers.totalIncomes) }}</div>
         </div>
       </div>
       <div class="detail">
-        <div class="detail-item" v-for="item in incomeDetails" :key="item.belongUserIds.join(',') + '_' + item.userId + '_' + item.type">
-          ({{ item.userName }}) {{ item.belongUserName }}收入：<span class="color-green">{{ item.money.toFixed(2) }}</span>
+        <div class="metric detail-item" v-for="item in incomeRows" :key="item.userId">
+          <div class="metric-label">{{ item.name }}收入</div>
+          <div class="metric-value color-green">{{ moneyText(item.money) }}</div>
         </div>
       </div>
       <div class="add-data-container">
@@ -28,6 +33,13 @@
           </el-form-item>
           <el-form-item prop="endDate" required size="small" label="结束时间">
             <el-date-picker style="width: 100%" v-model="belongCondition.endDate" value-format="x" type="date" placeholder="结束时间"> </el-date-picker>
+          </el-form-item>
+          <el-form-item class="form-item cumulative-item" size="small">
+            <div class="cumulative">
+              <span>按累计收入分</span>
+              <el-switch v-model="cumulativeIncome" :disabled="crossYear" />
+            </div>
+            <div v-if="incomeNote" class="income-note">{{ incomeNote }}</div>
           </el-form-item>
           <el-form-item class="form-item" size="small">
             <el-button type="primary" @click="getBalanceAndPieData">查询</el-button>
@@ -103,15 +115,31 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import { useOverview } from './hooks/use-overview'
 import { useTypeChart } from './hooks/use-type-chart'
 const colorOptions = ['#afd8ff', '#91cc75', '#fac858', '#ee6666', '#73c0de', '#3ba272', '#fc8452', '#9a60b4', '#ea7ccc']
 const { perYearCostDatas } = useOverview({ colorOptions })
-const { users, quantityRules, belongCondition, belongUsers, settlementLines, getBalanceAndPieData, dialogVisible, detailList, loading, currentCategory, currentCategoryTotal, chartCount } =
-  useTypeChart({ colorOptions })
-/** 明细只展示收入。分账按区间内的支出计算，不看这些行是否出现在屏幕上 */
-const incomeDetails = computed(() => belongUsers.value.details.filter((item) => item.type !== 1))
+const {
+  users,
+  quantityRules,
+  belongCondition,
+  belongUsers,
+  cumulativeIncome,
+  crossYear,
+  incomeNote,
+  incomeLabel,
+  incomeRows,
+  settlementLines,
+  getBalanceAndPieData,
+  dialogVisible,
+  detailList,
+  loading,
+  currentCategory,
+  currentCategoryTotal,
+  chartCount,
+} = useTypeChart({ colorOptions })
+/** 金额单独一行，保留两位小数 */
+const moneyText = (value: number) => Number(value || 0).toFixed(2)
 
 /** 表格行背景色匹配年度折线/柱状图色彩 */
 const getRowStyle = ({ rowIndex }: { rowIndex: number }) => {
@@ -140,7 +168,7 @@ const getRowStyle = ({ rowIndex }: { rowIndex: number }) => {
     color: #18a356;
   }
   .belong-user-module {
-    width: 200px;
+    width: 240px;
     height: 100%;
     margin-right: 10px;
     border-radius: 8px;
@@ -161,18 +189,26 @@ const getRowStyle = ({ rowIndex }: { rowIndex: number }) => {
       padding-bottom: 10px;
       border-top: 1px solid #ddd;
       border-bottom: 1px solid #ddd;
-      font-size: 24px;
-      .line {
+      .metric {
         padding-top: 10px;
       }
+    }
+    .metric-label {
+      font-size: 16px;
+      line-height: 22px;
+      color: #666;
+    }
+    .metric-value {
+      font-size: 22px;
+      line-height: 28px;
+      font-weight: 600;
     }
     .detail {
       flex: 1;
       min-height: 0;
       .detail-item {
-        line-height: 35px;
-        font-size: 20px;
         border-bottom: 1px dotted #ccc;
+        padding-bottom: 6px;
       }
     }
     .add-data-container {
@@ -185,6 +221,20 @@ const getRowStyle = ({ rowIndex }: { rowIndex: number }) => {
         :deep(.el-form-item__content) {
           justify-content: center;
         }
+      }
+      .cumulative {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .income-note,
+      .effective-list {
+        width: 100%;
+        font-size: 13px;
+        line-height: 20px;
+        color: #666;
       }
       .settlement-lines {
         padding-top: 4px;

@@ -38,12 +38,14 @@ router.post('/settlement', async (ctx: HttpContext, next: Next) => {
   if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
   else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
-  else {
+  else if (Object.prototype.hasOwnProperty.call(data, 'cumulativeIncome') && typeof data.cumulativeIncome !== 'boolean') {
+    ctx.body = new ResModel(null, '按累计收入分参数不正确', 'error')
+  } else {
     const params: Row = {
       billId,
       beginDate: toTimestamp(beginDate),
       endDate: toTimestamp(endDate),
-      quantityInputs: data.quantityInputs
+      cumulativeIncome: data.cumulativeIncome === true
     }
     const [err, res] = await getSettlement(params, currentUserId(ctx))
     if (res) ctx.body = new ResModel(res, '查询成功')
@@ -77,11 +79,18 @@ router.get('/mobile', async (ctx: HttpContext, next: Next) => {
   const billId = queryString(query.billId)
   const beginDate = queryString(query.beginDate)
   const endDate = queryString(query.endDate)
+  const cumulativeText = queryString(query.cumulativeIncome)
+  const cumulativeInvalid = query.cumulativeIncome !== undefined && cumulativeText !== 'true' && cumulativeText !== 'false'
   if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
   else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
-  else {
-    const [err, res] = await getMobileOverview({ billId, beginDate, endDate }, currentUserId(ctx))
+  else if (cumulativeInvalid) {
+    ctx.body = new ResModel(null, '按累计收入分参数不正确', 'error')
+  } else {
+    const [err, res] = await getMobileOverview(
+      { billId, beginDate, endDate, cumulativeIncome: cumulativeText === 'true' },
+      currentUserId(ctx)
+    )
     if (res) ctx.body = new ResModel(res, '查询成功')
     else ctx.body = new ResModel(null, err, 'error')
   }

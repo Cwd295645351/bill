@@ -110,6 +110,8 @@ export interface Row {
   operatorId?: string
   withMonthSummary?: boolean
   quantityInputs?: Row[]
+  /** 概览是否按累计收入分。只接受布尔值 */
+  cumulativeIncome?: boolean
   year?: number | string
   count?: number
   length?: number

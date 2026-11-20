@@ -105,7 +105,8 @@ const addSlice = (bucket: Record<string, Slice>, costTypeId: string | null | und
  * @param {Array<{userId: string, name: string}>} input.members 已按 bill_users.id 升序
  * @param {Array} input.rules 已启用的概览规则
  * @param {Array<{ruleId: string, quantity: number, belongUserId: string}>} input.quantityInputs
- * @param {Array} input.transactions 区间内未删除的记账；belongUserId 为数据库原值，多人时是按 bill_users.id 升序的逗号串
+ * @param {Array} input.transactions 支出流水。不传权重流水时，收入和指定类型扣减也用这一份
+ * @param {Array} [input.weightTransactions] 可选权重流水。传入时只从这里累计收入和指定类型扣减
  * @returns {object} 结算结果
  */
 interface SettlementMember {
@@ -141,18 +142,23 @@ const buildSettlement = ({
   members,
   rules,
   quantityInputs,
-  transactions
+  transactions,
+  weightTransactions
 }: {
   members?: SettlementMember[]
   rules?: SettlementRule[]
   quantityInputs?: QuantityInput[]
   transactions?: SettlementRow[]
+  /** 不传时与 transactions 相同，收入、扣减和分摊仍走一份流水 */
+  weightTransactions?: SettlementRow[]
 }) => {
   const memberList = members || []
   const memberIds = new Set(memberList.map((member: SettlementMember) => member.userId))
   const ruleList = rules || []
   const inputs = quantityInputs || []
   const rows = transactions || []
+  /** 权重流水：成员收入和指定类型扣减。缺省就是支出流水 */
+  const weightRows = weightTransactions || rows
 
   const incomeCents: Record<string, number> = {}
   const effectiveCents: Record<string, number> = {}
@@ -161,7 +167,7 @@ const buildSettlement = ({
     effectiveCents[member.userId] = 0
   })
 
-  rows.forEach((row: SettlementRow) => {
+  weightRows.forEach((row: SettlementRow) => {
     if (Number(row.type) !== 2) return
     if (isPublicBelong(row.belongUserId) || !memberIds.has(row.belongUserId)) return
     incomeCents[row.belongUserId] += toCents(row.money)
@@ -186,7 +192,7 @@ const buildSettlement = ({
     if (rule.ruleType === 'cost_type' && rule.costTypeId) {
       /** 多人行按组合汇总后再在组内平均分，同一组合只取整一次 */
       const groupCents = new Map<string, number>()
-      rows.forEach((row: SettlementRow) => {
+      weightRows.forEach((row: SettlementRow) => {
         if (Number(row.type) !== 1) return
         if (row.costTypeId !== rule.costTypeId) return
         if (isPublicBelong(row.belongUserId)) return
@@ -243,6 +249,7 @@ const buildSettlement = ({
   memberList.forEach((member: SettlementMember) => {
     memberSlices[member.userId] = {}
   })
+  /** 垫付和分摊只看支出流水。报销进度不参与筛选，仍按记账金额计算 */
   /** 公共支出先记下，等全部加总后再分一次，避免逐笔四舍五入把零头叠大 */
   const publicRows: SettlementRow[] = []
   /** 多人支出按归属人组合分组，组内同样先加总再分一次；Map 保持首次出现顺序 */

@@ -118,10 +118,48 @@
   font-size: 14px;
   color: #222;
 }
+.cumulative-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.switch {
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: #dcdfe6;
+  position: relative;
+  flex: none;
+}
+.switch.on {
+  background: #4285f4;
+}
+.switch.disabled {
+  opacity: 0.45;
+}
+.switch .knob {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+}
+.switch.on .knob {
+  left: 20px;
+}
+.note {
+  margin-top: 8px;
+  color: #666;
+  font-size: 13px;
+  line-height: 20px;
+}
 .income {
   display: flex;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .members {
   flex-wrap: wrap;

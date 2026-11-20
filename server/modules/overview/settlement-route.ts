@@ -125,8 +125,18 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
 
   const beginTs = Number(data.beginDate)
   const endTs = Number(data.endDate)
-  const explicitInputs = Array.isArray(data.quantityInputs) && data.quantityInputs.length ? data.quantityInputs : null
-  const segments = explicitInputs ? [{ year: dayjs(beginTs).year(), begin: beginTs, end: endTs }] : yearSegments(beginTs, endTs)
+  const cumulativeIncome = data.cumulativeIncome === true
+  const expenseBeginDate = beginTs
+  const expenseEndDate = endTs
+  const sameCalendarYear = dayjs(beginTs).year() === dayjs(endTs).year()
+  if (cumulativeIncome && !sameCalendarYear) return ['跨年时不能按累计收入分', null]
+  /** 收入开始取支出开始日所在自然年的 1 月 1 日。与 yearSegments 使用同一个 dayjs */
+  const incomeBeginDate = cumulativeIncome ? dayjs(beginTs).startOf('year').valueOf() : beginTs
+  const incomeEndDate = endTs
+  const rangesDiffer = incomeBeginDate !== expenseBeginDate || incomeEndDate !== expenseEndDate
+  const segments = rangesDiffer
+    ? [{ year: dayjs(beginTs).year(), begin: incomeBeginDate, end: incomeEndDate }]
+    : yearSegments(beginTs, endTs)
   const years = [...new Set(segments.map((segment) => segment.year))]
   const savedYears = await BillOverviewRuleYear.findAll({
     where: { billId: data.billId, year: { [Op.in]: years } }
@@ -142,10 +152,12 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
     savedByYear.set(year, bucket)
   })
 
+  const queryBegin = rangesDiffer ? incomeBeginDate : beginTs
+  const queryEnd = rangesDiffer ? incomeEndDate : endTs
   const rows = await Transaction.findAll({
     where: {
       billId: data.billId,
-      date: { [Op.between]: [beginTs, endTs] },
+      date: { [Op.between]: [queryBegin, queryEnd] },
       isDel: false
     },
     attributes: ['id', 'type', 'money', 'date', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'remark']
@@ -170,49 +182,92 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
     costTypeId: item.costTypeId
   }))
 
+  const toSettlementRow = (row: Row) => ({
+    id: row.id,
+    type: row.type,
+    money: row.money,
+    userId: row.userId,
+    payerName: memberNames.get(row.userId || '') || outsiderNames.get(row.userId || '') || '未知',
+    belongUserId: row.belongUserId,
+    belongUserName: row.belongUserName,
+    costTypeId: row.costTypeId,
+    costTypeName: row.costTypeName
+  })
+
   const results = []
-  for (const segment of segments) {
-    const savedYearMap = savedByYear.get(segment.year) || new Map<string, { quantity: number; belongUserId: string }>()
-    const rawInputs = explicitInputs
-      ? explicitInputs
-      : (enabledRules as Row[])
-          .filter((rule) => rule.ruleType === 'quantity')
-          .map((rule) => {
-            const saved = savedYearMap.get(String(rule.id))
-            return {
-              ruleId: rule.id,
-              quantity: saved ? saved.quantity : 0,
-              belongUserId: saved ? saved.belongUserId : ''
-            }
-          })
+  if (rangesDiffer) {
+    const year = dayjs(beginTs).year()
+    const savedYearMap = savedByYear.get(year) || new Map<string, { quantity: number; belongUserId: string }>()
+    const rawInputs = (enabledRules as Row[])
+      .filter((rule) => rule.ruleType === 'quantity')
+      .map((rule) => {
+        const saved = savedYearMap.get(String(rule.id))
+        return {
+          ruleId: rule.id,
+          quantity: saved ? saved.quantity : 0,
+          belongUserId: saved ? saved.belongUserId : ''
+        }
+      })
     const [inputErr, quantityInputs] = normalizeQuantityInputs(rawInputs, enabledRules as Row[], memberIds)
     if (inputErr) return [inputErr, null]
-    const segmentRows = (rows as Row[]).filter((row) => {
+    const weightRows = (rows as Row[]).filter((row) => {
       const time = Number(row.date)
-      return time >= segment.begin && time <= segment.end
+      return time >= incomeBeginDate && time <= incomeEndDate
+    })
+    const expenseRows = weightRows.filter((row) => {
+      const time = Number(row.date)
+      return time >= expenseBeginDate && time <= expenseEndDate
     })
     results.push(
       buildSettlement({
         members,
         rules,
         quantityInputs: quantityInputs || [],
-        transactions: segmentRows.map((row) => ({
-          id: row.id,
-          type: row.type,
-          money: row.money,
-          userId: row.userId,
-          payerName: memberNames.get(row.userId || '') || outsiderNames.get(row.userId || '') || '未知',
-          belongUserId: row.belongUserId,
-          belongUserName: row.belongUserName,
-          costTypeId: row.costTypeId,
-          costTypeName: row.costTypeName
-        }))
+        transactions: expenseRows.map(toSettlementRow),
+        weightTransactions: weightRows.map(toSettlementRow)
       })
     )
+  } else {
+    for (const segment of segments) {
+      const savedYearMap = savedByYear.get(segment.year) || new Map<string, { quantity: number; belongUserId: string }>()
+      const rawInputs = (enabledRules as Row[])
+        .filter((rule) => rule.ruleType === 'quantity')
+        .map((rule) => {
+          const saved = savedYearMap.get(String(rule.id))
+          return {
+            ruleId: rule.id,
+            quantity: saved ? saved.quantity : 0,
+            belongUserId: saved ? saved.belongUserId : ''
+          }
+        })
+      const [inputErr, quantityInputs] = normalizeQuantityInputs(rawInputs, enabledRules as Row[], memberIds)
+      if (inputErr) return [inputErr, null]
+      const segmentRows = (rows as Row[]).filter((row) => {
+        const time = Number(row.date)
+        return time >= segment.begin && time <= segment.end
+      })
+      results.push(
+        buildSettlement({
+          members,
+          rules,
+          quantityInputs: quantityInputs || [],
+          transactions: segmentRows.map(toSettlementRow)
+        })
+      )
+    }
   }
 
   const settled = results.length === 1 ? withoutParties(results[0]) : mergeSettlementResults(members, results)
-  return [null, settled]
+  return [
+    null,
+    {
+      ...settled,
+      expenseBeginDate,
+      expenseEndDate,
+      incomeBeginDate,
+      incomeEndDate
+    }
+  ]
 }
 
 /** 按自然年切开闭区间。上一年结束于该年最后一毫秒，下一年从下一毫秒开始 */

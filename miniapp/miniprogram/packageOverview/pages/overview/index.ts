@@ -32,6 +32,16 @@ function dotted(value: string) {
   return (value || '').replace(/-/g, '.')
 }
 
+function ymd(value?: number) {
+  if (!value) return ''
+  const date = new Date(value)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+function isCrossYear(begin: string, end: string) {
+  return !!begin && !!end && begin.slice(0, 4) !== end.slice(0, 4)
+}
+
 function money(value: number) {
   return Number(value || 0).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -111,6 +121,11 @@ Page({
     records: [] as { id: string; date: string; payerName: string; belongName: string; moneyText: string; remark: string }[],
     recordsLoading: false,
     ready: false,
+    cumulativeIncome: false,
+    crossYear: false,
+    incomeTitle: '总收入',
+    incomeNote: '',
+    leftPage: false,
     months: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     categoriesAll: [] as Slice[],
     categoriesMembers: [] as { userId: string; slices: Slice[] }[]
@@ -128,9 +143,24 @@ Page({
     })
   },
 
+  onHide() {
+    this.setData({ leftPage: true })
+  },
+
   async onShow() {
     const ok = await guardPage()
     if (!ok || !this.data.billId) return
+    if (this.data.leftPage) this.setData({ cumulativeIncome: false, leftPage: false })
+    this.load()
+  },
+
+  onToggle() {
+    if (this.data.crossYear || isCrossYear(this.data.begin, this.data.end)) {
+      this.setData({ cumulativeIncome: false, crossYear: true })
+      wx.showToast({ title: '跨年时按支出区间自身的收入分账', icon: 'none' })
+      return
+    }
+    this.setData({ cumulativeIncome: !this.data.cumulativeIncome })
     this.load()
   },
 
@@ -256,9 +286,16 @@ Page({
     const begin = beginDate || this.data.begin
     const end = endDate || this.data.end
     if (!this.data.billId || !begin || !end) return
+    const crossYear = isCrossYear(begin, end)
+    if (crossYear && this.data.cumulativeIncome) {
+      this.setData({ cumulativeIncome: false, crossYear: true })
+      wx.showToast({ title: '跨年时按支出区间自身的收入分账', icon: 'none' })
+    } else {
+      this.setData({ crossYear })
+    }
     this.setData({ loading: true, loadError: '' })
     try {
-      const res = await getMobileOverview(this.data.billId, begin, end)
+      const res = await getMobileOverview(this.data.billId, begin, end, this.data.cumulativeIncome)
       if (res.retCode !== 0 || !res.data) {
         this.setData({ loadError: res.message || '加载失败' })
         return
@@ -269,6 +306,18 @@ Page({
         name: item.name,
         moneyText: money(item.money)
       }))
+      const opened = this.data.cumulativeIncome
+      const differ =
+        opened &&
+        (Number(data.incomeBeginDate) !== Number(data.expenseBeginDate) ||
+          Number(data.incomeEndDate) !== Number(data.expenseEndDate))
+      const incomeBeginText = ymd(Number(data.incomeBeginDate))
+      const incomeEndText = ymd(Number(data.incomeEndDate))
+      const incomeNote = opened
+        ? differ
+          ? `收入区间：${incomeBeginText} 至 ${incomeEndText}`
+          : `收入区间：${incomeBeginText} 至 ${incomeEndText}，与支出区间相同`
+        : ''
       const minYear = Number(data.minYear) || new Date().getFullYear()
       const maxYear = Number(data.maxYear) || minYear + 10
       const yearOptions: number[] = []
@@ -287,6 +336,8 @@ Page({
         investCost: money(data.investCost),
         consumptionCost: money(data.consumptionCost),
         totalIncome: money(data.totalIncome),
+        incomeTitle: differ ? '总收入（分账区间）' : '总收入',
+        incomeNote,
         incomes,
         lines: data.lines || [],
         members,

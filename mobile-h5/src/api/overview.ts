@@ -26,6 +26,8 @@ export interface MobileOverview {
   consumptionCost: number
   totalIncome: number
   incomes: OverviewIncome[]
+  /** 当前全部成员的有效收入，允许为负 */
+  effectiveIncomes: OverviewIncome[]
   lines: string[]
   members: { userId: string; name: string }[]
   categories: {
@@ -34,6 +36,11 @@ export interface MobileOverview {
   }
   minYear: number
   maxYear: number
+  /** 支出与收入区间，毫秒时间戳 */
+  expenseBeginDate: number
+  expenseEndDate: number
+  incomeBeginDate: number
+  incomeEndDate: number
 }
 
 export interface OverviewRecord {
@@ -45,12 +52,17 @@ export interface OverviewRecord {
   remark: string
 }
 
-/** 查询手机概览。不传数量和归属 */
-export function getMobileOverview(billId: string, beginDate: string, endDate: string) {
+/** 查询手机概览。只在打开累计收入时附带查询参数 */
+export function getMobileOverview(billId: string, beginDate: string, endDate: string, cumulativeIncome?: boolean) {
   return request<MobileOverview>({
     url: '/overview/mobile',
     method: 'GET',
-    params: { billId, beginDate, endDate },
+    params: {
+      billId,
+      beginDate,
+      endDate,
+      ...(cumulativeIncome ? { cumulativeIncome: 'true' } : {}),
+    },
     silent: true,
   })
 }

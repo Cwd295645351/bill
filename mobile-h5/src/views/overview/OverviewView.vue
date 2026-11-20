@@ -25,6 +25,14 @@
       </div>
     </div>
 
+    <div class="period cumulative">
+      <div class="cumulative-row">
+        <span>按累计收入分</span>
+        <van-switch :model-value="cumulative" :disabled="crossYear" size="22px" active-color="#4285f4" inactive-color="#dcdfe6" @update:model-value="onToggle" />
+      </div>
+      <div v-if="incomeNote" class="note">{{ incomeNote }}</div>
+    </div>
+
     <div v-if="loadError" class="error">{{ loadError }}</div>
     <div v-if="loading && !view" class="loading">加载中</div>
 
@@ -33,7 +41,7 @@
         <div class="out"><span>总支出</span><b>{{ money(view.totalCost) }}</b></div>
         <div class="out"><span>总投资</span><b>{{ money(view.investCost) }}</b></div>
         <div class="out"><span>总消费</span><b>{{ money(view.consumptionCost) }}</b></div>
-        <div class="in"><span>总收入</span><b>{{ money(view.totalIncome) }}</b></div>
+        <div class="in"><span>{{ incomeTitle }}</span><b>{{ money(view.totalIncome) }}</b></div>
       </div>
 
       <div class="card">
@@ -193,6 +201,7 @@ const end = ref('')
 const loading = ref(false)
 const loadError = ref('')
 const view = ref<MobileOverview | null>(null)
+const cumulative = ref(false)
 const memberId = ref('')
 const showMonth = ref(false)
 const showYear = ref(false)
@@ -243,7 +252,20 @@ function resetToCurrentMonth() {
   begin.value = range.begin
   end.value = range.end
   memberId.value = ''
+  cumulative.value = false
   view.value = null
+}
+
+function isCrossYear(start = begin.value, finish = end.value) {
+  if (!start || !finish) return false
+  return start.slice(0, 4) !== finish.slice(0, 4)
+}
+
+/** 跨年时关掉开关并提示，随后仍按这一段支出查询 */
+function closeIfCrossYear(start = begin.value, finish = end.value) {
+  if (!isCrossYear(start, finish) || !cumulative.value) return
+  cumulative.value = false
+  showToast('跨年时按支出区间自身的收入分账')
 }
 
 function applyPeriod() {
@@ -361,6 +383,24 @@ const yearOptions = computed(() => {
   for (let year = min; year <= max; year += 1) years.push(year)
   return years
 })
+const crossYear = computed(() => isCrossYear())
+const rangesDiffer = computed(() => {
+  if (!cumulative.value || !view.value) return false
+  return view.value.incomeBeginDate !== view.value.expenseBeginDate || view.value.incomeEndDate !== view.value.expenseEndDate
+})
+const incomeTitle = computed(() => (rangesDiffer.value ? '总收入（分账区间）' : '总收入'))
+
+function ymd(value?: number) {
+  if (!value) return ''
+  const date = new Date(value)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+const incomeNote = computed(() => {
+  if (!cumulative.value || !view.value?.incomeBeginDate) return ''
+  const text = `收入区间：${ymd(view.value.incomeBeginDate)} 至 ${ymd(view.value.incomeEndDate)}`
+  return rangesDiffer.value ? text : `${text}，与支出区间相同`
+})
 const showMembers = computed(() => (view.value?.members.length || 0) > 1)
 const activeSlices = computed(() => {
   if (!view.value) return []
@@ -383,12 +423,23 @@ const arcs = computed(() => {
   })
 })
 
+function onToggle(value: boolean) {
+  if (isCrossYear()) {
+    cumulative.value = false
+    showToast('跨年时按支出区间自身的收入分账')
+    return
+  }
+  cumulative.value = value
+  void load()
+}
+
 async function load() {
   if (!billId.value || !begin.value || !end.value) return
+  closeIfCrossYear()
   loading.value = true
   loadError.value = ''
   try {
-    const res = await getMobileOverview(billId.value, begin.value, end.value)
+    const res = await getMobileOverview(billId.value, begin.value, end.value, cumulative.value)
     if (res.retCode !== 0 || !res.data) {
       loadError.value = res.message || '加载失败'
       return
@@ -533,7 +584,9 @@ watch(
   gap: 12px;
 }
 .sums span,
+.income span,
 .card-title {
+  display: block;
   color: #888;
   font-size: 12px;
 }
@@ -557,6 +610,21 @@ watch(
 .struct .card-title {
   margin-bottom: 16px;
 }
+.cumulative-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cumulative-row :deep(.van-switch) {
+  flex: none;
+}
+.note {
+  margin-top: 8px;
+  color: #666;
+  font-size: 13px;
+  line-height: 20px;
+}
 .income,
 .line,
 .record {
@@ -565,6 +633,10 @@ watch(
   gap: 12px;
   margin-top: 8px;
   font-size: 14px;
+}
+.income {
+  flex-direction: column;
+  align-items: flex-start;
 }
 .line {
   display: block;

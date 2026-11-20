@@ -23,6 +23,8 @@ export interface QuantityRuleInput {
 export interface SettlementMember {
   userId: string
   name: string
+  /** 归属到该成员的毛收入 */
+  income: number
   /** 扣规则之后的有效收入，可以为负 */
   effectiveIncome: number
   /** 本次分摊权重。全体为 0 时为 1 */
@@ -69,6 +71,21 @@ export interface SettlementResult {
     all: SettlementSlice[]
     members: SettlementMemberPie[]
   }
+  /** 支出区间开始，毫秒时间戳 */
+  expenseBeginDate: number
+  /** 支出区间结束，毫秒时间戳 */
+  expenseEndDate: number
+  /** 收入区间开始，毫秒时间戳 */
+  incomeBeginDate: number
+  /** 收入区间结束，毫秒时间戳 */
+  incomeEndDate: number
+}
+
+/** 概览上的一行金额：名称和金额分开 */
+export interface MoneyRow {
+  userId: string
+  name: string
+  money: number
 }
 
 /** 比例 */

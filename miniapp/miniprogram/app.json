@@ -42,7 +42,14 @@
       "root": "packageAsset",
       "name": "asset",
       "pages": [
-        "pages/asset/index"
+        "pages/asset/index",
+        "pages/four/index",
+        "pages/month/index",
+        "pages/trend/index",
+        "pages/retire/index",
+        "pages/form/index",
+        "pages/records/index",
+        "pages/members/index"
       ]
     }
   ],

@@ -37,12 +37,26 @@ export default class WxCanvas {
     // noop
   }
 
+  // 销毁图表时 zrender 会解绑监听，2d 画布没有这个方法
+  removeEventListener() {}
+
   attachEvent() {
     // noop
   }
 
   detachEvent() {
     // noop
+  }
+
+  // 基础库会把 removeChild 编成 removeChildView，离开页面 dispose 时会调到画布上
+  removeChildView() {}
+
+  set innerHTML(_html) {
+    // zrender 销毁时会写 root.innerHTML，2d 画布不能按 DOM 清空
+  }
+
+  get innerHTML() {
+    return ''
   }
 
   _initCanvas(zrender, ctx) {

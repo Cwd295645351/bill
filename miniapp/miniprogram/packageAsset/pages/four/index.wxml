@@ -1,0 +1,37 @@
+<view class="page sub">
+  <view class="a-members-bar">
+    <scroll-view class="a-members" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="a-member-row">
+        <text class="chip {{memberId ? '' : 'on'}}" data-id="" bindtap="pickMember">全部</text>
+        <text wx:for="{{members}}" wx:key="id" class="chip {{memberId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickMember">{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <text class="a-manage" bindtap="goMembers">管理</text>
+  </view>
+  <view class="a-hint warn" wx:if="{{error}}">{{error}}</view>
+  <view class="a-card">
+    <text class="a-title">三类对比</text>
+    <view class="a-note">只统计活钱、稳健、长期，三者合计 100%。保障在下面单独看，不含负债。点某一笔查看盘点。</view>
+    <view wx:if="{{pie.length}}" class="a-pie">
+      <view class="a-disk" style="background: {{pieGradient}};"></view>
+      <view class="a-legend">
+        <view class="row" wx:for="{{flex}}" wx:key="key"><view class="dot" style="background: {{item.color}};"></view><text>{{item.name}}</text><text class="pct">{{item.percent}}</text></view>
+      </view>
+    </view>
+    <view wx:else class="a-note">暂无</view>
+  </view>
+  <view class="a-card" wx:for="{{rows}}" wx:key="key">
+    <view class="a-top"><text class="a-title">{{item.title}}</text><text class="a-sum">{{item.amountText}}</text></view>
+    <view class="a-note">{{item.note}}</view>
+    <block wx:if="{{item.blocks.length}}">
+      <view wx:for="{{item.blocks}}" wx:for-item="block" wx:key="name">
+        <view class="a-mhead"><text class="grow">{{block.name}}</text><text>{{block.amountText}}</text></view>
+        <view class="a-arow" wx:for="{{block.rows}}" wx:for-item="asset" wx:key="id" data-id="{{asset.id}}" bindtap="openRecords">
+          <text class="grow title">{{asset.name}}</text>
+          <text class="a-amt">{{asset.amountText}}<text wx:if="{{asset.fx}}" class="fx">{{asset.fx}}</text></text>
+        </view>
+      </view>
+    </block>
+    <view wx:else class="a-note">暂无</view>
+  </view>
+</view>

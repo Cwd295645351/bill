@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "登记资产",
+  "usingComponents": {
+    "van-popup": "@vant/weapp/popup/index"
+  }
+}

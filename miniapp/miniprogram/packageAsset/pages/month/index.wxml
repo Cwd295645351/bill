@@ -1,0 +1,18 @@
+<view class="page sub">
+  <scroll-view class="a-members" scroll-x>
+    <text class="chip {{memberId ? '' : 'on'}}" data-id="" bindtap="pickMember">全部</text>
+    <text wx:for="{{members}}" wx:key="id" class="chip {{memberId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickMember">{{item.name}}</text>
+  </scroll-view>
+  <view class="a-hint warn" wx:if="{{error}}">{{error}}</view>
+  <view class="a-card">
+    <view class="a-range">
+      <text wx:for="{{years}}" wx:key="*this" class="{{item === year ? 'on' : ''}}" data-year="{{item}}" bindtap="pickYear">{{item}}</text>
+    </view>
+    <view class="a-note">{{year}} 年。{{year === nowYear ? '今年只画到本月，高亮的是本月。' : '这一年画满 12 个月，高亮的是 12 月。'}}没有盘点的月份留空。每一类按自己的最大值拉伸，和趋势不是同一张图。含固定资产。</view>
+  </view>
+  <view class="a-card" wx:for="{{rows}}" wx:key="name">
+    <view class="a-top"><text class="a-title">{{item.name}}</text><text>{{item.current}}</text></view>
+    <view class="a-note">较年初 <text class="a-change {{item.changeClass}}">{{item.change}}</text></view>
+    <ec-canvas id="monthChart{{index}}" canvas-id="month-bar-{{index}}" class="month-bar" ec="{{ec}}"></ec-canvas>
+  </view>
+</view>

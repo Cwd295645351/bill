@@ -13,14 +13,14 @@
       <view class="range">
         <picker mode="date" value="{{ begin }}" bindchange="onBegin">
           <view class="date">
-            <van-icon name="calendar-o" size="16px" color="#4285F4" />
+            <van-icon name="calendar-o" size="32rpx" color="#4285F4" />
             <text>{{ beginText }}</text>
           </view>
         </picker>
         <text class="to">至</text>
         <picker mode="date" value="{{ end }}" bindchange="onEnd">
           <view class="date">
-            <van-icon name="calendar-o" size="16px" color="#4285F4" />
+            <van-icon name="calendar-o" size="32rpx" color="#4285F4" />
             <text>{{ endText }}</text>
           </view>
         </picker>

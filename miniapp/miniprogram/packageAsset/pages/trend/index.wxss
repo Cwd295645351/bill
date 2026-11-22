@@ -1,0 +1,8 @@
+@import '../../styles/asset.wxss';
+.chip.on { color: #fff; background: #4285f4; }
+.trend-line { display: block; width: 100%; height: 440rpx; }
+.legend { margin-top: 16rpx; }
+.legend-row { display: flex; align-items: center; color: #666; font-size: 24rpx; }
+.legend-row .dot { width: 16rpx; height: 16rpx; margin-right: 12rpx; border-radius: 4rpx; }
+.legend-row .name { flex: 1; }
+.legend-row .amt { color: #333; font-weight: 600; }

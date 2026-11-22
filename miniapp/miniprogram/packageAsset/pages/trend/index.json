@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "资产趋势",
+  "usingComponents": {
+    "ec-canvas": "../../components/ec-canvas/ec-canvas"
+  }
+}

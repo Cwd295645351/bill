@@ -5,7 +5,7 @@
       data-key="detail"
       bindtap="onTap"
     >
-      <van-icon name="orders-o" size="20px" color="{{ active === 'detail' ? '#4285F4' : '#999' }}" />
+      <van-icon name="orders-o" size="40rpx" color="{{ active === 'detail' ? '#4285F4' : '#999' }}" />
       <text>记账</text>
     </view>
     <view
@@ -13,7 +13,7 @@
       data-key="overview"
       bindtap="onTap"
     >
-      <van-icon name="chart-trending-o" size="20px" color="{{ active === 'overview' ? '#4285F4' : '#999' }}" />
+      <van-icon name="chart-trending-o" size="40rpx" color="{{ active === 'overview' ? '#4285F4' : '#999' }}" />
       <text>概览</text>
     </view>
     <view
@@ -21,7 +21,7 @@
       data-key="budget"
       bindtap="onTap"
     >
-      <van-icon name="balance-list-o" size="20px" color="{{ active === 'budget' ? '#4285F4' : '#999' }}" />
+      <van-icon name="balance-list-o" size="40rpx" color="{{ active === 'budget' ? '#4285F4' : '#999' }}" />
       <text>预算</text>
     </view>
     <view
@@ -29,7 +29,7 @@
       data-key="plan"
       bindtap="onTap"
     >
-      <van-icon name="todo-list-o" size="20px" color="{{ active === 'plan' ? '#4285F4' : '#999' }}" />
+      <van-icon name="todo-list-o" size="40rpx" color="{{ active === 'plan' ? '#4285F4' : '#999' }}" />
       <text>计划</text>
     </view>
     <view
@@ -37,7 +37,7 @@
       data-key="asset"
       bindtap="onTap"
     >
-      <van-icon name="gold-coin-o" size="20px" color="{{ active === 'asset' ? '#4285F4' : '#999' }}" />
+      <van-icon name="gold-coin-o" size="40rpx" color="{{ active === 'asset' ? '#4285F4' : '#999' }}" />
       <text>资产</text>
     </view>
   </view>

@@ -1,0 +1,5 @@
+@import '../../styles/asset.wxss';
+.pad { padding: 0 96rpx 48rpx; }
+.result { margin: 24rpx; padding: 24rpx; background: #f5f8ff; color: #333; }
+.result.ok { background: #e8f8ef; }
+.result.bad { background: #fdecec; }

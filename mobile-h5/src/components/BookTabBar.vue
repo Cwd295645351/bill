@@ -17,7 +17,6 @@
 </template>
 
 <script setup lang="ts">
-import { showToast } from 'vant'
 import { useRouter } from 'vue-router'
 
 const props = defineProps<{
@@ -27,14 +26,8 @@ const props = defineProps<{
 
 const router = useRouter()
 
-const PC_ONLY = new Set(['asset'])
-
 function beforeChange(name: string | number) {
   const key = String(name)
-  if (PC_ONLY.has(key)) {
-    showToast('请到电脑端查看或管理')
-    return false
-  }
   if (key === props.active) return false
   if (key === 'detail') {
     router.replace({ name: 'bill-detail', params: { id: props.billId } })
@@ -50,6 +43,10 @@ function beforeChange(name: string | number) {
   }
   if (key === 'overview') {
     router.replace({ name: 'bill-overview', params: { id: props.billId } })
+    return false
+  }
+  if (key === 'asset') {
+    router.replace({ name: 'bill-asset', params: { id: props.billId } })
     return false
   }
   return false

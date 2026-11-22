@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "养老计划",
+  "usingComponents": {
+    "van-popup": "@vant/weapp/popup/index",
+    "ec-canvas": "../../components/ec-canvas/ec-canvas"
+  }
+}

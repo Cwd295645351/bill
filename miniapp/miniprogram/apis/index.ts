@@ -263,3 +263,87 @@ export async function uploadAvatar(filePath: string): Promise<ApiBody<any>> {
 export function quitBill(billId: string, userId: string) {
   return request({ url: `${V}/bill/quit`, method: 'POST', data: { id: billId, userId } })
 }
+
+const A = `${V}/asset`
+
+export function getAssetMembers(billId: string) {
+  return request<any[]>({ url: `${A}/members`, data: { billId } })
+}
+
+export function getAssetListStats(billId: string, memberId?: string) {
+  return request<any>({ url: `${A}/list-stats`, data: { billId, memberId: memberId || '' } })
+}
+
+export function getAssetOverview(billId: string, memberId?: string, asOf?: string) {
+  return request<any>({ url: `${A}/overview`, data: { billId, memberId: memberId || '', asOf: asOf || '' } })
+}
+
+export function addAssetMember(billId: string, name: string) {
+  return request({ url: `${A}/member`, method: 'POST', data: { billId, name } })
+}
+
+export function editAssetMember(id: string, name: string) {
+  return request({ url: `${A}/member`, method: 'PUT', data: { id, name } })
+}
+
+export function hideAssetMember(id: string) {
+  return request({ url: `${A}/member`, method: 'DELETE', data: { id } })
+}
+
+export function saveAsset(data: Record<string, unknown>, editing: boolean) {
+  return request({ url: A, method: editing ? 'PUT' : 'POST', data })
+}
+
+export function deleteAsset(id: string) {
+  return request({ url: A, method: 'DELETE', data: { id } })
+}
+
+export function getAssetRecords(assetId: string, page: number) {
+  return request<any>({ url: `${A}/records`, data: { assetId, page, pageSize: 10 } })
+}
+
+export function saveAssetRecord(data: Record<string, unknown>, editing: boolean) {
+  return request({ url: `${A}/record`, method: editing ? 'PUT' : 'POST', data })
+}
+
+export function deleteAssetRecord(id: string) {
+  return request({ url: `${A}/record`, method: 'DELETE', data: { id } })
+}
+
+export function getAssetRate(billId: string) {
+  return request<any>({ url: `${A}/exchange-rate`, data: { billId } })
+}
+
+export function saveAssetRate(billId: string, hkdRate: string, usdRate: string) {
+  return request({ url: `${A}/exchange-rate`, method: 'PUT', data: { billId, hkdRate, usdRate } })
+}
+
+export function getFourMoney(billId: string, memberId?: string) {
+  return request<any>({ url: `${A}/four-money`, data: { billId, memberId: memberId || '' } })
+}
+
+export function getMonthlyReport(billId: string, year: number, memberId?: string) {
+  return request<any>({ url: `${A}/monthly-report`, data: { billId, year, memberId: memberId || '' } })
+}
+
+export function getAssetTrend(data: Record<string, unknown>) {
+  return request<any>({ url: `${A}/trend`, data })
+}
+
+export function getAssetLedger(billId: string, year: number, memberId?: string) {
+  return request<any>({ url: `${A}/ledger`, method: 'POST', data: { billId, year, memberId: memberId || undefined } })
+}
+
+export function getRetirePlan(data: Record<string, unknown>) {
+  const query: Record<string, string | number> = {}
+  Object.keys(data).forEach((key) => {
+    const value = data[key]
+    if (value === undefined || value === null || value === '') return
+    query[key] = value as string | number
+  })
+  return request<any>({ url: `${A}/retire-plan`, data: query })
+}
+
+export function saveRetirePlan(data: Record<string, unknown>) {
+  return request({ url: `${A}/retire-plan`, method: 'PUT', data })
+}

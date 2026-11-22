@@ -1,0 +1,61 @@
+<view class="page sub">
+  <scroll-view class="a-members" scroll-x>
+    <text class="chip {{memberId ? '' : 'on'}}" data-id="" bindtap="pickMember">全部</text>
+    <text wx:for="{{members}}" wx:key="id" class="chip {{memberId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickMember">{{item.name}}</text>
+  </scroll-view>
+  <block wx:if="{{empty}}">
+    <view class="empty"><view class="illus"></view>{{who}}还没有养老计划</view>
+    <view class="a-hint">设置后按记账收支推算到达时间，并和账户资产对比。口径与总览一致。</view>
+    <view class="pad"><view class="btn" bindtap="open">设置养老计划</view></view>
+  </block>
+  <block wx:else>
+    <view class="a-card">
+      <view class="a-top"><text class="a-title">养老计划</text><text class="a-link" style="margin:0" bindtap="open">修改</text></view>
+      <view class="a-note">口径：含固定资产。净资产始终含固定资产。</view>
+      <view class="a-stats">
+        <view class="a-stat"><view class="k">目标金额</view><view class="n">{{amountText}}</view></view>
+        <view class="a-stat"><view class="k">当前净资产</view><view class="n">{{netText}}</view></view>
+        <view class="a-stat"><view class="k">目标时间</view><view class="n" style="font-size:28rpx">{{planText}}</view></view>
+        <view wx:if="{{hasTarget}}" class="a-stat"><view class="k">剩余时间</view><view class="n" style="font-size:28rpx">{{leftText}}</view></view>
+      </view>
+      <view class="a-note">金额进度 {{amountPercent}}{{exceed === '未超过' ? '' : ' · 已超过 ' + exceed}}</view>
+      <view class="a-progress"><view style="width: {{amountPercent}}; background: #4285f4;"></view></view>
+      <block wx:if="{{hasTarget}}">
+        <view class="a-note">时间进度 {{timePercent}} · {{ahead ? '金额进度领先' : '金额进度落后'}}</view>
+        <view class="a-progress"><view style="width: {{timePercent}}; background: #e6a23c;"></view></view>
+      </block>
+    </view>
+    <view class="a-card">
+      <text class="a-title">按收支推算</text>
+      <view class="a-scheme">
+        <view class="a-scheme-row"><text>收入</text><view class="a-seg"><text class="{{incomeYears === 3 ? 'on' : ''}}" data-field="incomeYears" data-value="3" bindtap="setYears">近3年</text><text class="{{incomeYears === 5 ? 'on' : ''}}" data-field="incomeYears" data-value="5" bindtap="setYears">近5年</text></view></view>
+        <view class="a-scheme-row"><text>支出</text><view class="a-seg"><text class="{{expenseYears === 3 ? 'on' : ''}}" data-field="expenseYears" data-value="3" bindtap="setYears">近3年</text><text class="{{expenseYears === 5 ? 'on' : ''}}" data-field="expenseYears" data-value="5" bindtap="setYears">近5年</text></view></view>
+        <view class="a-check {{skipIdle ? 'on' : ''}}" bindtap="toggleIdle"><view class="box">{{skipIdle ? '✓' : ''}}</view>剔除没有收入的月份</view>
+      </view>
+      <view class="a-note">{{idleNote}}</view>
+      <view class="a-stats">
+        <view class="a-stat"><view class="k">近{{incomeYears}}年月均收入</view><view class="n income">{{incomeText}}</view></view>
+        <view class="a-stat"><view class="k">近{{expenseYears}}年月均支出</view><view class="n cost">{{expenseText}}</view></view>
+        <view class="a-stat"><view class="k">月均结余</view><view class="n {{surplusClass}}">{{surplusText}}</view></view>
+      </view>
+      <view class="a-result {{bad ? 'bad' : 'ok'}}">
+        <text wx:if="{{verdictTitle}}" class="big title {{bad ? 'cost' : 'income'}}">{{verdictTitle}}</text>
+        <block wx:if="{{reach}}">大约还需 <text class="big">{{reach}}</text>，在 <text style="font-weight:700">{{when}}</text> 前后达到。</block>
+        {{extra}}
+      </view>
+      <view class="a-note">收支取自记账。看单人时，月均支出只含只归属这个人的支出，不含按收入拆入的共同支出和公共支出。推算只用月均结余，不计投资收益和通胀，结果只作参考。{{message}}</view>
+    </view>
+    <view class="a-card">
+      <text class="a-title">账户资产与目标对比</text>
+      <view class="a-note">{{chartNote}}</view>
+      <ec-canvas id="retireChart" canvas-id="retire-axis" class="retire-line" ec="{{ec}}"></ec-canvas>
+    </view>
+  </block>
+  <van-popup show="{{editing}}" position="bottom" round bind:close="close">
+    <view class="sheet-bar"><text class="cancel" bindtap="close">取消</text><text>设置养老计划</text><text class="confirm" bindtap="save">保存</text></view>
+    <view class="field"><text>目标金额</text><input type="digit" value="{{amount}}" bindinput="setAmount" /></view>
+    <view class="field"><text>开始月份</text><input placeholder="2026-01" value="{{startMonth}}" bindinput="setStart" /></view>
+    <view class="field"><text>目标月份</text><input placeholder="可空" value="{{targetMonth}}" bindinput="setTarget" /></view>
+    <view wx:if="{{formError}}" class="a-hint warn">{{formError}}</view>
+  </van-popup>
+</view>

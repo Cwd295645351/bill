@@ -1,0 +1,25 @@
+<view class="page">
+  <view class="a-card records-head">
+    <view class="a-top"><text class="a-title">{{name}}</text><text class="a-link" style="margin:0" bindtap="editAsset">编辑资料</text></view>
+    <view class="a-note">{{meta}}</view>
+    <view class="a-note">只列出实际盘点。当前 {{currentText}}，取日期最新的一条。改盘点日或金额都写回这一条，不会另添。只剩一条时不能删除。</view>
+  </view>
+  <view class="a-hint warn" wx:if="{{error}}">{{error}}</view>
+  <view class="a-group">
+    <view class="a-arow" wx:for="{{list}}" wx:key="id">
+      <view class="grow"><view class="title">{{item.day}}{{item.id === latestId ? ' · 当前' : ''}}</view><view class="a-sub">{{item.amountText}}</view></view>
+      <text class="a-link" data-id="{{item.id}}" bindtap="beginEdit">修改</text>
+      <text wx:if="{{total > 1}}" class="a-link danger-link" data-id="{{item.id}}" bindtap="remove">删除</text>
+    </view>
+  </view>
+  <view class="a-hint">{{finished ? '没有更多了' : '上滑加载更多'}}</view>
+  <view class="a-foot"><text class="primary" bindtap="beginAdd">记一笔盘点</text></view>
+  <van-popup show="{{editing}}" position="bottom" round bind:close="closeEdit">
+    <view class="sheet-bar"><text class="cancel" bindtap="closeEdit">取消</text><text>{{editingId ? '修改这一条' : '记一笔盘点'}}</text><text class="confirm" bindtap="save">保存</text></view>
+    <view class="field"><text>金额</text><input type="digit" value="{{amount}}" bindinput="setAmount" /></view>
+    <picker mode="date" value="{{date}}" bindchange="setDate">
+      <view class="field"><text>盘点日</text><input disabled value="{{date}}" /></view>
+    </picker>
+    <view class="a-hint">改的是选中的这一条，不会另添。</view>
+  </van-popup>
+</view>

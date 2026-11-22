@@ -4,7 +4,7 @@
       <button wx:if="{{ isCreator }}" class="invite" bindtap="onOpenMembers">成员</button>
       <button wx:if="{{ isCreator }}" class="invite" open-type="share">邀请成员</button>
       <view class="search" bindtap="onSearch">
-        <van-icon name="search" size="18px" color="#4285F4" />
+        <van-icon name="search" size="36rpx" color="#4285F4" />
       </view>
     </view>
     <view class="item">
@@ -74,7 +74,7 @@
     <view wx:else class="more">{{ finished ? '没有更多了' : '上拉加载更多' }}</view>
   </scroll-view>
   <view class="fab" bindtap="onAdd">
-    <van-icon name="plus" size="28px" color="#ffffff" />
+    <van-icon name="plus" size="56rpx" color="#ffffff" />
   </view>
   <book-tab-bar bill-id="{{ billId }}" active="detail" />
   <!-- 抬高层级并置于 tab-bar 之后，避免成员管理被底部导航挡住 -->

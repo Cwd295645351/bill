@@ -1,0 +1,41 @@
+<view class="page sub">
+  <scroll-view class="a-members" scroll-x>
+    <text class="chip {{memberId ? '' : 'on'}}" data-id="" bindtap="pickMember">全部</text>
+    <text wx:for="{{members}}" wx:key="id" class="chip {{memberId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickMember">{{item.name}}</text>
+  </scroll-view>
+  <view class="a-card">
+    <view class="a-seg">
+      <text class="{{grain === 'month' ? 'on' : ''}}" data-value="month" bindtap="setGrain">月份</text>
+      <text class="{{grain === 'year' ? 'on' : ''}}" data-value="year" bindtap="setGrain">年份</text>
+    </view>
+    <view style="height:16rpx"></view>
+    <view class="a-range">
+      <text wx:for="{{ranges}}" wx:key="value" class="{{range === item.value ? 'on' : ''}}" data-value="{{item.value}}" bindtap="setRange">{{item.label}}</text>
+    </view>
+    <view wx:if="{{range === 'custom'}}" class="a-custom">
+      <text>开始</text><input placeholder="2026-01" value="{{start}}" bindinput="setStart" />
+      <text>结束</text><input placeholder="2026-10" value="{{end}}" bindinput="setEnd" />
+    </view>
+    <view class="a-seg" style="margin-top:16rpx">
+      <text class="{{metric === 'all' ? 'on' : ''}}" data-value="all" bindtap="setMetric">全部</text>
+      <text class="{{metric === 'net' ? 'on' : ''}}" data-value="net" bindtap="setMetric">净资产</text>
+    </view>
+    <view wx:if="{{showChart}}">
+      <view class="a-note">{{grain === 'year' ? '按年时，每一年取区间内最后一次有数的月份。' : '按月时，没有盘点的月份留空，不画成 0。'}}{{note}}含固定资产。点某一{{grain === 'year' ? '年' : '月'}}看金额。</view>
+      <ec-canvas id="trendChart" canvas-id="trend-area" class="trend-line" ec="{{ec}}"></ec-canvas>
+      <view class="a-stats">
+        <view class="a-stat" wx:for="{{stats}}" wx:key="k">
+          <view class="k">{{item.k}}</view>
+          <view class="n {{item.cls}}">{{item.n}}</view>
+        </view>
+      </view>
+      <view class="a-legend" style="margin-top:16rpx">
+        <block wx:for="{{legend}}" wx:key="key">
+          <view class="row"><view class="dot" style="background: {{item.color}};"></view><text class="name">{{item.name}}</text><text class="pct">{{item.lastText}}</text></view>
+          <view class="a-note" style="margin:0 0 12rpx 28rpx">区间变化 <text class="{{item.cls}}">{{item.deltaText}}</text></view>
+        </block>
+      </view>
+    </view>
+    <view wx:elif="{{note}}" class="empty"><view class="illus"></view>{{note}}</view>
+  </view>
+</view>

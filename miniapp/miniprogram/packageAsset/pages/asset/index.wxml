@@ -1,6 +1,94 @@
 <view class="page">
-  <view class="body">
-    <van-empty description="请到电脑端查看或管理" />
+  <view class="a-members-bar">
+    <scroll-view class="a-members" scroll-x enhanced show-scrollbar="{{false}}">
+      <view class="a-member-row">
+        <text class="chip {{memberId ? '' : 'on'}}" data-id="" bindtap="pickMember">全部</text>
+        <text wx:for="{{members}}" wx:key="id" class="chip {{memberId === item.id ? 'on' : ''}}" data-id="{{item.id}}" bindtap="pickMember">{{item.name}}</text>
+      </view>
+    </scroll-view>
+    <text class="a-manage" bindtap="goMembers">管理</text>
   </view>
-  <book-tab-bar bill-id="{{ billId }}" active="asset" />
+  <view wx:if="{{error}}" class="a-hint warn">{{error}}</view>
+  <view wx:elif="{{!loaded}}" class="a-hint">加载中</view>
+  <block wx:else>
+  <view wx:if="{{empty}}" class="empty"><view class="illus"></view>这个账本还没有资产</view>
+  <view wx:if="{{empty}}" class="a-hint">资产按当前账本分开。没有登录账号的家人也可以先加到资产成员里。</view>
+  <block wx:if="{{!empty}}">
+    <view class="a-hero">
+      <view class="a-hero-top">
+        <text class="label">{{who}} · {{excludeFixed ? '已移除固定资产' : '含固定资产'}}</text>
+        <view class="a-hero-actions">
+          <text class="a-switch {{hideAmount ? 'on' : ''}}" bindtap="toggleHide">{{hideAmount ? '显示金额' : '隐藏金额'}}</text>
+          <text class="a-switch {{excludeFixed ? 'on' : ''}}" bindtap="toggleFixed">移除固定资产</text>
+        </view>
+      </view>
+      <view class="num">{{netText}}</view>
+      <view class="split"><view><view class="k">总资产</view><view class="v">{{assetText}}</view></view><view><view class="k">总负债</view><view class="v">{{debtText}}</view></view></view>
+      <view class="a-fx">金额均为人民币。{{rateText}}。外币按当前汇率折算，改汇率会重算已有月份。{{excludeNote}}</view>
+    </view>
+    <view class="a-card">
+      <view class="a-top"><text class="a-title">较 {{compareLabel}}</text><text class="a-link" style="margin:0" bindtap="openCompare">更换对比日</text></view>
+      <view class="a-note">总资产 <text class="a-change {{changeClass}}">{{changeText}}</text>　总负债 <text class="a-change {{debtChangeClass}}">{{debtChangeText}}</text></view>
+      <view class="a-note" wx:if="{{noBaseline}}">还没有更早的盘点，卡片上的变化按没有变化显示。</view>
+      <view class="a-note">分组里每一笔比的是它自己的上一笔盘点，加总不必等于这里。</view>
+    </view>
+    <view class="a-card" bindtap="go" data-url="/packageAsset/pages/four/index">
+      <view class="a-top"><text class="a-title">四笔钱</text><text class="a-link" style="margin:0">查看</text></view>
+      <view class="a-note">活钱、稳健、长期。保障单独看，不含负债</view>
+      <view class="a-mix" wx:if="{{fourTotal}}"><view wx:for="{{fourSlices}}" wx:key="name" style="width:{{item.width}};background:{{item.color}};"></view></view>
+      <view wx:else class="a-note">暂无活钱、稳健或长期</view>
+      <view class="a-mix-legend"><text wx:for="{{fourSlices}}" wx:key="name"><text class="dot" style="background:{{item.color}};"></text>{{item.name}} {{item.percent}}</text></view>
+    </view>
+    <view class="a-card" bindtap="go" data-url="/packageAsset/pages/month/index"><view class="a-top"><text class="a-title">月历</text><text class="a-link" style="margin:0">查看</text></view><view class="a-note">按年看每一类的月末余额。和资产趋势分开，各图按自己的最大值拉伸。</view></view>
+    <view class="a-card" bindtap="go" data-url="/packageAsset/pages/trend/index"><view class="a-top"><text class="a-title">资产趋势</text><text class="a-link" style="margin:0">查看</text></view><view class="a-note">按月份或年份看一段区间。可选记账以来、今年、近 1/3/5 年和自定义。{{excludeFixed ? '当前卡片已移除固定资产。' : '当前含固定资产。'}}</view></view>
+    <view class="a-card" bindtap="go" data-url="/packageAsset/pages/retire/index"><view class="a-top"><text class="a-title">养老计划</text><text class="a-link" style="margin:0">查看</text></view><view class="a-note">含收支推算，以及账户资产和目标进度的对比。</view><view class="a-sub">{{retireBrief}}</view></view>
+    <view class="a-group" wx:for="{{groups}}" wx:key="name">
+      <view class="a-ghead {{item.name === '负债' ? 'debt' : ''}}" data-name="{{item.name}}" bindtap="toggleGroup">
+        <text class="grow">{{item.open ? '▾ ' : '▸ '}}{{item.name}}<text class="sub">{{item.share}} · 较上一笔 <text class="{{item.changeClass}}">{{item.changeText}}</text></text></text>
+        <text>{{item.amountText}}</text>
+      </view>
+      <block wx:if="{{item.open}}">
+        <view wx:for="{{item.blocks}}" wx:for-item="block" wx:key="name">
+          <view class="a-mhead"><text class="grow">{{block.name}}</text><text>{{block.amountText}}</text></view>
+          <view class="a-arow" wx:for="{{block.rows}}" wx:for-item="row" wx:key="id" data-id="{{row.id}}" bindtap="goRecords">
+            <text class="grow">{{row.name}}</text>
+            <view class="a-amt"><text>{{row.amountText}}</text><text class="fx" wx:if="{{row.fx}}">{{row.fx}}</text><text class="delta {{row.changeClass}}">{{row.changeText}}</text></view>
+          </view>
+        </view>
+      </block>
+    </view>
+  </block>
+  <view class="a-card a-ledger">
+    <view class="a-top"><text class="a-title">年度收支对账</text><text class="a-year" bindtap="openYears">{{year}} 年</text></view>
+    <view class="a-note" wx:if="{{ledger.error}}">{{ledger.error}}</view>
+    <block wx:elif="{{ledger.ready}}">
+    <view class="a-note">{{ledger.rangeText}}。今年统计到本月，已结束的年份统计到 12 月。没有按月明细。</view>
+    <view class="a-stats">
+      <view class="a-stat"><view class="k">记账总收入</view><view class="n income">{{ledger.incomeText}}</view></view>
+      <view class="a-stat"><view class="k">记账总支出</view><view class="n cost">{{ledger.expenseText}}</view></view>
+      <view class="a-stat"><view class="k">收支结余</view><view class="n {{ledger.surplusClass}}">{{ledger.surplusText}}</view><view class="sub">总收入 − 总支出</view></view>
+      <view class="a-stat"><view class="k">总资产变化</view><view class="n {{ledger.changeClass}}">{{ledger.changeText}}</view><view class="sub">{{ledger.assetSub}}</view></view>
+      <view class="a-stat wide"><view class="k">差额 <text wx:if="{{ledger.diffTag}}" class="tag {{ledger.equal ? 'ok' : 'warn'}}">{{ledger.diffTag}}</text></view><view class="n {{ledger.diffClass}}">{{ledger.diffText}}</view><view class="sub">总资产变化 − 收支结余</view></view>
+    </view>
+    <view class="a-note">同期净资产变化 {{ledger.netText}}。差额不为 0 时，常见原因是投资或房产估值涨跌、记账漏记或重复、资产没有及时盘点，以及还贷本金没有记成支出。这里的总资产含固定资产，不受「移除固定资产」影响。{{ledger.belong}}</view>
+    <view class="a-note" wx:if="{{ledger.memberText}}">{{ledger.memberText}}</view>
+    <view class="a-note" wx:if="{{ledger.rulesText}}">数量规则：{{ledger.rulesText}}</view>
+    </block>
+  </view>
+  </block>
+  <view class="a-foot"><text class="primary" bindtap="go" data-url="/packageAsset/pages/form/index">登记资产</text></view>
+  <book-tab-bar bill-id="{{billId}}" active="asset" />
+  <van-popup show="{{yearOpen}}" position="bottom" round bind:close="closeYears">
+    <view class="sheet-bar"><text class="cancel" bindtap="closeYears">取消</text><text class="sheet-title">选择年份</text><text class="cancel placeholder">取消</text></view>
+    <view class="sheet-list">
+      <view class="sheet-item {{year === item ? 'on' : ''}}" wx:for="{{years}}" wx:key="*this" data-year="{{item}}" bindtap="chooseYear">{{item}} 年</view>
+    </view>
+  </van-popup>
+  <van-popup show="{{compareOpen}}" position="bottom" round bind:close="closeCompare">
+    <view class="sheet-bar"><text class="cancel" bindtap="closeCompare">取消</text><text>更换对比日</text><text class="confirm" bindtap="applyCompare">确定</text></view>
+    <picker mode="date" value="{{compareInput}}" end="{{today}}" bindchange="setCompare">
+      <view class="field"><text>对比日</text><text class="field-val">{{compareInput || '上一笔盘点'}}</text></view>
+    </picker>
+    <view class="a-hint">留空后点确定，会回到上一笔盘点日。<text class="a-link" bindtap="clearCompare">恢复上一笔</text></view>
+  </van-popup>
 </view>

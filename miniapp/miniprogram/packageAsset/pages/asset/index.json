@@ -1,7 +1,8 @@
 {
-  "navigationBarTitleText": "资产",
+  "navigationBarTitleText": "家庭资产",
   "usingComponents": {
-    "book-tab-bar": "/components/book-tab-bar/index",
-    "van-empty": "@vant/weapp/empty/index"
+    "van-empty": "@vant/weapp/empty/index",
+    "van-popup": "@vant/weapp/popup/index",
+    "book-tab-bar": "../../../components/book-tab-bar/index"
   }
 }

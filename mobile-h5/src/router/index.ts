@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { useAssetViewStore } from '@/stores/asset-view'
 import { useSessionStore } from '@/stores/session'
 
 const routes: RouteRecordRaw[] = [
@@ -57,6 +58,46 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/overview/OverviewView.vue'),
   },
   {
+    path: '/bill/:id/asset',
+    name: 'bill-asset',
+    component: () => import('@/views/asset/OverviewView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/four',
+    name: 'bill-asset-four',
+    component: () => import('@/views/asset/FourView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/month',
+    name: 'bill-asset-month',
+    component: () => import('@/views/asset/MonthView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/trend',
+    name: 'bill-asset-trend',
+    component: () => import('@/views/asset/TrendView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/retire',
+    name: 'bill-asset-retire',
+    component: () => import('@/views/asset/RetireView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/form',
+    name: 'bill-asset-form',
+    component: () => import('@/views/asset/FormView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/records',
+    name: 'bill-asset-records',
+    component: () => import('@/views/asset/RecordsView.vue'),
+  },
+  {
+    path: '/bill/:id/asset/members',
+    name: 'bill-asset-members',
+    component: () => import('@/views/asset/MembersView.vue'),
+  },
+  {
     path: '/record/create',
     name: 'record-create',
     component: () => import('@/views/record-create/RecordCreateView.vue'),
@@ -105,6 +146,12 @@ router.beforeEach((to) => {
   }
 
   return true
+})
+
+router.afterEach((to, from) => {
+  const wasAsset = String(from.path || '').includes('/asset')
+  const nowAsset = String(to.path || '').includes('/asset')
+  if (wasAsset && !nowAsset) useAssetViewStore().reset()
 })
 
 export default router

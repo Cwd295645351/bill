@@ -1,0 +1,4 @@
+@import '../../styles/asset.wxss';
+.pad { padding: 0 24rpx 24rpx; }
+.danger-link { margin-left: 20rpx; color: #f74f4f; }
+.field text { width: 198rpx; color: #323233; }

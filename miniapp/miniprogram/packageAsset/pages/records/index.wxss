@@ -1,0 +1,2 @@
+@import '../../styles/asset.wxss';
+.danger-link { margin-left: 0; color: #f74f4f; }

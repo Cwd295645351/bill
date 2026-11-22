@@ -35,8 +35,8 @@
 
 .captcha-title {
   text-align: center;
-  font-size: 16px;
+  font-size: 32rpx;
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 24rpx;
   color: #323233;
 }

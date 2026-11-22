@@ -1,0 +1,31 @@
+<view class="page">
+  <view class="panel">
+    <view class="field">
+      <text>新成员</text>
+      <input placeholder="没有账号也可以" value="{{name}}" bindinput="setName" />
+    </view>
+  </view>
+  <view class="pad"><view class="btn" bindtap="add">添加</view></view>
+  <view class="a-hint warn" wx:if="{{error}}">{{error}}</view>
+  <view class="a-group">
+    <view class="a-note" wx:if="{{!members.length}}" style="padding:24rpx">还没有资产成员</view>
+    <view class="a-arow" wx:for="{{members}}" wx:key="id">
+      <text class="grow">{{item.name}}</text>
+      <text class="a-link" data-id="{{item.id}}" data-name="{{item.name}}" bindtap="rename">改名</text>
+      <text class="a-link danger-link" data-id="{{item.id}}" bindtap="hide">隐藏</text>
+    </view>
+  </view>
+  <view class="a-hint">隐藏后名字离开名单，名下资产仍算在「全部」里，家庭合计不变。这名单和记账成员不是同一份。这里不列出已隐藏成员，也不能恢复。</view>
+  <view class="panel">
+    <view class="field">
+      <text>1 港币</text>
+      <input type="digit" value="{{hkd}}" bindinput="setHkd" />
+    </view>
+    <view class="field">
+      <text>1 美元</text>
+      <input type="digit" value="{{usd}}" bindinput="setUsd" />
+    </view>
+  </view>
+  <view class="a-hint">{{rateNote}}汇总和图表按当前汇率折算，改汇率会重画历史曲线，不会改原币金额。</view>
+  <view class="submit-bar"><view class="ok" bindtap="saveRates">保存汇率</view></view>
+</view>

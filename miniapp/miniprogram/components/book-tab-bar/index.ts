@@ -1,3 +1,5 @@
+import { resetAssetView } from '../../utils/asset-view'
+
 /** 账本内五大模块 → 各自独立分包路径 */
 const BOOK_ROUTES: Record<string, (billId: string) => string> = {
   detail: (id) => `/packageDetail/pages/bill-detail/index?id=${id}`,
@@ -18,6 +20,7 @@ Component({
       const billId = this.data.billId
       if (!billId) return
       if (key === this.data.active) return
+      if (this.data.active === 'asset' && key !== 'asset') resetAssetView()
       const toUrl = BOOK_ROUTES[key]
       if (!toUrl) return
       wx.redirectTo({ url: toUrl(billId) })

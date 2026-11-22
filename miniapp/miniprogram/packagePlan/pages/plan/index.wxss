@@ -6,8 +6,8 @@
   background: #f5f6f8;
   box-sizing: border-box;
   /* 给 fixed 的 book-tab-bar 让位（与预算页一致） */
-  padding-bottom: calc(50px + constant(safe-area-inset-bottom));
-  padding-bottom: calc(50px + env(safe-area-inset-bottom));
+  padding-bottom: calc(100rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(100rpx + env(safe-area-inset-bottom));
 }
 .plan-main {
   flex: 1;
@@ -19,72 +19,72 @@
   flex: none;
 }
 .a-hint {
-  margin: 8px 12px 10px;
-  padding: 10px 12px;
+  margin: 16rpx 24rpx 20rpx;
+  padding: 20rpx 24rpx;
   color: #666;
-  font-size: 12px;
+  font-size: 24rpx;
   line-height: 1.5;
   background: #fff;
-  border-radius: 8px;
+  border-radius: 16rpx;
 }
 .plan-list {
   flex: 1;
   min-height: 0;
   height: 0;
-  padding-bottom: 8px;
+  padding-bottom: 16rpx;
   box-sizing: border-box;
 }
 .p-head {
-  margin: 0 12px 8px;
-  padding: 8px 12px;
+  margin: 0 24rpx 16rpx;
+  padding: 16rpx 24rpx;
   color: #fff;
-  font-size: 13px;
+  font-size: 26rpx;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: 16rpx;
 }
 .p-card {
   box-sizing: border-box;
-  width: calc(100% - 24px);
-  margin: 0 12px 10px;
-  padding: 12px;
+  width: calc(100% - 48rpx);
+  margin: 0 24rpx 20rpx;
+  padding: 24rpx;
   background: #fff;
-  border-radius: 10px;
+  border-radius: 20rpx;
 }
 .p-card .title {
-  font-size: 15px;
+  font-size: 30rpx;
   font-weight: 600;
   color: #333;
 }
 .p-card .context {
-  margin-top: 6px;
+  margin-top: 12rpx;
   color: #666;
-  font-size: 13px;
+  font-size: 26rpx;
   line-height: 1.5;
   white-space: pre-wrap;
   word-break: break-word;
 }
 .a-note {
-  margin: 0 12px 10px;
+  margin: 0 24rpx 20rpx;
   color: #999;
-  font-size: 12px;
+  font-size: 24rpx;
   line-height: 1.5;
 }
 .b-ops {
   display: flex;
-  gap: 8px;
+  gap: 16rpx;
   justify-content: flex-end;
-  margin-top: 10px;
+  margin-top: 20rpx;
 }
 .b-ops .edit,
 .b-ops .del {
   flex: 1;
-  max-width: 88px;
+  max-width: 176rpx;
   margin: 0;
-  padding: 0 10px;
-  height: 28px;
-  line-height: 28px;
-  font-size: 12px;
-  border-radius: 14px;
+  padding: 0 20rpx;
+  height: 56rpx;
+  line-height: 56rpx;
+  font-size: 24rpx;
+  border-radius: 28rpx;
   border: none;
 }
 .b-ops .edit {
@@ -98,30 +98,30 @@
 .a-foot {
   flex: none;
   display: flex;
-  gap: 8px;
-  padding: 8px 12px;
+  gap: 16rpx;
+  padding: 16rpx 24rpx;
   background: #fff;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 -8rpx 24rpx rgba(0, 0, 0, 0.04);
 }
 .a-foot .primary {
   flex: 1;
   margin: 0;
-  height: 40px;
-  line-height: 40px;
+  height: 80rpx;
+  line-height: 80rpx;
   color: #fff;
-  font-size: 14px;
+  font-size: 28rpx;
   background: #4285f4;
-  border-radius: 20px;
+  border-radius: 40rpx;
   border: none;
 }
 .sheet {
-  padding-bottom: 16px;
+  padding-bottom: 32rpx;
 }
 .sheet-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 24rpx 32rpx;
 }
 .sheet-title {
   font-weight: 600;
@@ -129,32 +129,32 @@
 .cancel,
 .confirm {
   color: #4285f4;
-  font-size: 15px;
+  font-size: 30rpx;
 }
 .cancel {
   color: #999;
 }
 .hint {
-  padding: 8px 16px 0;
+  padding: 16rpx 32rpx 0;
   color: #999;
-  font-size: 12px;
+  font-size: 24rpx;
   line-height: 1.5;
 }
 .chips {
   display: flex;
-  gap: 8px;
-  padding: 8px 16px 4px;
+  gap: 16rpx;
+  padding: 16rpx 32rpx 8rpx;
 }
 .chip {
   flex: 1;
-  height: 32px;
-  line-height: 32px;
+  height: 64rpx;
+  line-height: 64rpx;
   text-align: center;
-  border: 1px solid #ebedf0;
-  border-radius: 16px;
+  border: 2rpx solid #ebedf0;
+  border-radius: 32rpx;
   background: #fff;
   color: #666;
-  font-size: 13px;
+  font-size: 26rpx;
 }
 .chip.on {
   color: #fff;
@@ -162,7 +162,7 @@
   border-color: #4285f4;
 }
 .dialog-msg {
-  padding: 8px 24px 20px;
+  padding: 16rpx 48rpx 40rpx;
   color: #666;
-  font-size: 14px;
+  font-size: 28rpx;
 }

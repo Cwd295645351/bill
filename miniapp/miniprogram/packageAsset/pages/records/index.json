@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "盘点",
+  "onReachBottomDistance": 80,
+  "usingComponents": {
+    "van-popup": "@vant/weapp/popup/index"
+  }
+}

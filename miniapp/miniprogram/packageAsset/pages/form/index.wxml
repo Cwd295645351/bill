@@ -1,0 +1,31 @@
+<view class="page">
+  <view wx:if="{{!members.length}}" class="a-hint">还没有资产成员。请先添加成员，不能保存没有归属的资产。<text class="a-link" bindtap="goMembers">去添加</text></view>
+  <block wx:else>
+    <view class="panel">
+      <view class="field"><text>名称</text><input placeholder="例如工资卡" value="{{name}}" bindinput="setName" /></view>
+      <view class="cell" data-kind="member" bindtap="openPick"><text class="grow">成员</text><text class="val">{{memberNames[memberIndex] || '请选择'}}</text><text class="arrow">›</text></view>
+      <view class="cell" data-kind="type" bindtap="openPick"><text class="grow">资产属性</text><text class="val">{{typeNames[typeIndex]}}</text><text class="arrow">›</text></view>
+      <view wx:if="{{types[typeIndex].value !== 'debt'}}" class="cell" data-kind="four" bindtap="openPick"><text class="grow">四笔钱</text><text class="val">{{fourNames[fourIndex]}}</text><text class="arrow">›</text></view>
+      <view wx:if="{{id}}" class="cell"><text class="grow">币种</text><text class="val">{{currencyNames[currencyIndex]}}</text></view>
+      <view wx:else class="cell" data-kind="currency" bindtap="openPick"><text class="grow">币种</text><text class="val">{{currencyNames[currencyIndex]}}</text><text class="arrow">›</text></view>
+      <view class="field"><text>{{insured ? '现金价值' : '当前金额'}}</text><input type="{{hideAmount && id && !amountOpen ? 'text' : 'digit'}}" placeholder="{{insured ? '不要填保额' : '不能小于 0'}}" value="{{hideAmount && id && !amountOpen ? '****' : amount}}" bindfocus="openAmount" bindblur="closeAmount" bindinput="setAmount" /></view>
+      <picker wx:if="{{!id}}" mode="date" value="{{date}}" end="{{today}}" bindchange="setDate">
+        <view class="field"><text>盘点日</text><input disabled value="{{date}}" /></view>
+      </picker>
+      <block wx:if="{{insured}}">
+        <view class="field"><text>险种</text><input placeholder="不填则归入其他" value="{{insuranceCategory}}" bindinput="setCategory" /></view>
+        <view class="field"><text>年交保费</text><input type="{{hideAmount && id && annualPremium !== '' && !premiumOpen ? 'text' : 'digit'}}" placeholder="可选" value="{{hideAmount && id && annualPremium !== '' && !premiumOpen ? '****' : annualPremium}}" bindfocus="openPremium" bindblur="closePremium" bindinput="setPremium" /></view>
+      </block>
+    </view>
+    <view class="a-hint {{types[typeIndex].value === 'debt' ? 'warn' : ''}}">{{hint}}</view>
+    <view class="a-hint warn" wx:if="{{error}}">{{error}}</view>
+    <view wx:if="{{id}}" class="danger" bindtap="remove">删除这笔资产</view>
+    <view class="submit-bar"><view class="ok" bindtap="save">保存</view></view>
+  </block>
+  <van-popup show="{{picking}}" position="bottom" round bind:close="closePick">
+    <view class="sheet-bar"><text class="cancel" bindtap="closePick">取消</text><text>{{pickTitle}}</text><text></text></view>
+    <view class="sheet-list">
+      <view class="sheet-item {{item.value === pickCurrent ? 'on' : ''}}" wx:for="{{pickOptions}}" wx:key="value" data-value="{{item.value}}" bindtap="choosePick">{{item.label}}</view>
+    </view>
+  </van-popup>
+</view>

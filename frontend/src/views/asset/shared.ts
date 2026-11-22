@@ -69,7 +69,7 @@ export const formatMoney = (value: number | null | undefined) => {
 }
 
 /**
- * 缩短金额。绝对值不大于 100 时显示原金额；超过 100 时用「万」，整万不带小数，否则保留两位。
+ * 缩短金额。绝对值不大于 100 时显示原金额；超过 100 时用「万」。两种都保留两位小数。
  */
 export const shortAmount = (value: number | null | undefined) => {
   const amount = roundMoney(value)
@@ -77,8 +77,7 @@ export const shortAmount = (value: number | null | undefined) => {
   const abs = Math.abs(amount)
   if (abs <= 100) return formatMoney(amount)
   const wan = Math.round((abs / 10000) * 100) / 100
-  const text = Math.abs(wan - Math.round(wan)) < 0.001 ? String(Math.round(wan)) : wan.toFixed(2)
-  return `${amount < 0 ? '-' : ''}${text}万`
+  return `${amount < 0 ? '-' : ''}${wan.toFixed(2)}万`
 }
 
 /** 外币在人民币旁边标出原币。人民币不显示 */
@@ -100,12 +99,10 @@ export const changeText = (value: number | null | undefined) => {
   return sign + formatMoney(value)
 }
 
-/** 柱顶的变化。不到半分钱视为没有变化；100 及以上不带小数 */
+/** 柱顶的变化。不到半分钱视为没有变化，其余固定两位小数。 */
 export const compactDelta = (value: number | null | undefined) => {
   if (value == null) return '—'
   if (Math.abs(value) < 0.005) return '没有变化'
-  const abs = Math.abs(value)
-  const digits = abs >= 100 ? 0 : 2
-  const text = abs.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: digits })
+  const text = Math.abs(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   return `${value > 0 ? '+' : '-'}${text}`
 }

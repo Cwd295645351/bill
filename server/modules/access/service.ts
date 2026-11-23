@@ -5,6 +5,8 @@ export type AccessResult = { ok: true } | { ok: false }
 /** 确认用户是该账本成员。失败说明由调用方决定。 */
 export async function requireMember(userId: string | null | undefined, billId: string | null | undefined): Promise<AccessResult> {
   if (!userId || !billId) return { ok: false }
+  const bill = await Bill.findOne({ where: { id: billId, isDel: false } })
+  if (!bill) return { ok: false }
   const member = await BillUser.findOne({ where: { billId, userId } })
   if (!member) return { ok: false }
   return { ok: true }

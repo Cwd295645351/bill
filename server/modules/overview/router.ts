@@ -21,6 +21,8 @@ router.get('/balance', async (ctx: HttpContext, next: Next) => {
   if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
   else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
+  else if (toTimestamp(beginDate) == null) ctx.body = new ResModel(null, '开始时间不正确', 'error')
+  else if (toTimestamp(endDate) == null) ctx.body = new ResModel(null, '结束时间不正确', 'error')
   else {
     const params: Row = { billId, beginDate: toTimestamp(beginDate), endDate: toTimestamp(endDate) }
     const [err, res] = await getBlance(params, currentUserId(ctx))
@@ -38,6 +40,8 @@ router.post('/settlement', async (ctx: HttpContext, next: Next) => {
   if (!billId) ctx.body = new ResModel(null, '账本id不能未空', 'error')
   else if (!beginDate) ctx.body = new ResModel(null, '开始时间不能为空', 'error')
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
+  else if (toTimestamp(beginDate) == null) ctx.body = new ResModel(null, '开始时间不正确', 'error')
+  else if (toTimestamp(endDate) == null) ctx.body = new ResModel(null, '结束时间不正确', 'error')
   else if (Object.prototype.hasOwnProperty.call(data, 'cumulativeIncome') && typeof data.cumulativeIncome !== 'boolean') {
     ctx.body = new ResModel(null, '按累计收入分参数不正确', 'error')
   } else {

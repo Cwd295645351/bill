@@ -1,31 +1,15 @@
 import type { Row, WhereBag } from '../../types/domain'
 import type { ViewOrigin } from '../../http/view-origin'
-import { Transaction, User } from '../../database/index'
+import { Transaction } from '../../database/index'
 import { billExists, listMembers } from '../bill'
 import { requireMember } from '../access'
-import { uploadImage, attachImages, markImagesUnviewableByTransaction, attachImagesToList, getImageFile, tryDeleteObject, assertBillMember } from './image-service'
-import { loadOrderedMembers, resolveBelongUsers, buildBelongWhere, toBelongResponse } from './belong-users'
+import { attachImagesToList } from './image-service'
+import { buildBelongWhere, toBelongResponse } from './belong-users'
 import { Op } from 'sequelize'
 import dayjs from 'dayjs'
-import { toTimestamp, yearFromTimestamp, formatDate } from '../../utils/dateUtil'
+import { toTimestamp, formatDate } from '../../utils/dateUtil'
 import { createXlsx } from '../../utils/xlsx'
-import xlsx from 'node-xlsx'
-import fs from 'fs'
-
-/** 取出异常文案。非 Error 时返回空串，调用方再决定提示。 */
-const errorText = (err: unknown) => (err instanceof Error ? err.message : '')
-
-/** 请求体是否显式携带 imageIds（不传则不动已有照片） */
-const hasImageIdsField = (data: Row) => Object.prototype.hasOwnProperty.call(data || {}, 'imageIds')
-
-/** 规范化 imageIds：必须是数组，元素为字符串 id */
-const normalizeImageIds = (imageIds: unknown) => {
-  if (!Array.isArray(imageIds)) return null
-  return imageIds.map((id) => String(id))
-}
-
-/** 金额保留两位小数（返回 number） */
-const fixMoney = (n: number | string | null | undefined) => Number(Number(n).toFixed(2))
+import { fixMoney } from '../../utils/money'
 
 /** 将单个 id 或 id 数组统一为数组，避免 Op.in 收到字符串时按字符拆分 */
 const toIdList = (value: unknown) => {
@@ -227,9 +211,9 @@ export const getCurrentMonthCost = async (data: Row, userId: string | null | und
   const endTs = toTimestamp(data.endDate)
   const params: WhereBag = {
     billId: data.billId,
-    reimbursement: 0,
     type: 1,
-    isDel: false
+    isDel: false,
+    [Op.or]: [{ reimbursement: 0 }, { reimbursement: null }]
   }
   if (beginTs != null && endTs != null) {
     params.date = { [Op.between]: [beginTs, endTs] }
@@ -279,11 +263,6 @@ export const getCurrentMonthCost = async (data: Row, userId: string | null | und
 export const exportData = async (data: Row) => {
   const member = await requireMember(data.userId, data.billId)
   if (!member.ok) return ['不是该账本成员', null]
-  const params: Row = {
-    billId: data.billId,
-    type: data.type,
-    isDel: false
-  }
   if (!(await billExists(data.billId))) return ['未找到账本', null]
   const memberRows = await listMembers(data.billId)
   const users: Record<string, string | undefined> = {}
@@ -291,35 +270,9 @@ export const exportData = async (data: Row) => {
     if (item.id) users[item.id] = item.name
   })
 
-  const exportParams: WhereBag = {
-    billId: data.billId,
-    type: data.type,
-    isDel: false,
-    money: {}
-  }
-  const moneyOpMap: Record<string, symbol> = { gt: Op.gt, gte: Op.gte, lt: Op.lt, lte: Op.lte, eq: Op.eq }
-  const moneyOp = moneyOpMap[data.condition || ''] || Op.gte
-  exportParams.money = { [moneyOp]: data.rangeMoney }
-  const beginTs = toTimestamp(data.beginDate)
-  const endTs = toTimestamp(data.endDate)
-  if (beginTs != null && endTs != null) {
-    exportParams.date = { [Op.between]: [beginTs, endTs] }
-  } else if (beginTs != null) {
-    exportParams.date = { [Op.gte]: beginTs }
-  } else if (endTs != null) {
-    exportParams.date = { [Op.lte]: endTs }
-  }
-  if (data.remark) exportParams.remark = { [Op.like]: `%${data.remark}%` }
-  if (data.costTypeId) exportParams.costTypeId = data.costTypeId
-  if (data.payMethodId) exportParams.payMethodId = data.payMethodId
-  if (data.incomesTypeId) exportParams.incomesTypeId = data.incomesTypeId
-  const exportUserIds = toIdList(data.userId)
-  if (exportUserIds) exportParams.userId = { [Op.in]: exportUserIds }
-  const exportBelongWhere = buildBelongWhere(data.belongUserIds)
-  if (exportBelongWhere) exportParams[Op.and] = [exportBelongWhere]
-
+  const { where, andList } = buildFilter(data)
   const res = await Transaction.findAll({
-    where: exportParams,
+    where: withAnd(where, andList),
     attributes: ['date', 'costTypeName', 'userId', 'belongUserName', 'money', 'remark'],
     order: [['date', 'DESC']]
   })

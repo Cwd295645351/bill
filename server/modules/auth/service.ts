@@ -78,7 +78,6 @@ const verifyPassword = async (username: string, password: string) => {
     const decryptoPassword = KJUR.crypto.Cipher.decrypt(b64tohex(String(password)), privateKey, 'RSA')
     username = xssData(username)
     const hashedPassword = xssData(genPassword(decryptoPassword))
-    console.log('hashedPassword', hashedPassword)
     const res = await User.findOne({
       where: { username, password: hashedPassword },
       attributes: USER_ATTRS
@@ -359,8 +358,9 @@ const updateProfile = async (
     return ['昵称须为 1～20 位中文、英文、数字或下划线', null]
   }
   try {
-    const [affected] = await User.update({ nickName }, { where: { id: userId, isDel: false } })
-    if (!affected) return ['用户不存在', null]
+    const existing = await User.findOne({ where: { id: userId, isDel: false }, attributes: ['id'] })
+    if (!existing) return ['用户不存在', null]
+    await User.update({ nickName }, { where: { id: userId, isDel: false } })
     await BillUser.update({ userName: nickName }, { where: { userId } })
     const user = await User.findOne({ where: { id: userId, isDel: false }, attributes: USER_ATTRS })
     if (!user) return ['用户不存在', null]

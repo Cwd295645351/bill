@@ -6,6 +6,7 @@ import { isMultiBelong, isPublicBelong, splitBelongIds } from '../transaction'
 import { allocatePublic } from '../overview'
 import { getLatestSnapshotsBefore } from './record-service'
 import { getBillRates, toCny } from './fx'
+import { countsAsExpense } from '../budget/spend'
 
 const round2 = (value: number) => Math.round(value * 100) / 100
 
@@ -55,7 +56,7 @@ const monthFlows = (rows: Row[], people: { userId: string; name: string }[], hou
       if (!isPublicBelong(row.belongUserId) && idSet.has(row.belongUserId)) flow.income[row.belongUserId] += cents
       return
     }
-    if (Number(row.type) !== 1) return
+    if (!countsAsExpense(row.type, row.reimbursement)) return
     if (!household) {
       if (!isPublicBelong(row.belongUserId) && !isMultiBelong(row.belongUserId) && idSet.has(row.belongUserId)) {
         flow.expense[row.belongUserId] += cents
@@ -190,7 +191,7 @@ const getRetirePlan = async ({ billId, memberId, incomeYears, expenseYears, skip
   const rows = people.length
     ? await Transaction.findAll({
       where: { billId, isDel: false, date: { [Op.gte]: from.startOf('month').valueOf() } },
-      attributes: ['type', 'money', 'belongUserId', 'date']
+      attributes: ['type', 'money', 'belongUserId', 'date', 'reimbursement']
     })
     : []
   const flows = monthFlows(rows as Row[], people, !scope)

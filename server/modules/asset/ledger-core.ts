@@ -4,6 +4,7 @@ import { Op, QueryTypes } from 'sequelize'
 import dayjs from 'dayjs'
 import { sequelize } from '../../database'
 import { buildSettlement } from '../overview'
+import { countsAsExpense } from '../budget/spend'
 import { getLatestSnapshotsBefore } from './record-service'
 import { getBillRates, toCny } from './fx'
 
@@ -116,14 +117,14 @@ const buildLedger = async ({ billId, year, memberId, quantityInputs }: Row) => {
 
   const txRows = await Transaction.findAll({
     where: { billId, date: { [Op.between]: [begin, end] }, isDel: false },
-    attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+    attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'reimbursement']
   })
   let income = 0
   let expense = 0
   ;(txRows as Row[]).forEach((row) => {
     const money = Number(row.money) || 0
     if (Number(row.type) === 2) income += money
-    if (Number(row.type) === 1) expense += money
+    if (countsAsExpense(row.type, row.reimbursement)) expense += money
   })
   income = round2(income)
   expense = round2(expense)
@@ -160,7 +161,8 @@ const buildLedger = async ({ billId, year, memberId, quantityInputs }: Row) => {
         belongUserId: row.belongUserId,
         belongUserName: row.belongUserName,
         costTypeId: row.costTypeId,
-        costTypeName: row.costTypeName
+        costTypeName: row.costTypeName,
+        reimbursement: row.reimbursement
       }))
     })
     const mine = settlement.members.find((item) => item.userId === person?.userId)
@@ -188,7 +190,8 @@ const buildLedger = async ({ billId, year, memberId, quantityInputs }: Row) => {
         type: row.type,
         money: row.money,
         belongUserId: row.belongUserId,
-        costTypeId: row.costTypeId
+        costTypeId: row.costTypeId,
+        reimbursement: row.reimbursement
       }))
     })
     effectiveIncome = settlement.members.map((item) => ({

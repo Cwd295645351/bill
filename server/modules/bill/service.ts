@@ -19,7 +19,7 @@ const nickNameOfUser = async (userId: string | null | undefined): Promise<[strin
 /** 账本是否存在。不附带类型、预算或计划 */
 export const billExists = async (billId: string | null | undefined) => {
   if (!billId) return false
-  const bill = await Bill.findByPk(billId)
+  const bill = await Bill.findOne({ where: { id: billId, isDel: false } })
   return !!bill
 }
 
@@ -47,7 +47,7 @@ export const getBillList = async ({ userId }: Row) => {
 export const createBill = async ({ userId, name }: Row) => {
   const [nickErr, nickName] = await nickNameOfUser(userId)
   if (nickErr || !nickName) return [nickErr || '用户昵称不能为空', null]
-  const findBill = await Bill.findOne({ where: { name: name, creator: userId } })
+  const findBill = await Bill.findOne({ where: { name: name, creator: userId, isDel: false } })
   if (findBill) {
     return ['该名称的账本已存在', null]
   }
@@ -89,9 +89,13 @@ export const editBill = async ({ id, name, userId }: Row) => {
   if (!member.ok) return ['不是该账本成员', null]
   const creator = await requireCreator(userId, id)
   if (!creator.ok) return ['只有账本创建者才能修改账本名称', null]
-  const [affected] = await Bill.update({ name: name }, { where: { id, isDel: false } })
-  if (affected) return [null, true]
-  else return ['编辑失败', null]
+  const current = await Bill.findOne({ where: { id, isDel: false } })
+  if (!current) return ['编辑失败', null]
+  if (String(current.name) === String(name)) return [null, true]
+  const named = await Bill.findOne({ where: { name, creator: current.creator, isDel: false } })
+  if (named && String(named.id) !== String(id)) return ['该名称的账本已存在', null]
+  await Bill.update({ name }, { where: { id, isDel: false } })
+  return [null, true]
 }
 
 // 删除账本

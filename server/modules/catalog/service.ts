@@ -1,5 +1,5 @@
-import type { Row, WhereBag } from '../../types/domain'
-import { BillCostType, BillIncomeType, BillPayMethod, Bill, BillOverviewRule, BillOverviewRuleYear, Transaction, BillBudget, BillBudgetDetail } from '../../database/index'
+import { toPlain, type Row, type WhereBag } from '../../types/domain'
+import { BillCostType, BillIncomeType, BillPayMethod, BillOverviewRule, BillOverviewRuleYear, Transaction, BillBudget, BillBudgetDetail, sequelize } from '../../database/index'
 import { listMembers } from '../bill'
 import type { Transaction as DbTransaction } from 'sequelize'
 import { requireCreator, requireMember } from '../access'
@@ -8,9 +8,6 @@ import { requireCreator, requireMember } from '../access'
 const RULE_TYPE_QUANTITY = 'quantity'
 /** 指定支出类型扣减 */
 const RULE_TYPE_COST_TYPE = 'cost_type'
-
-/** 将 Sequelize 实例转为普通对象 */
-const toPlain = (row: Row): Row => (row && row.get ? row.get({ plain: true }) || row : row)
 
 /** 将规则行格式化为前端可用结构 */
 const formatOverviewRule = (row: Row) => {
@@ -97,25 +94,38 @@ const createCostType = async ({ billId, name, userId }: Row) => {
 
 /** 编辑支出类型 */
 const editCostType = async ({ id, billId, name, userId }: Row) => {
+  if (!(await checkBillCreator(billId, userId))) {
+    return ['只有账本创建者才能管理类型', null]
+  }
+  const tx = await sequelize.transaction()
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
+    const { lockBill } = await import('../budget')
+    const locked = await lockBill(billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
     }
-    const [affected] = await BillCostType.update({ name }, { where: { id, billId, isDel: false } })
-    if (!affected) return ['找不到该类型', null]
-
-    // 同步更新 transactions 表中的 costTypeName
-    await Transaction.update({ costTypeName: name }, { where: { billId, costTypeId: id, isDel: false } })
-
-    // 同步更新 budget_details 表中的 costTypeName
-    const budgets = await BillBudget.findAll({ where: { billId } })
+    const current = await BillCostType.findOne({ where: { id, billId, isDel: false }, transaction: tx })
+    if (!current) {
+      await tx.rollback()
+      return ['找不到该类型', null]
+    }
+    if (String(current.name || '') !== name) {
+      await BillCostType.update({ name }, { where: { id, billId, isDel: false }, transaction: tx })
+    }
+    await Transaction.update({ costTypeName: name }, { where: { billId, costTypeId: id, isDel: false }, transaction: tx })
+    const budgets = await BillBudget.findAll({ where: { billId }, transaction: tx })
     const budgetIds = budgets.map((b: Row) => b.id)
     if (budgetIds.length) {
-      await BillBudgetDetail.update({ costTypeName: name }, { where: { budgetId: budgetIds, costTypeId: id } })
+      await BillBudgetDetail.update(
+        { costTypeName: name },
+        { where: { budgetId: budgetIds, costTypeId: id }, transaction: tx }
+      )
     }
-
+    await tx.commit()
     return [null, true]
   } catch (err: unknown) {
+    await tx.rollback()
     console.error(err)
     return [(err instanceof Error ? err.message : '') || '编辑支出类型失败', null]
   }
@@ -159,18 +169,30 @@ const createIncomeType = async ({ billId, name, userId }: Row) => {
 
 /** 编辑收入类型 */
 const editIncomeType = async ({ id, billId, name, userId }: Row) => {
+  if (!(await checkBillCreator(billId, userId))) {
+    return ['只有账本创建者才能管理类型', null]
+  }
+  const tx = await sequelize.transaction()
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
+    const { lockBill } = await import('../budget')
+    const locked = await lockBill(billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
     }
-    const [affected] = await BillIncomeType.update({ name }, { where: { id, billId, isDel: false } })
-    if (!affected) return ['找不到该类型', null]
-
-    // 同步更新 transactions 表中的 incomesTypeName
-    await Transaction.update({ incomesTypeName: name }, { where: { billId, incomesTypeId: id, isDel: false } })
-
+    const current = await BillIncomeType.findOne({ where: { id, billId, isDel: false }, transaction: tx })
+    if (!current) {
+      await tx.rollback()
+      return ['找不到该类型', null]
+    }
+    if (String(current.name || '') !== name) {
+      await BillIncomeType.update({ name }, { where: { id, billId, isDel: false }, transaction: tx })
+    }
+    await Transaction.update({ incomesTypeName: name }, { where: { billId, incomesTypeId: id, isDel: false }, transaction: tx })
+    await tx.commit()
     return [null, true]
   } catch (err: unknown) {
+    await tx.rollback()
     console.error(err)
     return [(err instanceof Error ? err.message : '') || '编辑收入类型失败', null]
   }
@@ -477,13 +499,6 @@ const deleteOverviewRuleYearly = async ({ id, billId, userId }: Row) => {
     console.error(err)
     return [(err instanceof Error ? err.message : '') || '删除年度配置失败', null]
   }
-}
-
-/** 按编号读取类型或支付方式名称，供记账写入快照 */
-export async function typeNameById(kind: 'cost' | 'income' | 'pay', billId: string, id: string) {
-  const model = kind === 'cost' ? BillCostType : kind === 'income' ? BillIncomeType : BillPayMethod
-  const row = await model.findOne({ where: { id, billId, isDel: false } })
-  return row ? String(row.name || '') : null
 }
 
 export {

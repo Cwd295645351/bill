@@ -8,8 +8,8 @@ import * as ASSET from './asset-service'
 import * as RECORD from './record-flow'
 import * as STATISTICS from './statistics-service'
 import * as EXCHANGE from './exchange-service'
-import * as LEDGER from './ledger-service'
-import * as RETIRE from './retire-service'
+import { buildLedger } from './ledger-core'
+import { getRetirePlan, saveRetirePlan } from './retire-core'
 import VERSION from '../../config/version'
 import { requireMember, billIdOfAsset, billIdOfMember, billIdOfRecord } from '../access'
 
@@ -60,7 +60,11 @@ router.put('/member', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   const billId = await billIdOfMember(queryString(data.id))
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '成员不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await MEMBER.editMember(data)
   if (res) ctx.body = new ResModel(res, '编辑成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -69,7 +73,11 @@ router.put('/member', async (ctx: HttpContext) => {
 router.delete('/member', async (ctx: HttpContext) => {
   const id = queryString(ctx.query.id)
   const billId = await billIdOfMember(id)
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '成员不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await MEMBER.delMember({ id })
   if (res) ctx.body = new ResModel(null, '删除成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -106,7 +114,11 @@ router.put('/', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   const billId = await billIdOfAsset(queryString(data.id))
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '资产不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await ASSET.editAsset(data)
   if (res) ctx.body = new ResModel(res, '编辑成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -115,7 +127,11 @@ router.put('/', async (ctx: HttpContext) => {
 router.delete('/', async (ctx: HttpContext) => {
   const id = queryString(ctx.query.id)
   const billId = await billIdOfAsset(id)
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '资产不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await ASSET.delAsset({ id })
   if (res) ctx.body = new ResModel(null, '删除成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -126,7 +142,11 @@ router.post('/record', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   const billId = await billIdOfAsset(queryString(data.assetId))
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '资产不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await RECORD.addAssetRecord(data)
   if (res) ctx.body = new ResModel(res, '盘点成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -135,7 +155,11 @@ router.post('/record', async (ctx: HttpContext) => {
 router.get('/records', async (ctx: HttpContext) => {
   const assetId = queryString(ctx.query.assetId)
   const billId = await billIdOfAsset(assetId)
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '资产不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await RECORD.getAssetRecords(asInput(ctx.query))
   if (res) ctx.body = new ResModel(res, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -145,7 +169,11 @@ router.put('/record', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   const billId = await billIdOfRecord(queryString(data.id))
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '盘点不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await RECORD.editAssetRecord(data)
   if (res) ctx.body = new ResModel(res, '编辑成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -154,7 +182,11 @@ router.put('/record', async (ctx: HttpContext) => {
 router.delete('/record', async (ctx: HttpContext) => {
   const id = queryString(ctx.query.id)
   const billId = await billIdOfRecord(id)
-  if (billId && !(await guard(ctx, billId))) return
+  if (!billId) {
+    ctx.body = new ResModel(null, '盘点不存在', 'error')
+    return
+  }
+  if (!(await guard(ctx, billId))) return
   const [err, res] = await RECORD.delAssetRecord({ id })
   if (res) ctx.body = new ResModel(null, '删除成功')
   else ctx.body = new ResModel(null, err, 'error')
@@ -233,7 +265,7 @@ router.post('/ledger', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   if (!(await guard(ctx, queryString(data.billId)))) return
-  const [err, res] = await LEDGER.getLedger(data)
+  const [err, res] = await buildLedger(data)
   if (res) ctx.body = new ResModel(res, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -241,7 +273,7 @@ router.post('/ledger', async (ctx: HttpContext) => {
 router.get('/retire-plan', async (ctx: HttpContext) => {
   const billId = queryString(ctx.query.billId)
   if (!(await guard(ctx, billId))) return
-  const [err, res] = await RETIRE.readRetirePlan(asInput(ctx.query))
+  const [err, res] = await getRetirePlan(asInput(ctx.query))
   if (res) ctx.body = new ResModel(res, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -250,7 +282,7 @@ router.put('/retire-plan', async (ctx: HttpContext) => {
   const data = readBody(ctx)
   xssData(data)
   if (!(await guard(ctx, queryString(data.billId)))) return
-  const [err, res] = await RETIRE.writeRetirePlan(data)
+  const [err, res] = await saveRetirePlan(data)
   if (res) ctx.body = new ResModel(res, '保存成功')
   else ctx.body = new ResModel(null, err, 'error')
 })

@@ -6,8 +6,8 @@ import { getBlance } from './query-service'
 import { getSettlement } from './settlement-route'
 import { toCents } from './settlement'
 import { isPublicBelong, splitBelongIds } from '../transaction'
-
-const fixMoney = (value: number) => Number(Number(value).toFixed(2))
+import { fixMoney } from '../../utils/money'
+import { unreimbursedExpenseWhere } from '../budget/spend'
 
 interface CategorySeed {
   costTypeId: string
@@ -92,7 +92,7 @@ export const getMobileOverview = async (query: Row, userId: string | null | unde
   }
 
   const expenses = (await Transaction.findAll({
-    where: { billId, date: { [Op.between]: [range.begin, range.end] }, isDel: false, type: 1 },
+    where: { billId, date: { [Op.between]: [range.begin, range.end] }, isDel: false, ...unreimbursedExpenseWhere },
     attributes: ['costTypeId', 'belongUserId']
   })) as Row[]
 
@@ -223,8 +223,8 @@ export const getMobileRecords = async (query: Row, userId: string | null | undef
       billId,
       date: { [Op.between]: [range.begin, range.end] },
       isDel: false,
-      type: 1,
-      costTypeId
+      costTypeId,
+      ...unreimbursedExpenseWhere
     },
     attributes: ['id', 'date', 'money', 'remark', 'userId', 'belongUserId', 'belongUserName']
   })) as Row[]

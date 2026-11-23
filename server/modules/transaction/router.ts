@@ -212,7 +212,7 @@ router.post('/const', async (ctx: HttpContext, next: Next) => {
     return
   }
   const [err, res] = await getExcelObjs(filePath, billId, userId)
-  if (res) ctx.body = new ResModel(res, '查找成功')
+  if (res) ctx.body = new ResModel(res, '导入成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
 

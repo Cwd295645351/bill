@@ -4,8 +4,7 @@ import dayjs from 'dayjs'
 import { Op } from 'sequelize'
 import { buildSettlement, mergeSettlementResults, withoutParties } from './settlement'
 import { requireMember } from '../access'
-
-const fixMoney = (n: number | string | null | undefined) => Number(Number(n).toFixed(2))
+import { fixMoney } from '../../utils/money'
 
 interface YearGroupInput {
   name: string
@@ -160,7 +159,7 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
       date: { [Op.between]: [queryBegin, queryEnd] },
       isDel: false
     },
-    attributes: ['id', 'type', 'money', 'date', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'remark']
+    attributes: ['id', 'type', 'money', 'date', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'remark', 'reimbursement']
   })
 
   const outsiderIds = [
@@ -191,7 +190,8 @@ export const getSettlement = async (data: Row, userId: string | null | undefined
     belongUserId: row.belongUserId,
     belongUserName: row.belongUserName,
     costTypeId: row.costTypeId,
-    costTypeName: row.costTypeName
+    costTypeName: row.costTypeName,
+    reimbursement: row.reimbursement
   })
 
   const results = []

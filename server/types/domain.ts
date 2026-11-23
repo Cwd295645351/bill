@@ -212,3 +212,6 @@ export const queryString = (value: string | string[] | undefined | null): string
 
 /** 在路由边界把查询对象收成入参，字段名仍受 ApiInput 检查。 */
 export const asInput = (value: object | null | undefined): ApiInput => (value || {}) as ApiInput
+
+/** 将 Sequelize 实例转为普通对象。已经是普通对象时原样返回。 */
+export const toPlain = (row: Row): Row => (row && row.get ? row.get({ plain: true }) || row : row)

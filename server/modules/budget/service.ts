@@ -1,10 +1,9 @@
-import type { Row, WhereBag } from '../../types/domain'
+import { toPlain, type Row, type WhereBag } from '../../types/domain'
 import { Bill, BillBudget, BillBudgetDetail, Transaction, sequelize } from '../../database/index'
 import { loadTypeLists } from '../catalog'
 import { requireMember } from '../access'
 import dayjs from 'dayjs'
-import { Op } from 'sequelize'
-import type { Transaction as DbTransaction } from 'sequelize'
+import { Op, Transaction as DbTransaction } from 'sequelize'
 
 interface BudgetDetailRow {
   id?: string
@@ -21,9 +20,6 @@ interface BudgetYearRow {
   currCost?: number
   details?: BudgetDetailRow[]
 }
-
-/** 将模型实例转成普通对象 */
-const toPlain = (row: Row): Row => (row && row.get ? row.get({ plain: true }) || row : row)
 
 /** 只读取本账本的预算。账本不存在时返回空数组，是否存在由调用方另查 */
 export async function loadBudgets(billId: string | null | undefined, transaction?: DbTransaction | null): Promise<BudgetYearRow[]> {
@@ -95,6 +91,40 @@ export async function saveBudget(
   }
 }
 
+/** 锁住账本行，让并发的记账和预算修改串行执行 */
+export async function lockBill(billId: string | null | undefined, transaction: DbTransaction) {
+  if (!billId) return null
+  const bill = await Bill.findByPk(billId, { transaction, lock: transaction.LOCK.UPDATE })
+  if (!bill || bill.isDel) return null
+  return bill
+}
+
+/** 统计某年未报销支出。传入支出类型时只统计该分类 */
+const sumCountedExpense = async (
+  billId: string | null | undefined,
+  year: number,
+  costTypeId: unknown,
+  transaction: DbTransaction
+) => {
+  const begin = dayjs(`${year}-01-01`).startOf('day').valueOf()
+  const end = dayjs(`${year}-12-31`).endOf('day').valueOf()
+  const where: WhereBag = {
+    billId,
+    type: 1,
+    isDel: false,
+    date: { [Op.between]: [begin, end] },
+    [Op.or]: [{ reimbursement: 0 }, { reimbursement: null }]
+  }
+  if (costTypeId != null && costTypeId !== '') where.costTypeId = costTypeId
+  const rows = await Transaction.findAll({
+    where,
+    attributes: ['money'],
+    raw: true,
+    transaction
+  })
+  return rows.reduce((sum: number, row: Row) => sum + (Number(row.money) || 0), 0)
+}
+
 /** 预算接口需要的账本切片：预算行和支出类型名称 */
 const loadBudgetContext = async (billId: string | null | undefined) => {
   const bill = await Bill.findByPk(billId)
@@ -116,59 +146,56 @@ export const getList = async (data: Row) => {
 
 // 新增预算
 export const addBudget = async (data: Row) => {
-  data.money = Number(data.money)
-  const findBill = await loadBudgetContext(data.billId)
-  if (!findBill) return ['未找到账本', null]
+  const year = Number(data.date)
+  if (!Number.isInteger(year) || year < 1971 || year > 9999) return ['预算年份不正确', null]
+  const money = Number(data.money)
+  if (!Number.isFinite(money) || money <= 0) return ['金额不正确', null]
   if (!(await requireMember(data.userId, data.billId)).ok) return ['该用户并未加入此账本', null]
+  const types = await loadTypeLists(data.billId)
+  const costType = types.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)
+  if (!costType) return ['支出类型不存在', null]
 
-  let budget = findBill.budget.find((item) => item.date === data.date)
-  if (budget) {
-    // 已存在年度预算
-    const details = budget.details || []
-    let budgetDetailItem = details.find((item) => item.costTypeId === data.costTypeId)
-    if (budgetDetailItem) return ['已存在相关预算', null]
-    budget.totalBudget = Number(budget.totalBudget || 0) + Number(data.money)
-    budgetDetailItem = {
-      costTypeId: data.costTypeId,
-      costTypeName: findBill.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)!.name,
-      budget: data.money,
-      cost: 0
-    }
-    // 查找当前年度该支出类型支出的金额
-    const params: WhereBag = {
-      billId: data.billId,
-      type: 1,
-      costTypeId: data.costTypeId,
-      date: {
-        [Op.between]: [dayjs().startOf('year').valueOf(), dayjs().endOf('year').valueOf()]
-      },
-      isDel: false
-    }
-    const res = await Transaction.findAll({ where: params, attributes: ['money'], raw: true })
-    budgetDetailItem.cost = res.reduce((prev: number, curr: Row) => {
-      return prev + Number(curr.money)
-    }, 0)
-    details.push(budgetDetailItem)
-    budget.details = details
-  } else {
-    // 未存在当前年度预算。挂到完整列表上，保存时按整表替换，不能只提交这一年
-    findBill.budget.push({
-      date: data.date,
-      totalBudget: data.money,
-      currCost: 0,
-      details: [
-        {
-          costTypeId: data.costTypeId,
-          costTypeName: findBill.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)!.name,
-          budget: data.money,
-          cost: 0
-        }
-      ]
-    })
-  }
   const tx = await sequelize.transaction()
   try {
-    await saveBudget(data.billId, findBill.budget, tx)
+    const locked = await lockBill(data.billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const budgets = await loadBudgets(data.billId, tx)
+    const spent = await sumCountedExpense(data.billId, year, data.costTypeId, tx)
+    let budget = budgets.find((item) => Number(item.date) === year)
+    if (budget) {
+      const details = budget.details || []
+      if (details.find((item) => item.costTypeId === data.costTypeId)) {
+        await tx.rollback()
+        return ['已存在相关预算', null]
+      }
+      budget.totalBudget = Number(budget.totalBudget || 0) + money
+      details.push({
+        costTypeId: data.costTypeId,
+        costTypeName: costType.name,
+        budget: money,
+        cost: spent
+      })
+      budget.details = details
+    } else {
+      const yearSpent = await sumCountedExpense(data.billId, year, null, tx)
+      budgets.push({
+        date: year,
+        totalBudget: money,
+        currCost: yearSpent,
+        details: [
+          {
+            costTypeId: data.costTypeId,
+            costTypeName: costType.name,
+            budget: money,
+            cost: spent
+          }
+        ]
+      })
+    }
+    await saveBudget(data.billId, budgets, tx)
     await tx.commit()
     return [null, true]
   } catch (e: unknown) {
@@ -180,20 +207,30 @@ export const addBudget = async (data: Row) => {
 
 // 修改预算
 export const editBudget = async (data: Row) => {
-  data.money = Number(data.money)
-  const findBill = await loadBudgetContext(data.billId)
-  if (!findBill) return ['未找到账本', null]
+  const money = Number(data.money)
+  if (!Number.isFinite(money) || money <= 0) return ['金额不正确', null]
   if (!(await requireMember(data.userId, data.billId)).ok) return ['该用户并未加入此账本', null]
-  let budget = findBill.budget.find((item) => item.date === data.date)
-  if (!budget) return ['不存在该年度预算', null]
-  // 查找预算明细
-  let budgetDetailItem = (budget.details || []).find((item: { id?: string; name?: string }) => item.id === data.id)
-  if (!budgetDetailItem) return ['不存在相关预算', null]
-  budget.totalBudget = Number(budget.totalBudget || 0) - Number(budgetDetailItem.budget || 0) + Number(data.money) // 计算总预算
-  budgetDetailItem.budget = data.money // 设置分项预算
   const tx = await sequelize.transaction()
   try {
-    await saveBudget(data.billId, findBill.budget, tx)
+    const locked = await lockBill(data.billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const budgets = await loadBudgets(data.billId, tx)
+    const budget = budgets.find((item) => Number(item.date) === Number(data.date))
+    if (!budget) {
+      await tx.rollback()
+      return ['不存在该年度预算', null]
+    }
+    const budgetDetailItem = (budget.details || []).find((item) => item.id === data.id)
+    if (!budgetDetailItem) {
+      await tx.rollback()
+      return ['不存在相关预算', null]
+    }
+    budget.totalBudget = Number(budget.totalBudget || 0) - Number(budgetDetailItem.budget || 0) + money
+    budgetDetailItem.budget = money
+    await saveBudget(data.billId, budgets, tx)
     await tx.commit()
     return [null, true]
   } catch (e: unknown) {
@@ -204,20 +241,28 @@ export const editBudget = async (data: Row) => {
 }
 
 export const deleteBudget = async (data: Row) => {
-  data.date = Number(data.date)
-  const findBill = await loadBudgetContext(data.billId)
-  if (!findBill) return ['未找到账本', null]
   if (!(await requireMember(data.userId, data.billId)).ok) return ['该用户并未加入此账本', null]
-  let budget = findBill.budget.find((item) => item.date === data.date)
-  if (!budget) return ['不存在该年度预算', null]
-  // 查找预算明细
-  const budgetDetailItem = (budget.details || []).find((item: { id?: string; name?: string }) => item.id === data.id)
-  if (!budgetDetailItem) return ['不存在相关预算', null]
-  budget.totalBudget = Number(budget.totalBudget || 0) - Number(budgetDetailItem.budget || 0)
-  budget.details = (budget.details || []).filter((item: { id?: string; name?: string }) => item.id !== data.id)
   const tx = await sequelize.transaction()
   try {
-    await saveBudget(data.billId, findBill.budget, tx)
+    const locked = await lockBill(data.billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const budgets = await loadBudgets(data.billId, tx)
+    const budget = budgets.find((item) => Number(item.date) === Number(data.date))
+    if (!budget) {
+      await tx.rollback()
+      return ['不存在该年度预算', null]
+    }
+    const budgetDetailItem = (budget.details || []).find((item) => item.id === data.id)
+    if (!budgetDetailItem) {
+      await tx.rollback()
+      return ['不存在相关预算', null]
+    }
+    budget.totalBudget = Number(budget.totalBudget || 0) - Number(budgetDetailItem.budget || 0)
+    budget.details = (budget.details || []).filter((item) => item.id !== data.id)
+    await saveBudget(data.billId, budgets, tx)
     await tx.commit()
     return [null, true]
   } catch (e: unknown) {

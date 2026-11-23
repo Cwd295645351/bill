@@ -1,5 +1,5 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { AssetRecord } from '../../database/index'
+import { Asset, AssetRecord, sequelize } from '../../database/index'
 import { Op } from 'sequelize'
 import { toTimestamp } from '../../utils/dateUtil'
 import { placeRecordDate, recomputeLatestAmount } from './record-service'
@@ -25,16 +25,34 @@ export const addAssetRecord = async ({ assetId, amount, date }: Row) => {
   const ts = toTimestamp(date as string | number)
   if (ts == null) return ['日期不能为空', null]
 
-  const placed = await placeRecordDate(String(assetId), ts)
-  const record = await AssetRecord.create({
-    assetId,
-    amount: value,
-    date: placed
-  })
-  if (!record) return ['盘点记录创建失败', null]
-  const latest = await recomputeLatestAmount(String(assetId))
-  if (latest == null) return ['资产主表更新失败，资产可能已被删除', null]
-  return [null, record]
+  const tx = await sequelize.transaction()
+  try {
+    const asset = await Asset.findOne({
+      where: { id: String(assetId), isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!asset) {
+      await tx.rollback()
+      return ['资产不存在', null]
+    }
+    const placed = await placeRecordDate(String(assetId), ts, undefined, tx)
+    const record = await AssetRecord.create({ assetId, amount: value, date: placed }, { transaction: tx })
+    if (!record) {
+      await tx.rollback()
+      return ['盘点记录创建失败', null]
+    }
+    const latest = await recomputeLatestAmount(String(assetId), tx)
+    if (latest == null) {
+      await tx.rollback()
+      return ['资产主表更新失败，资产可能已被删除', null]
+    }
+    await tx.commit()
+    return [null, record]
+  } catch (error) {
+    await tx.rollback()
+    throw error
+  }
 }
 
 /** 编辑资产记录
@@ -51,14 +69,52 @@ export const editAssetRecord = async ({ id, assetId, amount, date }: Row) => {
   if (amountErr || value == null) return [amountErr, null]
   const ts = toTimestamp(date as string | number)
   if (ts == null) return ['日期不能为空', null]
+  const current = await AssetRecord.findOne({ where: { id, isDel: false } })
+  if (!current) return ['编辑资产记录失败，资产记录可能已被删除', null]
+  if (String(current.assetId || '') !== String(assetId)) return ['盘点不属于该资产', null]
 
-  const placed = await placeRecordDate(String(assetId), ts, String(id))
-  const [affected] = await AssetRecord.update({ amount: value, date: placed }, { where: { id, isDel: false } })
-  const res = affected ? await AssetRecord.findByPk(id) : null
-  if (!res) return ['编辑资产记录失败，资产记录可能已被删除', null]
-  const latest = await recomputeLatestAmount(String(assetId))
-  if (latest == null) return ['资产主表更新失败，资产可能已被删除', null]
-  return [null, res]
+  const ownerId = String(current.assetId)
+  const tx = await sequelize.transaction()
+  try {
+    const asset = await Asset.findOne({
+      where: { id: ownerId, isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!asset) {
+      await tx.rollback()
+      return ['资产主表更新失败，资产可能已被删除', null]
+    }
+    const row = await AssetRecord.findOne({
+      where: { id, assetId: ownerId, isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!row) {
+      await tx.rollback()
+      return ['编辑资产记录失败，资产记录可能已被删除', null]
+    }
+    const placed = await placeRecordDate(ownerId, ts, String(id), tx)
+    await AssetRecord.update(
+      { amount: value, date: placed },
+      { where: { id, assetId: ownerId, isDel: false }, transaction: tx }
+    )
+    const res = await AssetRecord.findOne({ where: { id, assetId: ownerId, isDel: false }, transaction: tx })
+    if (!res) {
+      await tx.rollback()
+      return ['编辑资产记录失败，资产记录可能已被删除', null]
+    }
+    const latest = await recomputeLatestAmount(ownerId, tx)
+    if (latest == null) {
+      await tx.rollback()
+      return ['资产主表更新失败，资产可能已被删除', null]
+    }
+    await tx.commit()
+    return [null, res]
+  } catch (error) {
+    await tx.rollback()
+    throw error
+  }
 }
 
 /** 删除资产记录
@@ -70,17 +126,52 @@ export const delAssetRecord = async ({ id }: Row) => {
 
   const record = await AssetRecord.findOne({ where: { id, isDel: false } })
   if (!record) return ['资产记录不存在', null]
+  const assetId = String(record.assetId || '')
 
-  const assetId = record.assetId
-
-  const recordCount = await AssetRecord.count({ where: { assetId, isDel: false } })
-  if (recordCount <= 1) return ['只剩一条记录时不能删除', null]
-
-  const [affected] = await AssetRecord.update({ isDel: true }, { where: { id, isDel: false } })
-  if (!affected) return ['删除资产记录失败，资产记录可能已被删除', null]
-  const latest = await recomputeLatestAmount(String(assetId))
-  if (latest == null) return ['资产主表更新失败，资产可能已被删除', null]
-  return [null, true]
+  const tx = await sequelize.transaction()
+  try {
+    const asset = await Asset.findOne({
+      where: { id: assetId, isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!asset) {
+      await tx.rollback()
+      return ['资产主表更新失败，资产可能已被删除', null]
+    }
+    const row = await AssetRecord.findOne({
+      where: { id, assetId, isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!row) {
+      await tx.rollback()
+      return ['删除资产记录失败，资产记录可能已被删除', null]
+    }
+    const recordCount = await AssetRecord.count({ where: { assetId, isDel: false }, transaction: tx })
+    if (recordCount <= 1) {
+      await tx.rollback()
+      return ['只剩一条记录时不能删除', null]
+    }
+    const [affected] = await AssetRecord.update(
+      { isDel: true },
+      { where: { id, assetId, isDel: false }, transaction: tx }
+    )
+    if (!affected) {
+      await tx.rollback()
+      return ['删除资产记录失败，资产记录可能已被删除', null]
+    }
+    const latest = await recomputeLatestAmount(assetId, tx)
+    if (latest == null) {
+      await tx.rollback()
+      return ['资产主表更新失败，资产可能已被删除', null]
+    }
+    await tx.commit()
+    return [null, true]
+  } catch (error) {
+    await tx.rollback()
+    throw error
+  }
 }
 
 /** 获取资产记录

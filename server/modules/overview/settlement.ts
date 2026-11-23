@@ -3,10 +3,11 @@
  * 金额在内部使用整数「分」，避免浮点误差。
  */
 
+import { countsAsExpense } from '../budget/spend'
+import { isPublicBelong, isMultiBelong, splitBelongIds, BELONG_NAME_SEPARATOR } from '../transaction'
+
 /** 元转分。0.1 元这类二进制小数先四舍五入到分 */
 const toCents = (yuan: number | string | null | undefined) => Math.round(Number(yuan) * 100)
-
-import { isPublicBelong, isMultiBelong, splitBelongIds, BELONG_NAME_SEPARATOR } from '../transaction'
 
 /** 分转元，保留两位 */
 const fromCents = (cents: number) => Number((cents / 100).toFixed(2))
@@ -136,7 +137,12 @@ interface SettlementRow {
   costTypeName?: string | null
   userId?: string
   payerName?: string | null
+  reimbursement?: number | string | null
 }
+
+/** 已报销支出不进入分账。收入保留 */
+const countedRows = (rows: SettlementRow[]) =>
+  rows.filter((row) => Number(row.type) !== 1 || countsAsExpense(row.type, row.reimbursement))
 
 const buildSettlement = ({
   members,
@@ -156,9 +162,9 @@ const buildSettlement = ({
   const memberIds = new Set(memberList.map((member: SettlementMember) => member.userId))
   const ruleList = rules || []
   const inputs = quantityInputs || []
-  const rows = transactions || []
+  const rows = countedRows(transactions || [])
   /** 权重流水：成员收入和指定类型扣减。缺省就是支出流水 */
-  const weightRows = weightTransactions || rows
+  const weightRows = countedRows(weightTransactions || transactions || [])
 
   const incomeCents: Record<string, number> = {}
   const effectiveCents: Record<string, number> = {}
@@ -249,7 +255,7 @@ const buildSettlement = ({
   memberList.forEach((member: SettlementMember) => {
     memberSlices[member.userId] = {}
   })
-  /** 垫付和分摊只看支出流水。报销进度不参与筛选，仍按记账金额计算 */
+  /** 垫付和分摊只看未报销支出 */
   /** 公共支出先记下，等全部加总后再分一次，避免逐笔四舍五入把零头叠大 */
   const publicRows: SettlementRow[] = []
   /** 多人支出按归属人组合分组，组内同样先加总再分一次；Map 保持首次出现顺序 */

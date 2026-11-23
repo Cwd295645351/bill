@@ -1,4 +1,3 @@
-import type { Row } from '../types/domain'
 import xlsx from 'node-xlsx'
 
 export const createXlsx = (

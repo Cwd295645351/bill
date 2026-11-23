@@ -1,6 +1,6 @@
 import type { Row, WhereBag } from '../../types/domain'
 import { sequelize, Asset, AssetRecord } from '../../database'
-import { Op, QueryTypes } from 'sequelize'
+import { Op, QueryTypes, Transaction as DbTransaction } from 'sequelize'
 import dayjs from 'dayjs'
 
 /**
@@ -55,13 +55,19 @@ const getRecentRecordsGrouped = async (assetIds: (string | null | undefined)[], 
  * @param assetId 资产 id
  * @param dateInput 用户选择的日期时间戳
  * @param excludeId 修改时排除自己
+ * @param transaction 调用方事务。传入后读取同一事务里尚未提交的盘点
  */
-const placeRecordDate = async (assetId: string, dateInput: number, excludeId?: string) => {
+const placeRecordDate = async (
+  assetId: string,
+  dateInput: number,
+  excludeId?: string,
+  transaction?: DbTransaction
+) => {
   const start = dayjs(dateInput).startOf('day').valueOf()
   const end = dayjs(dateInput).endOf('day').valueOf()
   const where: WhereBag = { assetId, isDel: false, date: { [Op.gte]: start, [Op.lte]: end } }
   if (excludeId) where.id = { [Op.ne]: excludeId }
-  const latest = await AssetRecord.findOne({ where, order: [['date', 'DESC']] })
+  const latest = await AssetRecord.findOne({ where, order: [['date', 'DESC']], transaction })
   if (!latest) {
     const ts = Number(dateInput)
     if (!Number.isFinite(ts) || ts < start || ts > end) return start
@@ -73,17 +79,26 @@ const placeRecordDate = async (assetId: string, dateInput: number, excludeId?: s
 
 /**
  * 按未删除盘点的日期从新到旧，重算当前金额和最近更新日期。
+ * 金额和日期与主表相同时，MySQL 会返回 0 行，这只表示没有变化，资产仍在。
  * @param assetId 资产 id
+ * @param transaction 调用方事务
  */
-const recomputeLatestAmount = async (assetId: string) => {
+const recomputeLatestAmount = async (assetId: string, transaction?: DbTransaction) => {
+  const asset = await Asset.findOne({
+    where: { id: assetId, isDel: false },
+    transaction,
+    lock: transaction ? transaction.LOCK.UPDATE : undefined
+  })
+  if (!asset) return null
   const latest = await AssetRecord.findOne({
     where: { assetId, isDel: false },
-    order: [['date', 'DESC']]
+    order: [['date', 'DESC']],
+    transaction
   })
   if (!latest) return null
   await Asset.update(
     { latestAmount: latest.amount, lastUpdatedDate: latest.date },
-    { where: { id: assetId, isDel: false } }
+    { where: { id: assetId, isDel: false }, transaction }
   )
   return latest
 }

@@ -1,10 +1,8 @@
-import type { Row } from '../../types/domain'
+import { toPlain, type Row } from '../../types/domain'
 import { Bill, BillPlanBuy, sequelize } from '../../database/index'
 import { requireMember } from '../access'
+import { lockBill } from '../budget'
 import type { Transaction as DbTransaction } from 'sequelize'
-
-/** 将模型实例转成普通对象 */
-const toPlain = (row: Row): Row => (row && row.get ? row.get({ plain: true }) || row : row)
 
 /** 只读取本账本的计划。账本不存在时返回 null */
 export async function loadPlanBuy(billId: string | null | undefined, transaction?: DbTransaction | null) {
@@ -66,14 +64,21 @@ export const getList = async ({ userId, billId }: Row) => {
 
 /** 新增账本计划 */
 export const add = async ({ billId, userId, context, priority, title }: Row) => {
-  const plans = await loadPlanBuy(billId)
-  if (!plans) return ['未找到账本', null]
   if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  plans.count++
-  const addData: Row = { title, context, priority, isBuy: false, isDel: false }
-  plans.details.push(addData)
   const tx = await sequelize.transaction()
   try {
+    const locked = await lockBill(billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const plans = await loadPlanBuy(billId, tx)
+    if (!plans) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    plans.count++
+    plans.details.push({ title, context, priority, isBuy: false, isDel: false })
     await savePlanBuy(billId, plans, tx)
     await tx.commit()
     return [null, true]
@@ -86,16 +91,27 @@ export const add = async ({ billId, userId, context, priority, title }: Row) => 
 
 /** 编辑账本计划 */
 export const edit = async ({ billId, id, userId, context, priority, title }: Row) => {
-  const planBuy = await loadPlanBuy(billId)
-  if (!planBuy) return ['未找到账本', null]
   if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
-  if (!planDetailItem) return ['不存在该计划', null]
-  planDetailItem.context = context
-  planDetailItem.priority = priority
-  planDetailItem.title = title
   const tx = await sequelize.transaction()
   try {
+    const locked = await lockBill(billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const planBuy = await loadPlanBuy(billId, tx)
+    if (!planBuy) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
+    if (!planDetailItem) {
+      await tx.rollback()
+      return ['不存在该计划', null]
+    }
+    planDetailItem.context = context
+    planDetailItem.priority = priority
+    planDetailItem.title = title
     await savePlanBuy(billId, planBuy, tx)
     await tx.commit()
     return [null, true]
@@ -108,15 +124,26 @@ export const edit = async ({ billId, id, userId, context, priority, title }: Row
 
 /** 删除账本计划 */
 const removePlan = async ({ id, billId, userId }: { id: string; billId: string; userId: string }) => {
-  const planBuy = await loadPlanBuy(billId)
-  if (!planBuy) return ['未找到账本', null]
   if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
-  if (!planDetailItem) return ['不存在该计划', null]
-  planDetailItem.isDel = true
-  planBuy.count--
   const tx = await sequelize.transaction()
   try {
+    const locked = await lockBill(billId, tx)
+    if (!locked) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const planBuy = await loadPlanBuy(billId, tx)
+    if (!planBuy) {
+      await tx.rollback()
+      return ['未找到账本', null]
+    }
+    const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
+    if (!planDetailItem) {
+      await tx.rollback()
+      return ['不存在该计划', null]
+    }
+    planDetailItem.isDel = true
+    planBuy.count--
     await savePlanBuy(billId, planBuy, tx)
     await tx.commit()
     return [null, true]

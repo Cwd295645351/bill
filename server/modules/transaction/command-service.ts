@@ -1,16 +1,13 @@
-import type { Row, WhereBag } from '../../types/domain'
+import type { Row } from '../../types/domain'
 import { Bill, Transaction, User, sequelize } from '../../database/index'
 import { loadTypeLists } from '../catalog'
-import { loadBudgets, saveBudget } from '../budget'
+import { loadBudgets, saveBudget, lockBill } from '../budget'
 import { requireMember } from '../access'
-import { uploadImage, attachImages, markImagesUnviewableByTransaction, attachImagesToList, getImageFile, tryDeleteObject, assertBillMember } from './image-service'
-import { loadOrderedMembers, resolveBelongUsers, buildBelongWhere, toBelongResponse } from './belong-users'
-import { Op } from 'sequelize'
-import dayjs from 'dayjs'
-import { toTimestamp, yearFromTimestamp, formatDate } from '../../utils/dateUtil'
-import { createXlsx } from '../../utils/xlsx'
-import xlsx from 'node-xlsx'
-import fs from 'fs'
+import { attachImages, markImagesUnviewableByTransaction, tryDeleteObject } from './image-service'
+import { loadOrderedMembers, resolveBelongUsers } from './belong-users'
+import { yearFromTimestamp } from '../../utils/dateUtil'
+import { countsAsExpense, readBookDate, readPositiveMoney, shiftBudgetSpend, type SpendBudget } from '../budget/spend'
+import type { Transaction as DbTransaction } from 'sequelize'
 
 
 /** 取出异常文案。非 Error 时返回空串，调用方再决定提示。 */
@@ -25,9 +22,6 @@ const normalizeImageIds = (imageIds: unknown) => {
   return imageIds.map((id) => String(id))
 }
 
-/** 金额保留两位小数（返回 number） */
-const fixMoney = (n: number | string | null | undefined) => Number(Number(n).toFixed(2))
-
 /** 记账写入需要的类型和预算。账本不存在时返回 null */
 const loadWriteBill = async (billId: string | null | undefined) => {
   const bill = await Bill.findByPk(billId)
@@ -36,10 +30,71 @@ const loadWriteBill = async (billId: string | null | undefined) => {
   return { ...types, budget }
 }
 
+type NamedType = { id?: string; name?: string }
+
+/** 按编号读取本账本的类型。编号有值但找不到时返回错误文案 */
+const requireNamedType = (list: NamedType[], id: unknown, missing: string): [string, null] | [null, NamedType] => {
+  if (id == null || id === '') return [null, { id: '', name: '' }]
+  const found = list.find((item) => item.id === id)
+  if (!found) return [missing, null]
+  return [null, found]
+}
+
+type UserDelta = { expenses: number; incomes: number }
+
+type LedgerRow = {
+  type?: unknown
+  reimbursement?: unknown
+  money?: unknown
+  date?: unknown
+  costTypeId?: unknown
+  userId?: unknown
+}
+
+const rememberUser = (bag: Map<string, UserDelta>, userId: unknown, field: keyof UserDelta, delta: number) => {
+  if (!userId || !delta) return
+  const key = String(userId)
+  const current = bag.get(key) || { expenses: 0, incomes: 0 }
+  current[field] += delta
+  bag.set(key, current)
+}
+
+/** 按明细方向增减预算已用和用户累计。sign 为 1 表示记入，-1 表示冲回 */
+const bookEffect = (budgets: SpendBudget[], users: Map<string, UserDelta>, row: LedgerRow, sign: 1 | -1) => {
+  const money = Number(row.money)
+  if (!Number.isFinite(money) || !money) return
+  const delta = sign * money
+  if (Number(row.type) === 2) {
+    rememberUser(users, row.userId, 'incomes', delta)
+    return
+  }
+  if (!countsAsExpense(row.type, row.reimbursement)) return
+  const year = yearFromTimestamp(row.date as number)
+  shiftBudgetSpend(budgets, year, row.costTypeId, delta)
+  rememberUser(users, row.userId, 'expenses', delta)
+}
+
+const flushUsers = async (bag: Map<string, UserDelta>, tx: DbTransaction) => {
+  for (const [userId, delta] of bag) {
+    const patch: { expenses?: number; incomes?: number } = {}
+    if (delta.expenses) patch.expenses = delta.expenses
+    if (delta.incomes) patch.incomes = delta.incomes
+    if (patch.expenses || patch.incomes) {
+      await User.increment(patch, { where: { id: userId }, transaction: tx })
+    }
+  }
+}
+
 
 // 新增交易信息
 export const addTransaction = async (data: Row) => {
-  data.money = Number(data.money)
+  const [moneyErr, money] = readPositiveMoney(data.money)
+  if (moneyErr || money == null) return [moneyErr, null]
+  const [dateErr, dateTs] = readBookDate(data.date)
+  if (dateErr || dateTs == null) return [dateErr, null]
+  const typeNum = Number(data.type)
+  if (typeNum !== 1 && typeNum !== 2) return ['类型不正确', null]
+  data.money = money
   const member = await requireMember(data.userId, data.billId)
   if (!member.ok) return ['不是该账本成员', null]
   const findBill = await loadWriteBill(data.billId)
@@ -50,8 +105,8 @@ export const addTransaction = async (data: Row) => {
   const params: Row = {
     billId: data.billId,
     userId: data.userId,
-    date: toTimestamp(data.date),
-    type: data.type,
+    date: dateTs,
+    type: typeNum,
     remark: data.remark,
     money: data.money,
     belongUserId: belong.belongUserId,
@@ -60,22 +115,23 @@ export const addTransaction = async (data: Row) => {
   }
   if (params.type === 1) {
     if (data.costTypeId) {
-      const costType = findBill.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)!
+      const [typeErr, costType] = requireNamedType(findBill.costTypes, data.costTypeId, '支出类型不存在')
+      if (typeErr || !costType) return [typeErr, null]
       params.costTypeId = costType.id
       params.costTypeName = costType.name
     }
     if (data.payMethodId) {
-      const payMethod = findBill.payMethods.find((item: { id?: string; name?: string }) => item.id === data.payMethodId)!
+      const [typeErr, payMethod] = requireNamedType(findBill.payMethods, data.payMethodId, '支付方式不存在')
+      if (typeErr || !payMethod) return [typeErr, null]
       params.payMethodId = payMethod.id
       params.payMethodName = payMethod.name
     }
     params.reimbursement = data.reimbursement
-  } else {
-    if (data.incomesTypeId) {
-      const incomes = findBill.incomesTypes.find((item: { id?: string; name?: string }) => item.id === data.incomesTypeId)!
-      params.incomesTypeId = incomes.id
-      params.incomesTypeName = incomes.name
-    }
+  } else if (data.incomesTypeId) {
+    const [typeErr, incomes] = requireNamedType(findBill.incomesTypes, data.incomesTypeId, '收入类型不存在')
+    if (typeErr || !incomes) return [typeErr, null]
+    params.incomesTypeId = incomes.id
+    params.incomesTypeName = incomes.name
   }
 
   const wantImages = hasImageIdsField(data)
@@ -85,6 +141,8 @@ export const addTransaction = async (data: Row) => {
   const tx = await sequelize.transaction()
   let pendingDeleteKeys: (string | null | undefined)[] = []
   try {
+    const locked = await lockBill(data.billId, tx)
+    if (!locked) throw new Error('未找到账本')
     const res = await Transaction.create(params, { transaction: tx })
     if (!res) throw new Error('新增失败')
 
@@ -98,23 +156,11 @@ export const addTransaction = async (data: Row) => {
       })
     }
 
-    // 需要增加用户表的总支出或总收入 + 更新账本预算
-    if (params.type === 1) {
-      const budget = findBill.budget || []
-      const year = yearFromTimestamp(params.date)
-      const budgetItem = budget.find((item) => item.date === year)
-      if (budgetItem) {
-        budgetItem.currCost = Number(budgetItem.currCost || 0) + data.money
-        const budgetDetail = budgetItem.details!.find((item) => item.costTypeId === data.costTypeId)
-        if (budgetDetail) budgetDetail.cost = Number(budgetDetail.cost || 0) + data.money
-      } else {
-        budget.push({ date: year, totalBudget: 0, currCost: data.money, details: [] })
-      }
-      await saveBudget(data.billId, budget, tx)
-      await User.increment({ expenses: data.money }, { where: { id: data.userId }, transaction: tx })
-    } else {
-      await User.increment({ incomes: data.money }, { where: { id: data.userId }, transaction: tx })
-    }
+    const budgets = await loadBudgets(data.billId, tx)
+    const users = new Map<string, UserDelta>()
+    bookEffect(budgets, users, params, 1)
+    await saveBudget(data.billId, budgets, tx)
+    await flushUsers(users, tx)
 
     await tx.commit()
     for (const key of pendingDeleteKeys) {
@@ -131,6 +177,7 @@ export const addTransaction = async (data: Row) => {
 
 // 批量新增交易信息
 export const batchAddTransaction = async (list: Row[]) => {
+  if (!Array.isArray(list) || !list.length) return ['批量数据不能为空', null]
   const billId = list[0].billId
   const member = await requireMember(list[0].userId, billId)
   if (!member.ok) return ['不是该账本成员', null]
@@ -139,76 +186,62 @@ export const batchAddTransaction = async (list: Row[]) => {
   const members = await loadOrderedMembers(billId)
 
   const insertList: Row[] = []
-  let totalMoney = 0
-  const budgetMap: Record<string, { total: number; costTypes: Record<string, number> }> = {}
-
   for (const [index, data] of list.entries()) {
-    const [belongErr, belong] = resolveBelongUsers(data, data.type, members)
-    if (belongErr || !belong) return [`第 ${index + 1} 条：${belongErr}`, null]
-    data.money = Number(data.money)
-    totalMoney += data.money
+    const prefix = `第 ${index + 1} 条：`
+    if (String(data.billId || '') !== String(billId || '')) return [`${prefix}账本不一致`, null]
+    const typeNum = Number(data.type)
+    if (typeNum !== 1 && typeNum !== 2) return [`${prefix}类型不正确`, null]
+    const [moneyErr, money] = readPositiveMoney(data.money)
+    if (moneyErr || money == null) return [`${prefix}${moneyErr}`, null]
+    const [dateErr, dateTs] = readBookDate(data.date)
+    if (dateErr || dateTs == null) return [`${prefix}${dateErr}`, null]
+    const [belongErr, belong] = resolveBelongUsers(data, typeNum, members)
+    if (belongErr || !belong) return [`${prefix}${belongErr}`, null]
     const params: Row = {
-      billId: data.billId,
+      billId,
       userId: data.userId,
-      date: toTimestamp(data.date),
-      type: data.type,
+      date: dateTs,
+      type: typeNum,
       remark: data.remark,
-      money: data.money,
+      money,
       belongUserId: belong.belongUserId,
       belongUserName: belong.belongUserName,
       isDel: false
     }
-    if (params.type === 1) {
+    if (typeNum === 1) {
       if (data.costTypeId) {
-        const costType = findBill.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)
-        if (costType) {
-          params.costTypeId = costType.id
-          params.costTypeName = costType.name
-        }
+        const [typeErr, costType] = requireNamedType(findBill.costTypes, data.costTypeId, '支出类型不存在')
+        if (typeErr || !costType) return [`${prefix}${typeErr}`, null]
+        params.costTypeId = costType.id
+        params.costTypeName = costType.name
       }
       if (data.payMethodId) {
-        const payMethod = findBill.payMethods.find((item: { id?: string; name?: string }) => item.id === data.payMethodId)
-        if (payMethod) {
-          params.payMethodId = payMethod.id
-          params.payMethodName = payMethod.name
-        }
+        const [typeErr, payMethod] = requireNamedType(findBill.payMethods, data.payMethodId, '支付方式不存在')
+        if (typeErr || !payMethod) return [`${prefix}${typeErr}`, null]
+        params.payMethodId = payMethod.id
+        params.payMethodName = payMethod.name
       }
       params.reimbursement = data.reimbursement || 0
+    } else if (data.incomesTypeId) {
+      const [typeErr, incomes] = requireNamedType(findBill.incomesTypes, data.incomesTypeId, '收入类型不存在')
+      if (typeErr || !incomes) return [`${prefix}${typeErr}`, null]
+      params.incomesTypeId = incomes.id
+      params.incomesTypeName = incomes.name
     }
     insertList.push(params)
-
-    const year = String(yearFromTimestamp(params.date))
-    if (!budgetMap[year]) budgetMap[year] = { total: 0, costTypes: {} }
-    budgetMap[year].total += Number(data.money)
-    if (data.costTypeId) {
-      if (!budgetMap[year].costTypes[data.costTypeId]) budgetMap[year].costTypes[data.costTypeId] = 0
-      budgetMap[year].costTypes[data.costTypeId] += Number(data.money)
-    }
   }
 
   const tx = await sequelize.transaction()
   try {
+    const locked = await lockBill(billId, tx)
+    if (!locked) throw new Error('未找到账本')
     const res = await Transaction.bulkCreate(insertList, { transaction: tx })
     if (!res) throw new Error('批量新增失败')
-
-  const budget = findBill.budget || []
-  for (const [yearStr, yearData] of Object.entries(budgetMap)) {
-    const year = Number(yearStr)
-    const budgetItem = budget.find((item) => item.date === year)
-    if (budgetItem) {
-      budgetItem.currCost = Number(budgetItem.currCost || 0) + yearData.total
-      for (const [costTypeId, money] of Object.entries(yearData.costTypes)) {
-        const budgetDetail = budgetItem.details!.find((item) => item.costTypeId === costTypeId)
-        if (budgetDetail) budgetDetail.cost = Number(budgetDetail.cost || 0) + Number(money)
-      }
-    } else {
-      budget.push({ date: year, totalBudget: 0, currCost: yearData.total, details: [] })
-    }
-  }
-
-    const userId = list[0].userId
-    await saveBudget(billId, budget, tx)
-    await User.increment({ expenses: totalMoney }, { where: { id: userId }, transaction: tx })
+    const budgets = await loadBudgets(billId, tx)
+    const users = new Map<string, UserDelta>()
+    insertList.forEach((row) => bookEffect(budgets, users, row, 1))
+    await saveBudget(billId, budgets, tx)
+    await flushUsers(users, tx)
     await tx.commit()
     return [null, { total: list.length, success: res.length }]
   } catch (e: unknown) {
@@ -220,7 +253,12 @@ export const batchAddTransaction = async (list: Row[]) => {
 
 // 编辑交易信息。先按明细真实账本确认成员，账本编号必须一致，再判断记账人
 export const editTransaction = async (data: Row) => {
-  data.money = Number(data.money)
+  const [moneyErr, money] = readPositiveMoney(data.money)
+  if (moneyErr || money == null) return [moneyErr, null]
+  const [dateErr, dateTs] = readBookDate(data.date)
+  if (dateErr || dateTs == null) return [dateErr, null]
+  const typeNum = Number(data.type)
+  if (typeNum !== 1 && typeNum !== 2) return ['类型不正确', null]
   const params: Row = { id: data.id, isDel: false }
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['编辑失败', null]
@@ -234,32 +272,51 @@ export const editTransaction = async (data: Row) => {
   const findBill = await loadWriteBill(billId)
   if (!findBill) return ['未找到账本', null]
   const changeData: Row = {
-    date: toTimestamp(data.date),
+    date: dateTs,
     remark: data.remark,
-    money: data.money,
-    type: data.type
+    money,
+    type: typeNum,
+    userId: data.userId
   }
-  if (data.type === 1) {
+  if (typeNum === 1) {
     if (data.costTypeId) {
-      const costType = findBill.costTypes.find((item: { id?: string; name?: string }) => item.id === data.costTypeId)!
+      const [typeErr, costType] = requireNamedType(findBill.costTypes, data.costTypeId, '支出类型不存在')
+      if (typeErr || !costType) return [typeErr, null]
       changeData.costTypeId = costType.id
       changeData.costTypeName = costType.name
     }
     if (data.payMethodId) {
-      const payMethod = findBill.payMethods.find((item: { id?: string; name?: string }) => item.id === data.payMethodId)!
+      const [typeErr, payMethod] = requireNamedType(findBill.payMethods, data.payMethodId, '支付方式不存在')
+      if (typeErr || !payMethod) return [typeErr, null]
       changeData.payMethodId = payMethod.id
       changeData.payMethodName = payMethod.name
     }
-    changeData.reimbursement = data.reimbursement
-  } else {
-    if (data.incomesTypeId) {
-      const incomes = findBill.incomesTypes.find((item: { id?: string; name?: string }) => item.id === data.incomesTypeId)!
-      changeData.incomesTypeId = incomes.id
-      changeData.incomesTypeName = incomes.name
+    // 请求没带报销标记时沿用原值，避免预算按未报销再记一笔
+    changeData.reimbursement = Object.prototype.hasOwnProperty.call(data, 'reimbursement')
+      ? data.reimbursement
+      : old.reimbursement
+  } else if (data.incomesTypeId) {
+    const [typeErr, incomes] = requireNamedType(findBill.incomesTypes, data.incomesTypeId, '收入类型不存在')
+    if (typeErr || !incomes) return [typeErr, null]
+    changeData.incomesTypeId = incomes.id
+    changeData.incomesTypeName = incomes.name
+  }
+  if (typeNum === 1) {
+    if (!changeData.costTypeId) {
+      changeData.costTypeId = old.costTypeId
+      changeData.costTypeName = old.costTypeName
     }
+    changeData.incomesTypeId = ''
+    changeData.incomesTypeName = ''
+  } else {
+    changeData.costTypeId = ''
+    changeData.costTypeName = ''
+    changeData.payMethodId = ''
+    changeData.payMethodName = ''
+    changeData.reimbursement = 0
   }
   const members = await loadOrderedMembers(billId)
-  const [belongErr, belong] = resolveBelongUsers(data, data.type, members)
+  const [belongErr, belong] = resolveBelongUsers(data, typeNum, members)
   if (belongErr || !belong) return [belongErr, null]
   changeData.belongUserId = belong.belongUserId
   changeData.belongUserName = belong.belongUserName
@@ -271,6 +328,8 @@ export const editTransaction = async (data: Row) => {
   const tx = await sequelize.transaction()
   let pendingDeleteKeys: (string | null | undefined)[] = []
   try {
+    const locked = await lockBill(billId, tx)
+    if (!locked) throw new Error('未找到账本')
     await Transaction.update(changeData, { where: params, transaction: tx })
 
     if (wantImages) {
@@ -283,22 +342,12 @@ export const editTransaction = async (data: Row) => {
       })
     }
 
-    const differenceMoney = data.money - Number(old.money) // 编辑后的金额差
-
-    if (data.type === 1) {
-      const budget = findBill.budget || []
-      const year = yearFromTimestamp(changeData.date)
-      const budgetItem = budget.find((item) => item.date === year)
-      if (budgetItem) {
-        budgetItem.currCost = Number(budgetItem.currCost || 0) + differenceMoney
-        const budgetDetail = budgetItem.details!.find((item) => item.costTypeId === data.costTypeId)
-        if (budgetDetail) budgetDetail.cost = Number(budgetDetail.cost || 0) + differenceMoney
-      }
-      await saveBudget(billId, budget, tx)
-      await User.increment({ expenses: differenceMoney }, { where: { id: data.userId }, transaction: tx })
-    } else {
-      await User.increment({ incomes: differenceMoney }, { where: { id: data.userId }, transaction: tx })
-    }
+    const budgets = await loadBudgets(billId, tx)
+    const users = new Map<string, UserDelta>()
+    bookEffect(budgets, users, old, -1)
+    bookEffect(budgets, users, changeData, 1)
+    await saveBudget(billId, budgets, tx)
+    await flushUsers(users, tx)
     await tx.commit()
     for (const key of pendingDeleteKeys) {
       await tryDeleteObject(key)
@@ -323,34 +372,19 @@ export const deleteTransaction = async (data: Row) => {
     return ['只能删除自己记的账单', null]
   }
 
-  const findBill = await loadWriteBill(old.billId)
-  if (!findBill) return ['未找到账本', null]
-
   const tx = await sequelize.transaction()
   let pendingDeleteKeys: (string | null | undefined)[] = []
   try {
+    const locked = await lockBill(old.billId, tx)
+    if (!locked) throw new Error('未找到账本')
     await Transaction.update({ isDel: true }, { where: params, transaction: tx })
     pendingDeleteKeys = await markImagesUnviewableByTransaction(old.id, tx)
 
-  // 支出交易明细创删除成功后，需向账本表的预算删除数据，并需要减少用户表的总支出或总收入
-    if (old.type === 1) {
-    // 支出交易明细删除成功后，需向账本表的预算更改数据
-      const budget = findBill.budget || []
-    // 若有对应预算，对增加对应预算分项的支出金额
-      const year = yearFromTimestamp(old.date)
-    const budgetItem = budget.find((item) => item.date === year)
-    if (budgetItem) {
-        budgetItem.currCost = Number(budgetItem.currCost || 0) - Number(old.money)
-        const budgetDetail = budgetItem.details!.find((item) => item.costTypeId === data.costTypeId)
-      if (budgetDetail) {
-          budgetDetail.cost = Number(budgetDetail.cost || 0) - Number(old.money)
-      }
-    }
-      await saveBudget(old.billId, budget, tx)
-      await User.increment({ expenses: 0 - Number(old.money) }, { where: { id: old.userId }, transaction: tx })
-    } else {
-      await User.increment({ incomes: 0 - Number(old.money) }, { where: { id: old.userId }, transaction: tx })
-    }
+    const budgets = await loadBudgets(old.billId, tx)
+    const users = new Map<string, UserDelta>()
+    bookEffect(budgets, users, old, -1)
+    await saveBudget(old.billId, budgets, tx)
+    await flushUsers(users, tx)
     await tx.commit()
     for (const key of pendingDeleteKeys) {
       await tryDeleteObject(key)

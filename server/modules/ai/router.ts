@@ -1,5 +1,5 @@
 import { currentUserId } from '../../http/current-user'
-import { readBody, queryString, type HttpContext } from '../../types/domain'
+import { readBody, type HttpContext } from '../../types/domain'
 import KoaRouter from 'koa-router'
 import { ResModel } from '../../http/res-model'
 import { parseBatch } from './parse-service'

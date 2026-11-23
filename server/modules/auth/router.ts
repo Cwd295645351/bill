@@ -1,6 +1,6 @@
 import { currentUserId } from '../../http/current-user'
 import { viewOriginOf } from '../../http/view-origin'
-import { queryString, readBody, type Row, type HttpContext } from '../../types/domain'
+import { readBody, type Row, type HttpContext } from '../../types/domain'
 import type { Next } from 'koa'
 import KoaRouter from 'koa-router'
 import { ResModel } from '../../http/res-model'
@@ -13,6 +13,20 @@ import { getAvatarFile } from './avatar-service'
 import VERSION from '../../config/version'
 
 const router = new KoaRouter({ prefix: `/api/${VERSION}/common` })
+
+/** 账号为 3 到 20 位字母、数字或下划线 */
+const USERNAME_PATTERN = /^\w{3,20}$/
+
+/** 用户名或密码不合法时返回中文说明，通过时返回已收窄的账号和密码 */
+const readCredentials = (username: unknown, password: unknown) => {
+  if (username === null || username === undefined || !USERNAME_PATTERN.test(username as string)) {
+    return '用户名不符合规范'
+  }
+  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
+    return '密码不符合规范'
+  }
+  return { username: username as string, password }
+}
 
 /** 签发访问凭证。刷新凭证取签名段，有效时长 24 小时 */
 const createJwt = (data: { userId?: string | null }) => {
@@ -35,25 +49,17 @@ router.get('/captcha', async (ctx: HttpContext) => {
 
 // 登录
 router.post('/login', async (ctx: HttpContext, next: Next) => {
-  const character_reg = /^\w{3,20}/ // 账号、密码校验规则
   const data = readBody(ctx)
-  const username = data.username
-  const password = data.password
-  if (username === null || username === undefined || !character_reg.test(username)) {
-    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+  const credentials = readCredentials(data.username, data.password)
+  if (typeof credentials === 'string') {
+    ctx.body = new ResModel(null, credentials, 'error')
     return
   }
-  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
-    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+  const { username, password } = credentials
+  const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+  if (captchaErr) {
+    ctx.body = new ResModel(null, captchaErr, 'error')
     return
-  }
-  /* captcha:login */
-  {
-    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
-    if (captchaErr) {
-      ctx.body = new ResModel(null, captchaErr, 'error')
-      return
-    }
   }
   const [err, res] = await login(username, password)
   if (res) {
@@ -98,28 +104,22 @@ router.post('/wxLogin', async (ctx: HttpContext) => {
 
 // 小程序首次绑定已有账号
 router.post('/wxBind', async (ctx: HttpContext) => {
-  const character_reg = /^\w{3,20}/
   const data = readBody(ctx) || {}
-  const { bindTicket, username, password } = data
+  const { bindTicket } = data
+  const credentials = readCredentials(data.username, data.password)
   if (!bindTicket || typeof bindTicket !== 'string') {
     ctx.body = new ResModel(null, '绑定凭证不能为空', 'error')
     return
   }
-  if (username === null || username === undefined || !character_reg.test(username)) {
-    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+  if (typeof credentials === 'string') {
+    ctx.body = new ResModel(null, credentials, 'error')
     return
   }
-  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
-    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+  const { username, password } = credentials
+  const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+  if (captchaErr) {
+    ctx.body = new ResModel(null, captchaErr, 'error')
     return
-  }
-  /* captcha:wxBind */
-  {
-    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
-    if (captchaErr) {
-      ctx.body = new ResModel(null, captchaErr, 'error')
-      return
-    }
   }
   const [err, user] = await wxBind({ bindTicket, username, password })
   if (!user) {
@@ -162,26 +162,18 @@ router.put('/refreshToken', async (ctx: HttpContext, next: Next) => {
 
 // 注册
 router.post('/register', async (ctx: HttpContext, next: Next) => {
-  const character_reg = /^\w{3,20}/
   const data = readBody(ctx)
-  const username = data.username
-  const password = data.password
+  const credentials = readCredentials(data.username, data.password)
   const nickName = data.nickName || ''
-  if (username === null || username === undefined || !character_reg.test(username)) {
-    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+  if (typeof credentials === 'string') {
+    ctx.body = new ResModel(null, credentials, 'error')
     return
   }
-  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
-    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+  const { username, password } = credentials
+  const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+  if (captchaErr) {
+    ctx.body = new ResModel(null, captchaErr, 'error')
     return
-  }
-  /* captcha:register */
-  {
-    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
-    if (captchaErr) {
-      ctx.body = new ResModel(null, captchaErr, 'error')
-      return
-    }
   }
   // 注册密码需要校验强度（明文强度校验在controller中解密后进行）
   const [err, res] = await register(username, password, nickName)
@@ -194,29 +186,23 @@ router.post('/register', async (ctx: HttpContext, next: Next) => {
 
 // 小程序注册即绑定
 router.post('/wxRegister', async (ctx: HttpContext) => {
-  const character_reg = /^\w{3,20}/
   const data = readBody(ctx) || {}
-  const { bindTicket, username, password } = data
   const nickName = data.nickName || ''
-  if (!bindTicket || typeof bindTicket !== 'string') {
+  const credentials = readCredentials(data.username, data.password)
+  if (!data.bindTicket || typeof data.bindTicket !== 'string') {
     ctx.body = new ResModel(null, '绑定凭证不能为空', 'error')
     return
   }
-  if (username === null || username === undefined || !character_reg.test(username)) {
-    ctx.body = new ResModel(null, '用户名不符合规范', 'error')
+  if (typeof credentials === 'string') {
+    ctx.body = new ResModel(null, credentials, 'error')
     return
   }
-  if (password === null || password === undefined || typeof password !== 'string' || !password.length) {
-    ctx.body = new ResModel(null, '密码不符合规范', 'error')
+  const { username, password } = credentials
+  const bindTicket = data.bindTicket
+  const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
+  if (captchaErr) {
+    ctx.body = new ResModel(null, captchaErr, 'error')
     return
-  }
-  /* captcha:wxRegister */
-  {
-    const captchaErr = await consumeCaptcha(data.captchaId, data.captchaX)
-    if (captchaErr) {
-      ctx.body = new ResModel(null, captchaErr, 'error')
-      return
-    }
   }
   const outcome = await wxRegister({ bindTicket, username, password, nickName })
   if (outcome.status === 'ok') {

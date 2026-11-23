@@ -1,6 +1,5 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Asset, AssetRecord, Member } from '../../database/index'
-import { Op } from 'sequelize'
+import { Asset, AssetRecord, Member, sequelize } from '../../database/index'
 import { getRecentRecordsGrouped, placeRecordDate, recomputeLatestAmount } from './record-service'
 import { getBillRates, toCny } from './fx'
 
@@ -113,29 +112,33 @@ export const addAsset = async ({ name, billId, memberId, type, fourMoneyType, la
   const member = await Member.findOne({ where: { id: memberId, billId, isDel: false } })
   if (!member) return ['成员不存在', null]
   const recordedAt = Date.now()
-  const res = await Asset.create({
-    name,
-    billId,
-    memberId,
-    type,
-    currency: currencyCode,
-    fourMoneyType: moneyType,
-    channel: attributes.channel,
-    turnaroundCycle: attributes.turnaroundCycle,
-    latestAmount: amount,
-    isDebt: type === 'debt',
-    lastUpdatedDate: recordedAt,
-    ...insurancePatch(moneyType, insuranceCategory, annualPremium)
-  })
-  if (res) {
-    await AssetRecord.create({
-      assetId: res.id,
-      amount,
-      date: recordedAt
-    })
+  const tx = await sequelize.transaction()
+  try {
+    const res = await Asset.create(
+      {
+        name,
+        billId,
+        memberId,
+        type,
+        currency: currencyCode,
+        fourMoneyType: moneyType,
+        channel: attributes.channel,
+        turnaroundCycle: attributes.turnaroundCycle,
+        latestAmount: amount,
+        isDebt: type === 'debt',
+        lastUpdatedDate: recordedAt,
+        ...insurancePatch(moneyType, insuranceCategory, annualPremium)
+      },
+      { transaction: tx }
+    )
+    await AssetRecord.create({ assetId: res.id, amount, date: recordedAt }, { transaction: tx })
+    await tx.commit()
     return [null, res]
+  } catch (error) {
+    await tx.rollback()
+    console.error(error)
+    return ['创建资产失败', null]
   }
-  return ['创建资产失败', null]
 }
 
 /** 编辑资产
@@ -160,40 +163,65 @@ export const editAsset = async ({ id, name, memberId, type, fourMoneyType, lates
   if (premiumErr) return [premiumErr, null]
   const [amountErr, amount] = readNonNegativeAmount(latestAmount, '最新金额不能为空', '最新金额必须大于等于0')
   if (amountErr || amount == null) return [amountErr, null]
-  const current = await Asset.findOne({ where: { id, isDel: false } })
-  if (!current) return ['编辑资产失败，资产可能已被删除', null]
-  if (currency !== undefined && currency !== null && currency !== '' && String(currency).toUpperCase() !== String(current.currency || 'CNY')) {
-    return ['要换币种需删除后重新登记', null]
-  }
   const [attributeErr, attributes] = readAssetAttributes(type, channel, turnaroundCycle)
   if (attributeErr || !attributes) return [attributeErr || '资产属性保存失败', null]
-  const member = await Member.findOne({ where: { id: memberId, billId: current.billId, isDel: false } })
-  if (!member) return ['成员不存在', null]
-  const amountChanged = Number(current.latestAmount) !== amount
-  // 本来就是负债、只是在四笔钱卡片里改分类时，保留新的四笔钱。改成负债或新登记的负债则清空
-  const storedMoney = type === 'debt' ? (String(current.type) === 'debt' && fourMoneyType ? fourMoneyType : null) : moneyType
-  const [affected] = await Asset.update(
-    {
-      name,
-      memberId,
-      type,
-      fourMoneyType: storedMoney,
-      channel: attributes.channel,
-      turnaroundCycle: attributes.turnaroundCycle,
-      isDebt: type === 'debt',
-      ...insurancePatch(storedMoney, insuranceCategory, annualPremium)
-    },
-    { where: { id, isDel: false } }
-  )
-  if (!affected) return ['编辑资产失败，资产可能已被删除', null]
-  if (amountChanged) {
-    const date = await placeRecordDate(String(id), Date.now())
-    const recordRes = await AssetRecord.create({ assetId: id, amount, date })
-    if (!recordRes) return ['创建资产记录失败', null]
-    await recomputeLatestAmount(String(id))
+
+  const tx = await sequelize.transaction()
+  try {
+    const current = await Asset.findOne({
+      where: { id, isDel: false },
+      transaction: tx,
+      lock: tx.LOCK.UPDATE
+    })
+    if (!current) {
+      await tx.rollback()
+      return ['编辑资产失败，资产可能已被删除', null]
+    }
+    if (currency !== undefined && currency !== null && currency !== '' && String(currency).toUpperCase() !== String(current.currency || 'CNY')) {
+      await tx.rollback()
+      return ['要换币种需删除后重新登记', null]
+    }
+    const member = await Member.findOne({ where: { id: memberId, billId: current.billId, isDel: false }, transaction: tx })
+    if (!member) {
+      await tx.rollback()
+      return ['成员不存在', null]
+    }
+    const amountChanged = Number(current.latestAmount) !== amount
+    // 本来就是负债、只是在四笔钱卡片里改分类时，保留新的四笔钱。改成负债或新登记的负债则清空
+    const storedMoney = type === 'debt' ? (String(current.type) === 'debt' && fourMoneyType ? fourMoneyType : null) : moneyType
+    await Asset.update(
+      {
+        name,
+        memberId,
+        type,
+        fourMoneyType: storedMoney,
+        channel: attributes.channel,
+        turnaroundCycle: attributes.turnaroundCycle,
+        isDebt: type === 'debt',
+        ...insurancePatch(storedMoney, insuranceCategory, annualPremium)
+      },
+      { where: { id, isDel: false }, transaction: tx }
+    )
+    if (amountChanged) {
+      const date = await placeRecordDate(String(id), Date.now(), undefined, tx)
+      const recordRes = await AssetRecord.create({ assetId: id, amount, date }, { transaction: tx })
+      if (!recordRes) {
+        await tx.rollback()
+        return ['创建资产记录失败', null]
+      }
+      const latest = await recomputeLatestAmount(String(id), tx)
+      if (latest == null) {
+        await tx.rollback()
+        return ['资产主表更新失败，资产可能已被删除', null]
+      }
+    }
+    await tx.commit()
+    const res = await Asset.findByPk(id)
+    return [null, res]
+  } catch (error) {
+    await tx.rollback()
+    throw error
   }
-  const res = await Asset.findByPk(id)
-  return [null, res]
 }
 
 /** 获取资产列表（含变化统计与分类汇总）
@@ -349,11 +377,18 @@ export const getAssetListWithStats = async ({ billId, memberId }: Row) => {
  */
 export const delAsset = async ({ id }: Row) => {
   if (!id) return ['资产id不能为空', null]
-  const [affected] = await Asset.update({ isDel: true }, { where: { id, isDel: false } })
-  const res = affected ? await Asset.findByPk(id) : null
-
-  if (!res) return ['删除资产失败，资产可能已被删除', null]
-  // 软删除关联的资产记录
-  await AssetRecord.update({ isDel: true }, { where: { assetId: id, isDel: false } })
-  return [null, true]
+  const tx = await sequelize.transaction()
+  try {
+    const [affected] = await Asset.update({ isDel: true }, { where: { id, isDel: false }, transaction: tx })
+    if (!affected) {
+      await tx.rollback()
+      return ['删除资产失败，资产可能已被删除', null]
+    }
+    await AssetRecord.update({ isDel: true }, { where: { assetId: id, isDel: false }, transaction: tx })
+    await tx.commit()
+    return [null, true]
+  } catch (error) {
+    await tx.rollback()
+    throw error
+  }
 }

@@ -1,5 +1,5 @@
 import type { Row, WhereBag } from '../../types/domain'
-import { Transaction, BillUser, BillOverviewRule, BillOverviewRuleYear, User } from '../../database/index'
+import { Transaction, BillUser, BillOverviewRule, BillOverviewRuleYear } from '../../database/index'
 import dayjs from 'dayjs'
 import { Op } from 'sequelize'
 import { buildSettlement } from './settlement'
@@ -8,8 +8,8 @@ import { toBelongResponse } from '../transaction'
 
 
 import { batchDeal } from './settlement-route'
-/** 金额保留两位小数（返回 number） */
-const fixMoney = (n: number | string | null | undefined) => Number(Number(n).toFixed(2))
+import { fixMoney } from '../../utils/money'
+import { countsAsExpense } from '../budget/spend'
 
 interface RankItem {
   type?: string | number | null
@@ -31,7 +31,7 @@ export const getBlance = async (data: Row, userId?: string | null | undefined) =
   }
   const res = await Transaction.findAll({
     where: params,
-    attributes: ['type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+    attributes: ['type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'reimbursement']
   })
   let totalCost = 0,
     totalIncomes = 0,
@@ -40,15 +40,15 @@ export const getBlance = async (data: Row, userId?: string | null | undefined) =
     costTypeRank: Record<string, RankItem[]> = {}
   res.forEach((item: Row) => {
     const money = Number(item.money)
-    if (item.type === 1) {
-      // 支出
+    const expense = countsAsExpense(item.type, item.reimbursement)
+    const income = Number(item.type) === 2
+    if (!expense && !income) return
+    if (expense) {
       totalCost += money
       if (item.costTypeId === '1015') {
-        // 投资支出
         investCost += money
       }
     } else {
-      // 收入
       totalIncomes += money
     }
     // 统计各个归属人收支金额
@@ -65,8 +65,7 @@ export const getBlance = async (data: Row, userId?: string | null | undefined) =
       })
     }
 
-    // 只统计支出
-    if (item.type === 1) {
+    if (expense) {
       const belongName = String(item.belongUserName)
       if (costTypeRank[belongName]) {
         // 有对应归属人类型
@@ -154,10 +153,10 @@ export const getCosts = async (billId: string | null | undefined, userId?: strin
         date: { [Op.between]: [beginDate, endDate] },
         isDel: false
       },
-      attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId']
+      attributes: ['id', 'type', 'money', 'belongUserId', 'costTypeId', 'costTypeName', 'belongUserName', 'userId', 'reimbursement']
     })
 
-    const expenseRows = (txRows as Row[]).filter((r) => Number(r.type) === 1)
+    const expenseRows = (txRows as Row[]).filter((r) => countsAsExpense(r.type, r.reimbursement))
     const totalIncome = fixMoney(
       (txRows as Row[])
         .filter((r) => Number(r.type) !== 1)
@@ -204,7 +203,8 @@ export const getCosts = async (billId: string | null | undefined, userId?: strin
         belongUserId: r.belongUserId,
         belongUserName: r.belongUserName,
         costTypeId: r.costTypeId,
-        costTypeName: r.costTypeName
+        costTypeName: r.costTypeName,
+        reimbursement: r.reimbursement
       }))
     })
 

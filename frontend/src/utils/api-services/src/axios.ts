@@ -87,8 +87,6 @@ const setRequestConfig = (config: any) => {
   const authorization = userInfo ? `bearer ${userInfo.accessToken}` : ''
   if (!config.headers) config.headers = {}
   config.headers.Authorization = authorization
-  config.headers.userId = userInfo.userId
-  config.headers.nickName = encodeURIComponent(userInfo.nickName)
   return config
 }
 

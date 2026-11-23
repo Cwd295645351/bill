@@ -12,9 +12,8 @@ const name_reg = /^[\u4E00-\u9FA5A-Za-z0-9_]{3,10}$/ // 账本名称校验
 
 router.get('/list', async (ctx: HttpContext, next: Next) => {
   const userId = currentUserId(ctx)
-  const nickName = decodeURIComponent(typeof ctx.header.nickname === 'string' ? ctx.header.nickname : String(ctx.header.nickname))
 
-  const [err, res] = await BILL.getBillList({ userId, nickName })
+  const [err, res] = await BILL.getBillList({ userId })
   if (res) ctx.body = new ResModel(res, '获取成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -24,16 +23,12 @@ router.post('/', async (ctx: HttpContext, next: Next) => {
   const data = readBody(ctx)
   xssData(data)
   const name = data.name
-  const nickName = decodeURIComponent(typeof ctx.header.nickname === 'string' ? ctx.header.nickname : String(ctx.header.nickname))
   if (!name || !name_reg.test(name)) {
     ctx.body = new ResModel(null, '账本名称不符合规范', 'error')
     return
-  } else if (!nickName) {
-    ctx.body = new ResModel(null, '用户昵称不能为空', 'error')
-    return
   }
   const userId = currentUserId(ctx)
-  const [err, res] = await BILL.createBill({ name, userId, nickName })
+  const [err, res] = await BILL.createBill({ name, userId })
   if (res) ctx.body = new ResModel(res, '创建成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -76,13 +71,12 @@ router.get('/', async (ctx: HttpContext, next: Next) => {
   const params = ctx.query
   xssData(params)
   const id = queryString(params.id)
-  const nickName = decodeURIComponent(typeof ctx.header.nickname === 'string' ? ctx.header.nickname : String(ctx.header.nickname))
   if (!id) {
     ctx.body = new ResModel(null, 'id不能为空')
     return
   }
   const userId = currentUserId(ctx)
-  const [err, res] = await BILL.getBillDetail({ id, userId, nickName })
+  const [err, res] = await BILL.getBillDetail({ id, userId })
   if (res) ctx.body = new ResModel(res, '查看成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -105,17 +99,13 @@ router.post('/invite', async (ctx: HttpContext, next: Next) => {
 router.post('/join', async (ctx: HttpContext, next: Next) => {
   const data = readBody(ctx)
   xssData(data)
-  const nickName = decodeURIComponent(typeof ctx.header.nickname === 'string' ? ctx.header.nickname : String(ctx.header.nickname))
   const code = data.code
   if (!code) {
     ctx.body = new ResModel(null, '邀请码不能为空', 'error')
     return
-  } else if (!nickName) {
-    ctx.body = new ResModel(null, '用户昵称不能为空', 'error')
-    return
   }
   const userId = currentUserId(ctx)
-  const [err, res] = await BILL.joinBill({ userId, code, nickName })
+  const [err, res] = await BILL.joinBill({ userId, code })
   if (res) ctx.body = new ResModel(res, '加入账本成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -150,4 +140,3 @@ router.post('/quit', async (ctx: HttpContext, next: Next) => {
 })
 
 export default router
-

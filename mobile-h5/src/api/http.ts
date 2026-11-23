@@ -25,12 +25,6 @@ http.interceptors.request.use((config) => {
   if (token) {
     ;(config.headers as any).Authorization = `bearer ${token}`
   }
-  if (session.userInfo?.userId) {
-    ;(config.headers as any).userId = session.userInfo.userId
-  }
-  if (session.userInfo?.nickName) {
-    ;(config.headers as any).nickName = encodeURIComponent(session.userInfo.nickName)
-  }
   return config
 })
 
@@ -52,8 +46,6 @@ async function tryRefresh(): Promise<boolean> {
       {
         headers: {
           Authorization: `bearer ${session.accessToken || ''}`,
-          userId: session.userInfo?.userId || '',
-          nickName: encodeURIComponent(session.userInfo?.nickName || ''),
         },
       },
     )

@@ -1,8 +1,20 @@
 import type { Row } from '../../types/domain'
-import { Bill, BillUser, BillCostType, BillIncomeType, BillPayMethod, sequelize } from '../../database/index'
+import { Bill, BillUser, BillCostType, BillIncomeType, BillPayMethod, User, sequelize } from '../../database/index'
 import { encode, decode } from '../../utils/cryp'
 import { requireCreator, requireMember } from '../access'
 import { listActiveCatalogDefaults } from '../admin'
+
+/** 按登录用户读取未删除账号的显示名 */
+const nickNameOfUser = async (userId: string | null | undefined): Promise<[string | null, string | null]> => {
+  if (!userId) return ['请先登录', null]
+  const user = await User.findOne({
+    where: { id: userId, isDel: false },
+    attributes: ['nickName']
+  })
+  const nickName = user ? String((user as Row).nickName || '').trim() : ''
+  if (!nickName) return ['用户昵称不能为空', null]
+  return [null, nickName]
+}
 
 /** 账本是否存在。不附带类型、预算或计划 */
 export const billExists = async (billId: string | null | undefined) => {
@@ -21,10 +33,10 @@ export const listMembers = async (billId: string | null | undefined) => {
 }
 
 // 查询账本列表
-export const getBillList = async ({ userId, nickName }: Row) => {
+export const getBillList = async ({ userId }: Row) => {
   const rows = await Bill.findAll({
     where: { isDel: false },
-    include: [{ model: BillUser, as: 'billUsers', where: { userId, userName: nickName }, required: true }],
+    include: [{ model: BillUser, as: 'billUsers', where: { userId }, required: true }],
     attributes: ['id', 'creator', 'name']
   })
   const res = rows.map((r: Row) => ({ id: r.id, creator: r.creator, name: r.name }))
@@ -32,7 +44,9 @@ export const getBillList = async ({ userId, nickName }: Row) => {
 }
 
 // 创建账本
-export const createBill = async ({ userId, name, nickName }: Row) => {
+export const createBill = async ({ userId, name }: Row) => {
+  const [nickErr, nickName] = await nickNameOfUser(userId)
+  if (nickErr || !nickName) return [nickErr || '用户昵称不能为空', null]
   const findBill = await Bill.findOne({ where: { name: name, creator: userId } })
   if (findBill) {
     return ['该名称的账本已存在', null]
@@ -138,7 +152,9 @@ export const invite = async ({ userId, id }: Row) => {
 }
 
 // 加入某个账本
-export const joinBill = async ({ userId, code, nickName }: Row) => {
+export const joinBill = async ({ userId, code }: Row) => {
+  const [nickErr, nickName] = await nickNameOfUser(userId)
+  if (nickErr || !nickName) return [nickErr || '用户昵称不能为空', null]
   let billId = ''
   try {
     const sign = decode(code || '')

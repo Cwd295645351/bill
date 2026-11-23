@@ -23,9 +23,7 @@ function authHeader() {
   const user = getUser()
   if (!user) return {}
   return {
-    Authorization: `bearer ${user.accessToken}`,
-    userId: user.userId,
-    nickName: encodeURIComponent(user.nickName || '')
+    Authorization: `bearer ${user.accessToken}`
   }
 }
 

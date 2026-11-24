@@ -2,7 +2,7 @@ import type { Row, WhereBag } from '../../types/domain'
 import type { ViewOrigin } from '../../http/view-origin'
 import { Transaction } from '../../database/index'
 import { billExists, listMembers } from '../bill'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 import { attachImagesToList } from './image-service'
 import { buildBelongWhere, toBelongResponse } from './belong-users'
 import { Op } from 'sequelize'
@@ -129,8 +129,8 @@ const loadMonthSummaries = async (where: WhereBag) => {
 
 // 查询列表
 export const getList = async (data: Row, origin: ViewOrigin) => {
-  const member = await requireMember(data.viewerUserId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(data.viewerUserId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   const pageIndex = data.pageIndex
   const pageSize = data.pageSize
   const { where, andList } = buildFilter(data)
@@ -205,8 +205,8 @@ export const getList = async (data: Row, origin: ViewOrigin) => {
 
 // 查询当月收支和各归属人概况
 export const getCurrentMonthCost = async (data: Row, userId: string | null | undefined) => {
-  const member = await requireMember(userId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(userId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   const beginTs = toTimestamp(data.beginDate)
   const endTs = toTimestamp(data.endDate)
   const params: WhereBag = {
@@ -261,8 +261,8 @@ export const getCurrentMonthCost = async (data: Row, userId: string | null | und
 
 // 导出交易明细
 export const exportData = async (data: Row) => {
-  const member = await requireMember(data.userId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(data.userId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   if (!(await billExists(data.billId))) return ['未找到账本', null]
   const memberRows = await listMembers(data.billId)
   const users: Record<string, string | undefined> = {}

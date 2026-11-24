@@ -2,8 +2,8 @@ import { QueryTypes, type Sequelize } from 'sequelize'
 import * as InitData from './initDatas'
 
 /**
- * sequelize.sync() 不会给已有 users/bills 加列。
- * 补 created_at、建审计表与默认类型表，空表时用 initDatas 灌种子。可重复执行。
+ * sequelize.sync() 不会给已有 users/bills 加列，也不会删列。
+ * 补 created_at、去掉已无用的 plan_buy_count、建审计表与默认类型表，空表时用 initDatas 灌种子。可重复执行。
  */
 const ensureAdminSchema = async (db: Sequelize) => {
   const addNullableCreatedAt = async (table: string) => {
@@ -17,6 +17,13 @@ const ensureAdminSchema = async (db: Sequelize) => {
 
   await addNullableCreatedAt('users')
   await addNullableCreatedAt('bills')
+
+  const planBuyCount = await db.query(`SHOW COLUMNS FROM \`bills\` LIKE 'plan_buy_count'`, {
+    type: QueryTypes.SELECT
+  })
+  if (Array.isArray(planBuyCount) && planBuyCount.length) {
+    await db.query('ALTER TABLE `bills` DROP COLUMN `plan_buy_count`')
+  }
 
   await db.query(`
     CREATE TABLE IF NOT EXISTS \`ai_call_audits\` (

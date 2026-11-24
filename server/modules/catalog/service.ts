@@ -2,7 +2,7 @@ import { toPlain, type Row, type WhereBag } from '../../types/domain'
 import { BillCostType, BillIncomeType, BillPayMethod, BillOverviewRule, BillOverviewRuleYear, Transaction, BillBudget, BillBudgetDetail, sequelize } from '../../database/index'
 import { listMembers } from '../bill'
 import type { Transaction as DbTransaction } from 'sequelize'
-import { requireCreator, requireMember } from '../access'
+import { lockBill, readBillRole } from '../access'
 
 /** 数量 × 单价扣减 */
 const RULE_TYPE_QUANTITY = 'quantity'
@@ -62,16 +62,22 @@ export async function loadOverviewRules(billId: string | null | undefined, trans
 
 const RULE_TYPES = [RULE_TYPE_QUANTITY, RULE_TYPE_COST_TYPE]
 
-/** 检查用户是否为账本创建者 */
-const checkBillCreator = async (billId: string | null | undefined, userId: string | null | undefined) => {
-  const access = await requireCreator(userId, billId)
-  return access.ok
-}
-
 /** 检查用户是否为账本成员 */
 const checkBillMember = async (billId: string | null | undefined, userId: string | null | undefined) => {
-  const access = await requireMember(userId, billId)
-  return access.ok
+  const role = await readBillRole(userId, billId)
+  return role.kind === 'member'
+}
+
+/** 创建者才能改。不是成员与不是创建者使用各自的固定说明 */
+const creatorDenial = async (
+  billId: string | null | undefined,
+  userId: string | null | undefined,
+  creatorMessage: string
+) => {
+  const role = await readBillRole(userId, billId)
+  if (role.kind !== 'member') return '无权管理该账本数据'
+  if (!role.isCreator) return creatorMessage
+  return null
 }
 
 // ==================== 支出类型 ====================
@@ -79,9 +85,8 @@ const checkBillMember = async (billId: string | null | undefined, userId: string
 /** 新增支出类型 */
 const createCostType = async ({ billId, name, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     // 生成短 ID，避免与系统默认的数字 ID 冲突
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     const res = await BillCostType.create({ id, billId, name, isDel: false })
@@ -94,12 +99,10 @@ const createCostType = async ({ billId, name, userId }: Row) => {
 
 /** 编辑支出类型 */
 const editCostType = async ({ id, billId, name, userId }: Row) => {
-  if (!(await checkBillCreator(billId, userId))) {
-    return ['只有账本创建者才能管理类型', null]
-  }
+  const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+  if (denied) return [denied, null]
   const tx = await sequelize.transaction()
   try {
-    const { lockBill } = await import('../budget')
     const locked = await lockBill(billId, tx)
     if (!locked) {
       await tx.rollback()
@@ -134,9 +137,8 @@ const editCostType = async ({ id, billId, name, userId }: Row) => {
 /** 删除支出类型（软删除） */
 const deleteCostType = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     // 保护系统内置类型（ID < 1020 的为系统默认类型）
     if (!isNaN(Number(id)) && Number(id) < 1020) {
       return ['系统内置类型不可删除', null]
@@ -155,9 +157,8 @@ const deleteCostType = async ({ id, billId, userId }: Row) => {
 /** 新增收入类型 */
 const createIncomeType = async ({ billId, name, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
     const res = await BillIncomeType.create({ id, billId, name, isDel: false })
     return [null, { id: res.id, name: res.name }]
@@ -169,12 +170,10 @@ const createIncomeType = async ({ billId, name, userId }: Row) => {
 
 /** 编辑收入类型 */
 const editIncomeType = async ({ id, billId, name, userId }: Row) => {
-  if (!(await checkBillCreator(billId, userId))) {
-    return ['只有账本创建者才能管理类型', null]
-  }
+  const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+  if (denied) return [denied, null]
   const tx = await sequelize.transaction()
   try {
-    const { lockBill } = await import('../budget')
     const locked = await lockBill(billId, tx)
     if (!locked) {
       await tx.rollback()
@@ -201,9 +200,8 @@ const editIncomeType = async ({ id, billId, name, userId }: Row) => {
 /** 删除收入类型（软删除） */
 const deleteIncomeType = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     // 保护系统内置类型（ID < 2008 的为系统默认收入类型）
     if (!isNaN(Number(id)) && Number(id) < 2008) {
       return ['系统内置类型不可删除', null]
@@ -222,9 +220,8 @@ const deleteIncomeType = async ({ id, billId, userId }: Row) => {
 /** 切换支出类型显隐 */
 const toggleCostTypeShow = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     const type = await BillCostType.findOne({ where: { id, billId, isDel: false } })
     if (!type) return ['找不到该类型', null]
     await BillCostType.update({ hidden: !type.hidden }, { where: { id, billId } })
@@ -238,9 +235,8 @@ const toggleCostTypeShow = async ({ id, billId, userId }: Row) => {
 /** 切换收入类型显隐 */
 const toggleIncomeTypeShow = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理类型', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理类型')
+    if (denied) return [denied, null]
     const type = await BillIncomeType.findOne({ where: { id, billId, isDel: false } })
     if (!type) return ['找不到该类型', null]
     await BillIncomeType.update({ hidden: !type.hidden }, { where: { id, billId } })
@@ -296,9 +292,8 @@ const validateOverviewRulePayload = async ({ billId, name, ruleType, unitName, u
 /** 新增概览规则 */
 const createOverviewRule = async ({ billId, name, ruleType, unitName, unitPrice, costTypeId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     const [err, payload] = await validateOverviewRulePayload({ billId, name, ruleType, unitName, unitPrice, costTypeId })
     if (err || !payload || typeof payload !== 'object') return [err, null]
 
@@ -319,9 +314,8 @@ const createOverviewRule = async ({ billId, name, ruleType, unitName, unitPrice,
 /** 编辑概览规则 */
 const editOverviewRule = async ({ id, billId, name, ruleType, unitName, unitPrice, costTypeId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     const rule = await BillOverviewRule.findOne({ where: { id, billId } })
     if (!rule) return ['找不到该规则', null]
 
@@ -348,9 +342,8 @@ const editOverviewRule = async ({ id, billId, name, ruleType, unitName, unitPric
 /** 切换概览规则启停 */
 const toggleOverviewRule = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     const rule = await BillOverviewRule.findOne({ where: { id, billId } })
     if (!rule) return ['找不到该规则', null]
     await BillOverviewRule.update({ enabled: !rule.enabled }, { where: { id, billId } })
@@ -364,9 +357,8 @@ const toggleOverviewRule = async ({ id, billId, userId }: Row) => {
 /** 删除概览规则 */
 const deleteOverviewRule = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     const rule = await BillOverviewRule.findOne({ where: { id, billId } })
     if (!rule) return ['找不到该规则', null]
     await BillOverviewRuleYear.destroy({ where: { ruleId: id } })
@@ -417,12 +409,8 @@ const getOverviewRuleYearlyList = async ({ billId, ruleId, year, userId }: Row) 
 /** 保存/更新某一年份的规则配置 */
 const saveOverviewRuleYearly = async ({ billId, ruleId, year, quantity, belongUserId, userId }: Row) => {
   try {
-    if (!(await checkBillMember(billId, userId))) {
-      return ['无权管理该账本数据', null]
-    }
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     if (!ruleId) return ['规则ID不能为空', null]
     const yearNum = Number(year)
     if (!Number.isFinite(yearNum) || yearNum < 1970 || yearNum > 2100) {
@@ -440,8 +428,8 @@ const saveOverviewRuleYearly = async ({ billId, ruleId, year, quantity, belongUs
     }
 
     if (belongUserId) {
-      const belongMember = await requireMember(belongUserId, billId)
-      if (!belongMember.ok) return ['归属人不是该账本成员', null]
+      const belongMember = await readBillRole(belongUserId, billId)
+      if (belongMember.kind !== 'member') return ['归属人不是该账本成员', null]
     }
 
     let record = await BillOverviewRuleYear.findOne({ where: { ruleId, year: yearNum } })
@@ -485,12 +473,8 @@ const saveOverviewRuleYearly = async ({ billId, ruleId, year, quantity, belongUs
 /** 删除某年份的配置 */
 const deleteOverviewRuleYearly = async ({ id, billId, userId }: Row) => {
   try {
-    if (!(await checkBillMember(billId, userId))) {
-      return ['无权管理该账本数据', null]
-    }
-    if (!(await checkBillCreator(billId, userId))) {
-      return ['只有账本创建者才能管理概览规则', null]
-    }
+    const denied = await creatorDenial(billId, userId, '只有账本创建者才能管理概览规则')
+    if (denied) return [denied, null]
     const record = await BillOverviewRuleYear.findOne({ where: { id, billId } })
     if (!record) return ['找不到该记录', null]
     await BillOverviewRuleYear.destroy({ where: { id, billId } })

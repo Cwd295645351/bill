@@ -2,9 +2,9 @@ import type { Row } from '../../types/domain'
 import { Transaction, User, sequelize } from '../../database/index'
 import { billExists, listMembers } from '../bill'
 import { loadTypeLists } from '../catalog'
-import { requireMember } from '../access'
-import { lockBill, loadBudgets, saveBudget } from '../budget'
-import { readBookDate, readPositiveMoney, shiftBudgetSpend } from '../budget/spend'
+import { lockBill, readBillRole } from '../access'
+import { applyBudgetBatchDeltas } from '../budget'
+import { countsAsExpense, readBookDate, readPositiveMoney } from '../budget/spend'
 import { yearFromTimestamp } from '../../utils/dateUtil'
 import xlsx from 'node-xlsx'
 import fs from 'fs'
@@ -19,11 +19,30 @@ const removeUpload = (filePath: string) => {
   }
 }
 
+/** 把导入的未报销支出聚合成年份与「年份 + 分类」差额 */
+const collectImportBudgetDeltas = (rows: Row[]) => {
+  const yearDeltas = new Map<number, number>()
+  const typeDeltas = new Map<string, number>()
+  for (const row of rows) {
+    const money = Number(row.money)
+    if (!Number.isFinite(money) || !money) continue
+    if (!countsAsExpense(row.type, row.reimbursement)) continue
+    const year = yearFromTimestamp(row.date as number)
+    if (!Number.isFinite(year)) continue
+    yearDeltas.set(year, Number(((yearDeltas.get(year) || 0) + money).toFixed(2)))
+    const costTypeId = row.costTypeId == null || row.costTypeId === '' ? '' : String(row.costTypeId)
+    if (!costTypeId) continue
+    const key = `${year}:${costTypeId}`
+    typeDeltas.set(key, Number(((typeDeltas.get(key) || 0) + money).toFixed(2)))
+  }
+  return { yearDeltas, typeDeltas }
+}
+
 // 解析 excel 文件
 export const getExcelObjs = async (filePath: string, billId: string, userId: string) => {
   try {
-    const member = await requireMember(userId, billId)
-    if (!member.ok) return ['不是该账本成员', null]
+    const member = await readBillRole(userId, billId)
+    if (member.kind !== 'member') return ['不是该账本成员', null]
     if (!(await billExists(billId))) return ['未找到账本', null]
     const [types, users] = await Promise.all([loadTypeLists(billId), listMembers(billId)])
     const workbook = xlsx.parse(filePath)
@@ -76,15 +95,14 @@ export const getExcelObjs = async (filePath: string, billId: string, userId: str
         await tx.rollback()
         return ['导入失败', null]
       }
-      const budgets = await loadBudgets(billId, tx)
       const expenses = new Map<string, number>()
       insertData.forEach((row) => {
-        shiftBudgetSpend(budgets, yearFromTimestamp(row.date as number), row.costTypeId, Number(row.money))
         const key = String(row.userId || '')
         if (!key) return
         expenses.set(key, (expenses.get(key) || 0) + Number(row.money))
       })
-      await saveBudget(billId, budgets, tx)
+      const { yearDeltas, typeDeltas } = collectImportBudgetDeltas(insertData)
+      await applyBudgetBatchDeltas(billId, yearDeltas, typeDeltas, tx)
       for (const [id, amount] of expenses) {
         await User.increment({ expenses: amount }, { where: { id }, transaction: tx })
       }

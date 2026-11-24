@@ -11,7 +11,7 @@ import * as EXCHANGE from './exchange-service'
 import { buildLedger } from './ledger-core'
 import { getRetirePlan, saveRetirePlan } from './retire-core'
 import VERSION from '../../config/version'
-import { requireMember, billIdOfAsset, billIdOfMember, billIdOfRecord } from '../access'
+import { readBillRole, billIdOfAsset, billIdOfMember, billIdOfRecord } from '../access'
 
 const router = new KoaRouter({ prefix: `/api/${VERSION}/asset` })
 
@@ -30,8 +30,8 @@ const guard = async (ctx: HttpContext, billId: string | null | undefined) => {
     deny(ctx, '账本id不能为空')
     return false
   }
-  const access = await requireMember(userId, billId)
-  if (!access.ok) {
+  const access = await readBillRole(userId, billId)
+  if (access.kind !== 'member') {
     deny(ctx, '无权查看该账本')
     return false
   }

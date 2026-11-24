@@ -3,7 +3,7 @@ import { BillUser, BillOverviewRule, BillOverviewRuleYear, Transaction, User } f
 import dayjs from 'dayjs'
 import { Op } from 'sequelize'
 import { buildSettlement, mergeSettlementResults, withoutParties } from './settlement'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 import { fixMoney } from '../../utils/money'
 
 interface YearGroupInput {
@@ -107,8 +107,8 @@ const normalizeQuantityInputs = (
 
 /** 多人分账。不改总支出等汇总口径 */
 export const getSettlement = async (data: Row, userId: string | null | undefined) => {
-  const member = await requireMember(userId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(userId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
 
   const billUsers = await BillUser.findAll({
     where: { billId: data.billId },

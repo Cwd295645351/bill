@@ -4,7 +4,7 @@ import KoaRouter from 'koa-router'
 import { ResModel } from '../../http/res-model'
 import { parseBatch } from './parse-service'
 import VERSION from '../../config/version'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 import * as AI_CONFIG from '../../config/ai'
 import {
   acquireDailyQuota,
@@ -108,8 +108,8 @@ router.post('/parse-batch', async (ctx: HttpContext) => {
     return
   }
   {
-    const member = await requireMember(userId, billId)
-    if (!member.ok) {
+    const member = await readBillRole(userId, billId)
+    if (member.kind !== 'member') {
       audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
       ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
       return

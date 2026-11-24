@@ -9,7 +9,6 @@ export function defineBillModels(defineModel: DefineModel) {
         id: defineId,
         name: { type: DataTypes.STRING(128), allowNull: false },
         creator: { type: DataTypes.STRING(36), allowNull: false },
-        planBuyCount: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0, field: 'plan_buy_count' },
         isDel: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_del' },
         createdAt: { type: DataTypes.DATE, allowNull: true, field: 'created_at' }
       },

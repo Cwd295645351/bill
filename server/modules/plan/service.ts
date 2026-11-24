@@ -1,17 +1,14 @@
 import { toPlain, type Row } from '../../types/domain'
-import { Bill, BillPlanBuy, sequelize } from '../../database/index'
-import { requireMember } from '../access'
-import { lockBill } from '../budget'
+import { Bill, BillPlanBuy } from '../../database/index'
+import { readBillRole } from '../access'
 import type { Transaction as DbTransaction } from 'sequelize'
 
 /** 只读取本账本的计划。账本不存在时返回 null */
 export async function loadPlanBuy(billId: string | null | undefined, transaction?: DbTransaction | null) {
   const bill = await Bill.findByPk(billId, { transaction })
   if (!bill) return null
-  const plain = toPlain(bill)
   const rows = await BillPlanBuy.findAll({ where: { billId }, transaction })
   return {
-    count: Number(plain.planBuyCount || 0),
     details: rows.map((p: Row) => {
       const item = toPlain(p)
       return {
@@ -26,129 +23,65 @@ export async function loadPlanBuy(billId: string | null | undefined, transaction
   }
 }
 
-/** 保存 planBuy 结构。只在本模块使用 */
-export async function savePlanBuy(
-  billId: string | null | undefined,
-  planBuy: { count?: number; details?: Row[] },
-  transaction?: DbTransaction | null
-) {
-  await BillPlanBuy.destroy({ where: { billId }, transaction })
-  if (planBuy.details && planBuy.details.length) {
-    await BillPlanBuy.bulkCreate(
-      planBuy.details.map((d) => ({
-        id: d.id,
-        billId,
-        title: d.title,
-        context: d.context,
-        priority: d.priority,
-        isBuy: d.isBuy || false,
-        isDel: d.isDel || false
-      })),
-      { transaction }
-    )
-  }
-  await Bill.update({ planBuyCount: planBuy.count || 0 }, { where: { id: billId }, transaction })
-}
-
-/** 查询账本计划 */
+/** 查询账本计划。先确认成员，再读取未删除且未购买的计划 */
 export const getList = async ({ userId, billId }: Row) => {
-  const planBuy = await loadPlanBuy(billId)
-  if (!planBuy) return ['未找到账本', null]
-  if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const plans = JSON.parse(JSON.stringify(planBuy))
-  if (!plans) ['查询失败', null]
-  plans.details = plans.details.filter((item: Row) => !item.isDel && !item.isBuy)
-  plans.count = plans.details.length
-  return [null, plans]
+  const role = await readBillRole(userId, billId)
+  if (role.kind === 'invalid' || role.kind === 'not_found') return ['未找到账本', null]
+  if (role.kind !== 'member') return ['该用户并未加入此账本', null]
+  const rows = await BillPlanBuy.findAll({ where: { billId, isDel: false, isBuy: false } })
+  const details = rows.map((row: Row) => {
+    const item = toPlain(row)
+    return {
+      id: item.id,
+      title: item.title,
+      context: item.context,
+      priority: item.priority,
+      isBuy: false,
+      isDel: false
+    }
+  })
+  return [null, { count: details.length, details }]
 }
 
 /** 新增账本计划 */
 export const add = async ({ billId, userId, context, priority, title }: Row) => {
-  if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const tx = await sequelize.transaction()
+  if ((await readBillRole(userId, billId)).kind !== 'member') return ['该用户并未加入此账本', null]
   try {
-    const locked = await lockBill(billId, tx)
-    if (!locked) {
-      await tx.rollback()
-      return ['未找到账本', null]
-    }
-    const plans = await loadPlanBuy(billId, tx)
-    if (!plans) {
-      await tx.rollback()
-      return ['未找到账本', null]
-    }
-    plans.count++
-    plans.details.push({ title, context, priority, isBuy: false, isDel: false })
-    await savePlanBuy(billId, plans, tx)
-    await tx.commit()
+    await BillPlanBuy.create({ billId, title, context, priority, isBuy: false, isDel: false })
     return [null, true]
   } catch (e: unknown) {
-    await tx.rollback()
     console.error(e)
     return ['新增失败', null]
   }
 }
 
-/** 编辑账本计划 */
+/** 编辑账本计划。内容未变化时 MySQL 的影响行数是 0，再确认这条计划还在 */
 export const edit = async ({ billId, id, userId, context, priority, title }: Row) => {
-  if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const tx = await sequelize.transaction()
+  if ((await readBillRole(userId, billId)).kind !== 'member') return ['该用户并未加入此账本', null]
   try {
-    const locked = await lockBill(billId, tx)
-    if (!locked) {
-      await tx.rollback()
-      return ['未找到账本', null]
+    const [affected] = await BillPlanBuy.update(
+      { title, context, priority },
+      { where: { id, billId, isDel: false } }
+    )
+    if (!affected) {
+      const exists = await BillPlanBuy.findOne({ where: { id, billId, isDel: false }, attributes: ['id'] })
+      if (!exists) return ['不存在该计划', null]
     }
-    const planBuy = await loadPlanBuy(billId, tx)
-    if (!planBuy) {
-      await tx.rollback()
-      return ['未找到账本', null]
-    }
-    const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
-    if (!planDetailItem) {
-      await tx.rollback()
-      return ['不存在该计划', null]
-    }
-    planDetailItem.context = context
-    planDetailItem.priority = priority
-    planDetailItem.title = title
-    await savePlanBuy(billId, planBuy, tx)
-    await tx.commit()
     return [null, true]
   } catch (e: unknown) {
-    await tx.rollback()
     console.error(e)
     return ['编辑失败', null]
   }
 }
 
-/** 删除账本计划 */
+/** 删除账本计划。只把这一行标成已删除 */
 const removePlan = async ({ id, billId, userId }: { id: string; billId: string; userId: string }) => {
-  if (!(await requireMember(userId, billId)).ok) return ['该用户并未加入此账本', null]
-  const tx = await sequelize.transaction()
+  if ((await readBillRole(userId, billId)).kind !== 'member') return ['该用户并未加入此账本', null]
   try {
-    const locked = await lockBill(billId, tx)
-    if (!locked) {
-      await tx.rollback()
-      return ['未找到账本', null]
-    }
-    const planBuy = await loadPlanBuy(billId, tx)
-    if (!planBuy) {
-      await tx.rollback()
-      return ['未找到账本', null]
-    }
-    const planDetailItem = planBuy.details.find((item: Row) => item.id === id && !item.isDel)
-    if (!planDetailItem) {
-      await tx.rollback()
-      return ['不存在该计划', null]
-    }
-    planDetailItem.isDel = true
-    planBuy.count--
-    await savePlanBuy(billId, planBuy, tx)
-    await tx.commit()
+    const [affected] = await BillPlanBuy.update({ isDel: true }, { where: { id, billId, isDel: false } })
+    if (!affected) return ['不存在该计划', null]
     return [null, true]
   } catch (e: unknown) {
-    await tx.rollback()
     console.error(e)
     return ['删除失败', null]
   }

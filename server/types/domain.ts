@@ -39,7 +39,6 @@ export interface Row {
   title?: string
   context?: string
   priority?: number | string
-  planBuyCount?: number
   ruleType?: string
   enabled?: boolean
   unitName?: string | null
@@ -124,7 +123,7 @@ export interface Row {
   incomesTypes?: Row[]
   payMethods?: Row[]
   overviewRules?: Row[]
-  planBuy?: { count?: number; details?: Row[] }
+  planBuy?: { details?: Row[] }
   planBuyDetails?: Row[]
   budgets?: Row[]
   rules?: Row[]

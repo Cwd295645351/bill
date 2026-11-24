@@ -4,6 +4,7 @@ import initModels from './models'
 import { ensureEncryptionKey, type EncryptionStore } from './ensureEncryption'
 import { ensureAssetSchema } from './ensureAssetSchema'
 import { ensureAdminSchema } from './ensureAdminSchema'
+import { ensureBudgetSchema } from './ensureBudgetSchema'
 import { rebuildLedgerTotals } from './rebuildTotals'
 
 const sequelize = new Sequelize(MYSQL_CONF.database, MYSQL_CONF.username, MYSQL_CONF.password, {
@@ -40,6 +41,7 @@ const connectDB = async () => {
     await sequelize.sync()
     await ensureAssetSchema(sequelize)
     await ensureAdminSchema(sequelize)
+    await ensureBudgetSchema(sequelize)
     await ensureEncryptionKey(models.Encryption as unknown as EncryptionStore)
     await rebuildLedgerTotals({
       sequelize,

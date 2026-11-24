@@ -1,6 +1,6 @@
 import type { Row } from '../../types/domain'
 import type { ViewOrigin } from '../../http/view-origin'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 import fs from 'fs'
 import crypto from 'crypto'
 import OSS from 'ali-oss'
@@ -87,8 +87,8 @@ const buildViewUrl = (origin: ViewOrigin, imageId: string) => {
 
 /** 校验调用者是否为该账本成员 */
 const assertBillMember = async (billId: string | null | undefined, userId: string | null | undefined) => {
-  const access = await requireMember(userId, billId)
-  return access.ok
+  const role = await readBillRole(userId, billId)
+  return role.kind === 'member'
 }
 
 /**

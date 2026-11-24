@@ -3,7 +3,7 @@ import { Transaction, BillUser, BillOverviewRule, BillOverviewRuleYear } from '.
 import dayjs from 'dayjs'
 import { Op } from 'sequelize'
 import { buildSettlement } from './settlement'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 import { toBelongResponse } from '../transaction'
 
 
@@ -22,8 +22,8 @@ interface RankItem {
 
 // 查询收支和各归属人概况
 export const getBlance = async (data: Row, userId?: string | null | undefined) => {
-  const member = await requireMember(userId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(userId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   const params: WhereBag = {
     billId: data.billId,
     date: { [Op.between]: [data.beginDate, data.endDate] },
@@ -119,8 +119,8 @@ interface YearGroupInput {
 // 查询近五年的收支概况与支出类型
 export const getCosts = async (billId: string | null | undefined, userId?: string | null) => {
   if (!billId) return ['账本id不能为空', null]
-  const member = await requireMember(userId, billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(userId, billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
 
   const billUsers = await BillUser.findAll({
     where: { billId },

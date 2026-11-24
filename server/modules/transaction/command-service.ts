@@ -1,12 +1,12 @@
 import type { Row } from '../../types/domain'
 import { Bill, Transaction, User, sequelize } from '../../database/index'
 import { loadTypeLists } from '../catalog'
-import { loadBudgets, saveBudget, lockBill } from '../budget'
-import { requireMember } from '../access'
+import { applyBudgetBatchDeltas, applyBudgetDelta } from '../budget'
+import { lockBill, readBillRole } from '../access'
 import { attachImages, markImagesUnviewableByTransaction, tryDeleteObject } from './image-service'
 import { loadOrderedMembers, resolveBelongUsers } from './belong-users'
 import { yearFromTimestamp } from '../../utils/dateUtil'
-import { countsAsExpense, readBookDate, readPositiveMoney, shiftBudgetSpend, type SpendBudget } from '../budget/spend'
+import { countsAsExpense, readBookDate, readPositiveMoney } from '../budget/spend'
 import type { Transaction as DbTransaction } from 'sequelize'
 
 
@@ -22,12 +22,12 @@ const normalizeImageIds = (imageIds: unknown) => {
   return imageIds.map((id) => String(id))
 }
 
-/** 记账写入需要的类型和预算。账本不存在时返回 null */
+/** 记账写入需要的类型。账本不存在时返回 null */
 const loadWriteBill = async (billId: string | null | undefined) => {
   const bill = await Bill.findByPk(billId)
   if (!bill) return null
-  const [types, budget] = await Promise.all([loadTypeLists(billId), loadBudgets(billId)])
-  return { ...types, budget }
+  const types = await loadTypeLists(billId)
+  return types
 }
 
 type NamedType = { id?: string; name?: string }
@@ -59,19 +59,19 @@ const rememberUser = (bag: Map<string, UserDelta>, userId: unknown, field: keyof
   bag.set(key, current)
 }
 
-/** 按明细方向增减预算已用和用户累计。sign 为 1 表示记入，-1 表示冲回 */
-const bookEffect = (budgets: SpendBudget[], users: Map<string, UserDelta>, row: LedgerRow, sign: 1 | -1) => {
+/** 按明细方向增减用户累计，并返回预算已用差额。sign 为 1 表示记入，-1 表示冲回 */
+const bookUserEffect = (users: Map<string, UserDelta>, row: LedgerRow, sign: 1 | -1) => {
   const money = Number(row.money)
-  if (!Number.isFinite(money) || !money) return
+  if (!Number.isFinite(money) || !money) return null as null | { year: number; costTypeId: unknown; delta: number }
   const delta = sign * money
   if (Number(row.type) === 2) {
     rememberUser(users, row.userId, 'incomes', delta)
-    return
+    return null
   }
-  if (!countsAsExpense(row.type, row.reimbursement)) return
+  if (!countsAsExpense(row.type, row.reimbursement)) return null
   const year = yearFromTimestamp(row.date as number)
-  shiftBudgetSpend(budgets, year, row.costTypeId, delta)
   rememberUser(users, row.userId, 'expenses', delta)
+  return { year, costTypeId: row.costTypeId, delta }
 }
 
 const flushUsers = async (bag: Map<string, UserDelta>, tx: DbTransaction) => {
@@ -85,6 +85,26 @@ const flushUsers = async (bag: Map<string, UserDelta>, tx: DbTransaction) => {
   }
 }
 
+/** 把多笔未报销支出聚合成年份汇总和「年份 + 分类」汇总 */
+const collectBudgetDeltas = (rows: LedgerRow[], sign: 1 | -1) => {
+  const yearDeltas = new Map<number, number>()
+  const typeDeltas = new Map<string, number>()
+  for (const row of rows) {
+    const money = Number(row.money)
+    if (!Number.isFinite(money) || !money) continue
+    if (!countsAsExpense(row.type, row.reimbursement)) continue
+    const year = yearFromTimestamp(row.date as number)
+    if (!Number.isFinite(year)) continue
+    const delta = sign * money
+    yearDeltas.set(year, Number(((yearDeltas.get(year) || 0) + delta).toFixed(2)))
+    const costTypeId = row.costTypeId == null || row.costTypeId === '' ? '' : String(row.costTypeId)
+    if (!costTypeId) continue
+    const key = `${year}:${costTypeId}`
+    typeDeltas.set(key, Number(((typeDeltas.get(key) || 0) + delta).toFixed(2)))
+  }
+  return { yearDeltas, typeDeltas }
+}
+
 
 // 新增交易信息
 export const addTransaction = async (data: Row) => {
@@ -95,8 +115,8 @@ export const addTransaction = async (data: Row) => {
   const typeNum = Number(data.type)
   if (typeNum !== 1 && typeNum !== 2) return ['类型不正确', null]
   data.money = money
-  const member = await requireMember(data.userId, data.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(data.userId, data.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   const findBill = await loadWriteBill(data.billId)
   if (!findBill) return ['未找到账本', null]
   const members = await loadOrderedMembers(data.billId)
@@ -156,10 +176,11 @@ export const addTransaction = async (data: Row) => {
       })
     }
 
-    const budgets = await loadBudgets(data.billId, tx)
     const users = new Map<string, UserDelta>()
-    bookEffect(budgets, users, params, 1)
-    await saveBudget(data.billId, budgets, tx)
+    const budgetDelta = bookUserEffect(users, params, 1)
+    if (budgetDelta) {
+      await applyBudgetDelta(data.billId, budgetDelta.year, budgetDelta.costTypeId, budgetDelta.delta, tx)
+    }
     await flushUsers(users, tx)
 
     await tx.commit()
@@ -179,8 +200,8 @@ export const addTransaction = async (data: Row) => {
 export const batchAddTransaction = async (list: Row[]) => {
   if (!Array.isArray(list) || !list.length) return ['批量数据不能为空', null]
   const billId = list[0].billId
-  const member = await requireMember(list[0].userId, billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(list[0].userId, billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   const findBill = await loadWriteBill(billId)
   if (!findBill) return ['未找到账本', null]
   const members = await loadOrderedMembers(billId)
@@ -237,10 +258,10 @@ export const batchAddTransaction = async (list: Row[]) => {
     if (!locked) throw new Error('未找到账本')
     const res = await Transaction.bulkCreate(insertList, { transaction: tx })
     if (!res) throw new Error('批量新增失败')
-    const budgets = await loadBudgets(billId, tx)
     const users = new Map<string, UserDelta>()
-    insertList.forEach((row) => bookEffect(budgets, users, row, 1))
-    await saveBudget(billId, budgets, tx)
+    insertList.forEach((row) => bookUserEffect(users, row, 1))
+    const { yearDeltas, typeDeltas } = collectBudgetDeltas(insertList, 1)
+    await applyBudgetBatchDeltas(billId, yearDeltas, typeDeltas, tx)
     await flushUsers(users, tx)
     await tx.commit()
     return [null, { total: list.length, success: res.length }]
@@ -263,8 +284,8 @@ export const editTransaction = async (data: Row) => {
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['编辑失败', null]
   const billId = String(old.billId || '')
-  const member = await requireMember(data.userId, billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(data.userId, billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   if (!data.billId || String(data.billId) !== billId) return ['编辑失败', null]
   if (!data.userId || String(old.userId) !== String(data.userId)) {
     return ['只能编辑自己记的账单', null]
@@ -342,11 +363,15 @@ export const editTransaction = async (data: Row) => {
       })
     }
 
-    const budgets = await loadBudgets(billId, tx)
     const users = new Map<string, UserDelta>()
-    bookEffect(budgets, users, old, -1)
-    bookEffect(budgets, users, changeData, 1)
-    await saveBudget(billId, budgets, tx)
+    const oldDelta = bookUserEffect(users, old, -1)
+    if (oldDelta) {
+      await applyBudgetDelta(billId, oldDelta.year, oldDelta.costTypeId, oldDelta.delta, tx)
+    }
+    const newDelta = bookUserEffect(users, changeData, 1)
+    if (newDelta) {
+      await applyBudgetDelta(billId, newDelta.year, newDelta.costTypeId, newDelta.delta, tx)
+    }
     await flushUsers(users, tx)
     await tx.commit()
     for (const key of pendingDeleteKeys) {
@@ -366,8 +391,8 @@ export const deleteTransaction = async (data: Row) => {
   const params: Row = { id: data.id, isDel: false }
   const old = await Transaction.findOne({ where: params, raw: true })
   if (!old) return ['该明细不存在', null]
-  const member = await requireMember(data.operatorId, old.billId)
-  if (!member.ok) return ['不是该账本成员', null]
+  const member = await readBillRole(data.operatorId, old.billId)
+  if (member.kind !== 'member') return ['不是该账本成员', null]
   if (!data.operatorId || String(old.userId) !== String(data.operatorId)) {
     return ['只能删除自己记的账单', null]
   }
@@ -380,10 +405,11 @@ export const deleteTransaction = async (data: Row) => {
     await Transaction.update({ isDel: true }, { where: params, transaction: tx })
     pendingDeleteKeys = await markImagesUnviewableByTransaction(old.id, tx)
 
-    const budgets = await loadBudgets(old.billId, tx)
     const users = new Map<string, UserDelta>()
-    bookEffect(budgets, users, old, -1)
-    await saveBudget(old.billId, budgets, tx)
+    const budgetDelta = bookUserEffect(users, old, -1)
+    if (budgetDelta) {
+      await applyBudgetDelta(old.billId, budgetDelta.year, budgetDelta.costTypeId, budgetDelta.delta, tx)
+    }
     await flushUsers(users, tx)
     await tx.commit()
     for (const key of pendingDeleteKeys) {

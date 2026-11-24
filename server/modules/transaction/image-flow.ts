@@ -1,5 +1,5 @@
 import { uploadImage, getImageFile } from './image-service'
-import { requireMember } from '../access'
+import { readBillRole } from '../access'
 
 
 // 上传一张照片（未挂接）
@@ -12,8 +12,8 @@ export const uploadTransactionImage = async ({
   billId?: string | null
   userId?: string | null
 }) => {
-  const member = await requireMember(userId, billId)
-  if (!member.ok) return ['未找到账本', null]
+  const role = await readBillRole(userId, billId)
+  if (role.kind !== 'member') return ['未找到账本', null]
   return uploadImage({ file, billId, userId })
 }
 

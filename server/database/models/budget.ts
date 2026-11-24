@@ -1,7 +1,7 @@
 import { DataTypes } from 'sequelize'
 import { decimalMoney, defineId, type DefineModel } from './helpers'
 
-/** 当年预算 */
+/** 当年预算。唯一索引由 ensureBudgetSchema 在清理重复后创建，避免 sync 抢先加索引失败 */
 export function defineBudgetModels(defineModel: DefineModel) {
   const BillBudget = defineModel(
       'bill_budgets',

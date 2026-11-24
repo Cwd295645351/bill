@@ -9,7 +9,7 @@ import { xssData } from '../../utils/xss'
 import { getList, getCurrentMonthCost, exportData } from './query-service'
 import { addTransaction, batchAddTransaction, editTransaction, deleteTransaction } from './command-service'
 import { getExcelObjs } from './import-service'
-import { uploadTransactionImage, openTransactionImage } from './image-flow'
+import { getImageFile, uploadImage } from './image-service'
 import VERSION from '../../config/version'
 
 const router = new KoaRouter({ prefix: `/api/${VERSION}/transaction` })
@@ -61,7 +61,7 @@ router.post('/image', async (ctx: HttpContext) => {
     ctx.body = new ResModel(null, '照片没有保存成功', 'error')
     return
   }
-  const [err, res] = await uploadTransactionImage({ file, billId, userId })
+  const [err, res] = await uploadImage({ file, billId, userId })
   if (res) ctx.body = new ResModel(res, '上传成功')
   else ctx.body = new ResModel(null, err, 'error')
 })
@@ -69,7 +69,7 @@ router.post('/image', async (ctx: HttpContext) => {
 // 按签名打开照片（不走登录头，供小程序/电脑端图片组件直接访问）
 router.get('/image/file', async (ctx: HttpContext) => {
   const { id, exp, sig } = ctx.query
-  const [err, res] = await openTransactionImage({ id, exp, sig })
+  const [err, res] = await getImageFile({ id, exp, sig })
   if (!res) {
     ctx.status = 403
     ctx.body = new ResModel(null, err || '无权查看', 'error')

@@ -5,11 +5,13 @@ import fs from 'fs'
 import crypto from 'crypto'
 import OSS from 'ali-oss'
 import { v4 as uuidv4 } from 'uuid'
-import { Op } from 'sequelize'
-import { TransactionImage, Transaction } from '../../database'
+import { Op, type Transaction as DbTransaction } from 'sequelize'
+import { sequelize, TransactionImage, Transaction } from '../../database'
 import VERSION from '../../config/version'
 
+/** 单张上限 10MB，与入口 koa-body 的 maxFileSize 一致 */
 const MAX_IMAGE_SIZE = 10485760
+/** 查看地址有效期：2 小时 */
 const VIEW_URL_TTL_SEC = 2 * 60 * 60
 const ALLOWED_CONTENT_TYPES: Record<string, boolean> = {
   'image/jpeg': true,
@@ -73,6 +75,7 @@ const verifyViewSignature = (id: string, exp: string | number, sig: string) => {
   const a = Buffer.from(String(sig))
   const b = Buffer.from(expected)
   if (a.length !== b.length) return false
+  // 定长比较，避免签名逐字节提前返回而泄露差异
   return crypto.timingSafeEqual(a, b)
 }
 
@@ -104,9 +107,10 @@ const uploadImage = async ({
   billId?: string | null
   userId?: string | null
 }) => {
+  // 非成员与账本不存在统一成同一提示，避免暴露账本是否存在
+  const isMember = await assertBillMember(billId, userId)
+  if (!isMember) return ['未找到账本', null]
   if (!file || !file.filepath) return ['照片没有保存成功', null]
-  const size = Number(file.size || 0)
-  if (!size || size > MAX_IMAGE_SIZE) return ['单张照片不能超过 10MB', null]
 
   let buf
   try {
@@ -116,7 +120,10 @@ const uploadImage = async ({
     return ['照片没有保存成功', null]
   }
 
+  // 以实际读到的字节数为准，不信上传组件填的 file.size
+  if (!buf.length) return ['无法当作照片打开', null]
   if (buf.length > MAX_IMAGE_SIZE) return ['单张照片不能超过 10MB', null]
+
   const contentType = detectImageType(buf)
   if (!contentType || !ALLOWED_CONTENT_TYPES[contentType]) {
     return ['无法当作照片打开', null]
@@ -130,6 +137,7 @@ const uploadImage = async ({
 
   const id = uuidv4()
   const ext = contentType === 'image/jpeg' ? 'jpg' : contentType.split('/')[1]
+  // 私有桶路径含账本，避免不同账本的对象键撞在一起
   const objectKey = `transaction-images/${billId}/${id}.${ext}`
 
   try {
@@ -145,6 +153,7 @@ const uploadImage = async ({
     await TransactionImage.create({
       id,
       billId,
+      // 先落未挂接行，保存记账时再写入 transactionId；接口只返回 id
       transactionId: null,
       userId,
       objectKey,
@@ -186,8 +195,10 @@ const tryDeleteObject = async (objectKey: string | null | undefined) => {
 }
 
 /**
- * 将照片挂到一笔记账上（替换规则）
- * 不传 imageIds 表示调用方未请求改照片，本函数不应被调用
+ * 将照片挂到一笔记账上（替换规则）。
+ * 不传 imageIds 表示调用方未请求改照片，本函数不应被调用。
+ * 最多四次数据库往返：查出待挂行、查出当前可见行、批量隐藏被换下的、一条 CASE 写回顺序。
+ * 返回被换下照片的 objectKey，由调用方在事务提交成功后再删对象存储。
  */
 const attachImages = async ({
   transactionId,
@@ -200,7 +211,7 @@ const attachImages = async ({
   billId?: string | null
   userId?: string | null
   imageIds?: unknown
-  sequelizeTx?: unknown
+  sequelizeTx?: DbTransaction | null
 }) => {
   if (!Array.isArray(imageIds)) {
     throw new Error('imageIds 必须是数组')
@@ -209,48 +220,70 @@ const attachImages = async ({
     throw new Error('一笔最多附 9 张照片')
   }
 
+  const ids = imageIds.map((id) => String(id))
   // 去重校验：不允许重复 id
-  const unique = new Set(imageIds)
-  if (unique.size !== imageIds.length) {
+  const unique = new Set(ids)
+  if (unique.size !== ids.length) {
     throw new Error('照片列表无效')
   }
 
-  for (let i = 0; i < imageIds.length; i++) {
-    const imageId = imageIds[i]
-    const row = await TransactionImage.findOne({
-      where: { id: imageId },
+  // 一次查出待挂照片，在内存里校验归属
+  if (ids.length) {
+    const rows = await TransactionImage.findAll({
+      where: { id: { [Op.in]: ids } },
       transaction: sequelizeTx
     })
-    if (!row) throw new Error('照片列表无效')
-    if (String(row.billId) !== String(billId)) throw new Error('照片列表无效')
-    if (String(row.userId) !== String(userId)) throw new Error('照片列表无效')
-    if (!row.viewable) throw new Error('照片列表无效')
-    // 已挂到别的记账则拒绝；挂到当前这笔可以（编辑时保留原图）
-    if (row.transactionId && String(row.transactionId) !== String(transactionId)) {
-      throw new Error('照片列表无效')
+    // 主键不会重复，条数对不上就是有 id 不存在
+    if (rows.length !== ids.length) throw new Error('照片列表无效')
+    const byId = new Map(
+      rows.map((row: { id?: string; billId?: string; userId?: string; viewable?: boolean; transactionId?: string | null }) => [String(row.id), row])
+    )
+    for (const id of ids) {
+      const row = byId.get(id) as { billId?: string; userId?: string; viewable?: boolean; transactionId?: string | null } | undefined
+      if (!row) throw new Error('照片列表无效')
+      if (String(row.billId) !== String(billId)) throw new Error('照片列表无效')
+      if (String(row.userId) !== String(userId)) throw new Error('照片列表无效')
+      if (!row.viewable) throw new Error('照片列表无效')
+      // 已挂到别的记账则拒绝；挂到当前这笔可以（编辑时保留原图）
+      if (row.transactionId && String(row.transactionId) !== String(transactionId)) {
+        throw new Error('照片列表无效')
+      }
     }
   }
 
+  // 这笔账上目前可见的照片；不在本次列表里的就是要换下的
   const current = await TransactionImage.findAll({
     where: { transactionId, viewable: true },
     transaction: sequelizeTx
   })
-  const keepSet = new Set(imageIds)
-  for (const row of current) {
-    if (!keepSet.has(row.id)) {
-      await row.update({ viewable: false }, { transaction: sequelizeTx })
-      // 对象删除放在事务提交后由调用方触发，避免事务回滚后文件已删
-    }
-  }
-
-  for (let i = 0; i < imageIds.length; i++) {
+  const dropped = current.filter((row: { id?: string }) => !unique.has(String(row.id)))
+  // 被换下的一次标为不可见；对象删除放在事务提交后，避免回滚后文件已删
+  if (dropped.length) {
     await TransactionImage.update(
-      { transactionId, sort: i, viewable: true },
-      { where: { id: imageIds[i] }, transaction: sequelizeTx }
+      { viewable: false },
+      {
+        where: { id: { [Op.in]: dropped.map((row: { id?: string }) => row.id) } },
+        transaction: sequelizeTx
+      }
     )
   }
 
-  return current.filter((row: { id?: string }) => !keepSet.has(row.id)).map((row: { objectKey?: string }) => row.objectKey)
+  // 顺序就是数组下标。下标是这里生成的整数，可以写进 SQL；id 走参数绑定
+  if (ids.length) {
+    const replacements: Record<string, string | number | null | undefined> = { transactionId }
+    const whens = ids.map((id, index) => {
+      replacements[`id${index}`] = id
+      return `WHEN :id${index} THEN ${index}`
+    })
+    await sequelize.query(
+      `UPDATE transaction_images
+       SET transaction_id = :transactionId, viewable = 1, sort = CASE id ${whens.join(' ')} END
+       WHERE id IN (${ids.map((_, index) => `:id${index}`).join(', ')})`,
+      { replacements, transaction: sequelizeTx }
+    )
+  }
+
+  return dropped.map((row: { objectKey?: string }) => row.objectKey)
 }
 
 /** 整笔记账删除后：标记不可查看并返回待删 objectKey */
@@ -260,10 +293,7 @@ const markImagesUnviewableByTransaction = async (transactionId: string | null | 
     transaction: sequelizeTx
   })
   if (!rows.length) return []
-  await TransactionImage.update(
-    { viewable: false },
-    { where: { transactionId, viewable: true }, transaction: sequelizeTx }
-  )
+  await TransactionImage.update({ viewable: false }, { where: { transactionId, viewable: true }, transaction: sequelizeTx })
   return rows.map((r: { objectKey?: string }) => r.objectKey)
 }
 
@@ -338,6 +368,7 @@ const getImageFile = async ({
   if (!verifyViewSignature(idText, expText, sigText)) return ['无权查看', null]
 
   const row = await TransactionImage.findOne({ where: { id: idText } })
+  // 未挂到记账，或已标不可见的照片，不能靠签名地址打开
   if (!row || !row.viewable || !row.transactionId) return ['无权查看', null]
 
   const tx = await Transaction.findOne({
@@ -358,4 +389,15 @@ const getImageFile = async ({
   }
 }
 
-export { MAX_IMAGE_SIZE, uploadImage, attachImages, markImagesUnviewableByTransaction, attachImagesToList, getImageFile, tryDeleteObject, assertBillMember, detectImageType, buildViewUrl }
+export {
+  MAX_IMAGE_SIZE,
+  uploadImage,
+  attachImages,
+  markImagesUnviewableByTransaction,
+  attachImagesToList,
+  getImageFile,
+  tryDeleteObject,
+  assertBillMember,
+  detectImageType,
+  buildViewUrl
+}

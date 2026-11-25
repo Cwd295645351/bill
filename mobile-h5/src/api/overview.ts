@@ -67,8 +67,8 @@ export function getMobileOverview(billId: string, beginDate: string, endDate: st
   })
 }
 
-/** 查询某一分类的原始支出 */
-export function getMobileRecords(params: {
+/** 查询某一分类的原始支出。与电脑概览共用 */
+export function getCategoryRecords(params: {
   billId: string
   beginDate: string
   endDate: string
@@ -76,7 +76,7 @@ export function getMobileRecords(params: {
   memberId?: string
 }) {
   return request<{ total: number; records: OverviewRecord[] }>({
-    url: '/overview/mobile/records',
+    url: '/overview/records',
     method: 'GET',
     params,
     silent: true,

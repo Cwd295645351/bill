@@ -181,7 +181,7 @@ import { showToast } from 'vant'
 import BookTabBar from '@/components/BookTabBar.vue'
 import {
   getMobileOverview,
-  getMobileRecords,
+  getCategoryRecords,
   type MobileOverview,
   type OverviewCategory,
   type OverviewRecord,
@@ -459,7 +459,7 @@ async function openCategory(item: OverviewCategory) {
   showRecords.value = true
   recordsLoading.value = true
   try {
-    const res = await getMobileRecords({
+    const res = await getCategoryRecords({
       billId: billId.value,
       beginDate: begin.value,
       endDate: end.value,

@@ -36,7 +36,7 @@ router.post('/list', async (ctx: HttpContext, next: Next) => {
     data.type = 1
   }
   if (!data.rangeMoney) data.rangeMoney = 0
-  // 列表附加 images 时用于判断账本成员，勿与筛选条件里的 userId 混淆
+  // 校验账本成员，勿与筛选条件里的 userId 混淆
   data.viewerUserId = currentUserId(ctx)
 
   const [err, res] = await getList(data, viewOriginOf(ctx))
@@ -183,11 +183,13 @@ router.get('/currentMonthCost', async (ctx: HttpContext, next: Next) => {
 router.post('/export', async (ctx: HttpContext, next: Next) => {
   const data = readBody(ctx)
   xssData(data)
-  data.userId = currentUserId(ctx)
   const { type, billId } = data
   if (!billId) ctx.body = new ResModel(null, '账本id不能为空', 'error')
   else if (!type) ctx.body = new ResModel(null, '类型不能为空', 'error')
   else {
+    if (!data.rangeMoney) data.rangeMoney = 0
+    // 校验账本成员，勿与筛选条件里的 userId 混淆
+    data.viewerUserId = currentUserId(ctx)
     const buffer = await exportData(data)
     if (Array.isArray(buffer)) {
       ctx.body = new ResModel(null, buffer[0], 'error')

@@ -53,6 +53,16 @@ export interface SettlementSlice {
   money: number
 }
 
+/** 点开分类后的一条原始记账 */
+export interface CategoryRecord {
+  id: string
+  date: string
+  payerName: string
+  belongName: string
+  money: number
+  remark: string
+}
+
 /** 一名成员的支出结构。一名成员的账本不返回个人结构 */
 export interface SettlementMemberPie {
   userId: string

@@ -6,7 +6,7 @@ import { ResModel } from '../../http/res-model'
 
 import { getBlance, getCosts } from './query-service'
 import { getSettlement } from './settlement-route'
-import { getMobileOverview, getMobileRecords } from './mobile-view'
+import { getCategoryRecords, getMobileOverview } from './mobile-view'
 import { toTimestamp } from '../../utils/dateUtil'
 import VERSION from '../../config/version'
 
@@ -57,8 +57,8 @@ router.post('/settlement', async (ctx: HttpContext, next: Next) => {
   }
 })
 
-// 手机概览。只读，不接收数量输入
-router.get('/mobile/records', async (ctx: HttpContext, next: Next) => {
+// 分类明细。手机和电脑点开某一支出分类时共用，只读
+router.get('/records', async (ctx: HttpContext, next: Next) => {
   const query = ctx.query
   const billId = queryString(query.billId)
   const beginDate = queryString(query.beginDate)
@@ -69,7 +69,7 @@ router.get('/mobile/records', async (ctx: HttpContext, next: Next) => {
   else if (!endDate) ctx.body = new ResModel(null, '结束时间不能为空', 'error')
   else if (!costTypeId) ctx.body = new ResModel(null, '分类不能为空', 'error')
   else {
-    const [err, res] = await getMobileRecords(
+    const [err, res] = await getCategoryRecords(
       { billId, beginDate, endDate, costTypeId, memberId: queryString(query.memberId) },
       currentUserId(ctx)
     )

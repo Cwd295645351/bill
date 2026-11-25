@@ -194,14 +194,14 @@ export function getMobileOverview(billId: string, beginDate: string, endDate: st
   })
 }
 
-export function getMobileRecords(data: {
+export function getCategoryRecords(data: {
   billId: string
   beginDate: string
   endDate: string
   costTypeId: string
   memberId?: string
 }) {
-  return request({ url: `${V}/overview/mobile/records`, data, silent: true })
+  return request({ url: `${V}/overview/records`, data, silent: true })
 }
 
 export function getBalance(billId: string, beginDate: number, endDate: number) {

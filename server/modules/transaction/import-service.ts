@@ -1,6 +1,6 @@
 import type { Row } from '../../types/domain'
 import { Transaction, User, sequelize } from '../../database/index'
-import { billExists, listMembers } from '../bill'
+import { listMembers } from '../bill'
 import { loadTypeLists } from '../catalog'
 import { lockBill, readBillRole } from '../access'
 import { applyBudgetBatchDeltas } from '../budget'
@@ -42,8 +42,8 @@ const collectImportBudgetDeltas = (rows: Row[]) => {
 export const getExcelObjs = async (filePath: string, billId: string, userId: string) => {
   try {
     const member = await readBillRole(userId, billId)
-    if (member.kind !== 'member') return ['不是该账本成员', null]
-    if (!(await billExists(billId))) return ['未找到账本', null]
+    if (member.kind === 'not_member') return ['不是该账本成员', null]
+    if (member.kind !== 'member') return ['未找到账本', null]
     const [types, users] = await Promise.all([loadTypeLists(billId), listMembers(billId)])
     const workbook = xlsx.parse(filePath)
     const sheet = workbook[0]

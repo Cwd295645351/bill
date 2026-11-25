@@ -16,10 +16,15 @@ import {
 
 const router = new KoaRouter({ prefix: `/api/${VERSION}/ai` })
 
+/** 待解析原文总字符上限 */
 const MAX_TEXT_LENGTH = 20000
+/** 单次最多解析的非空行数 */
 const MAX_LINE_COUNT = 100
+/** 单行记录字符上限 */
 const MAX_LINE_LENGTH = 500
+/** 请求携带的支出类型项数上限 */
 const MAX_COST_TYPE_COUNT = 200
+/** 支出类型 ID 与名称的字符上限 */
 const MAX_COST_TYPE_LENGTH = 100
 
 /**
@@ -107,13 +112,11 @@ router.post('/parse-batch', async (ctx: HttpContext) => {
     ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
     return
   }
-  {
-    const member = await readBillRole(userId, billId)
-    if (member.kind !== 'member') {
-      audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
-      ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
-      return
-    }
+  const member = await readBillRole(userId, billId)
+  if (member.kind !== 'member') {
+    audit({ upstreamRequested: false, outcome: 'error', errorCategory: 'forbidden_bill' })
+    ctx.body = new ResModel(null, messageFor('forbidden_bill'), 'error')
+    return
   }
 
   // ③ 未配置检测（不计次、不打上游）

@@ -1,7 +1,7 @@
 import type { Row, WhereBag } from '../../types/domain'
 import type { ViewOrigin } from '../../http/view-origin'
 import { Transaction } from '../../database/index'
-import { billExists, listMembers } from '../bill'
+import { listMembers } from '../bill'
 import { readBillRole } from '../access'
 import { attachImagesToList } from './image-service'
 import { buildBelongWhere, toBelongResponse } from './belong-users'
@@ -138,8 +138,6 @@ export const getList = async (data: Row, origin: ViewOrigin) => {
   const direction = data.direction
   const anchorTs = toTimestamp(data.anchorDate)
   const useCursor = direction === 'latest' || direction === 'older' || direction === 'newer' || anchorTs != null
-  const listOpts = { billId: data.billId, userId: data.viewerUserId, origin }
-
   // 未传游标参数时保持原来的页码分页，供总览、移动端继续使用
   if (!useCursor) {
     const res = await Transaction.findAll({
@@ -150,7 +148,7 @@ export const getList = async (data: Row, origin: ViewOrigin) => {
     })
     const length = await Transaction.count({ where: filterWhere })
     if (res) {
-      const datas = (await attachImagesToList(res, listOpts)).map(toBelongResponse)
+      const datas = (await attachImagesToList(res, origin)).map(toBelongResponse)
       return [null, { total: length, datas }]
     }
     return ['查询失败', res]
@@ -189,7 +187,7 @@ export const getList = async (data: Row, origin: ViewOrigin) => {
   }
 
   const total = await Transaction.count({ where: filterWhere })
-  datas = (await attachImagesToList(datas, listOpts)).map(toBelongResponse)
+  datas = (await attachImagesToList(datas, origin)).map(toBelongResponse)
   const retData: {
     total: number
     datas: Row[]
@@ -261,9 +259,9 @@ export const getCurrentMonthCost = async (data: Row, userId: string | null | und
 
 // 导出交易明细
 export const exportData = async (data: Row) => {
-  const member = await readBillRole(data.userId, data.billId)
-  if (member.kind !== 'member') return ['不是该账本成员', null]
-  if (!(await billExists(data.billId))) return ['未找到账本', null]
+  const member = await readBillRole(data.viewerUserId, data.billId)
+  if (member.kind === 'not_member') return ['不是该账本成员', null]
+  if (member.kind !== 'member') return ['未找到账本', null]
   const memberRows = await listMembers(data.billId)
   const users: Record<string, string | undefined> = {}
   memberRows.forEach((item: { id?: string; name?: string }) => {

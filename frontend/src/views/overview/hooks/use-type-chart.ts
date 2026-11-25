@@ -5,11 +5,9 @@ import dayjs from 'dayjs'
 import { formatDate, dayStartTs, dayEndTs } from '@/utils/dateUtil'
 import * as echarts from 'echarts'
 
-import { getBalance, getSettlement } from '../api'
-import { getRecordList } from '../../record/api'
+import { getBalance, getCategoryRecords, getSettlement } from '../api'
 
-import { Bill, User } from '@/types/bill'
-import type { BelongCondition, BelongUser, MoneyRow, SettlementResult, SettlementSlice } from '../type'
+import type { BelongCondition, BelongUser, CategoryRecord, MoneyRow, SettlementResult, SettlementSlice } from '../type'
 
 /** 一张饼图：全部，或某一名当前成员 */
 interface ChartSlot {
@@ -23,8 +21,6 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
 
   const store = useBillStore()
   const { bill, billId } = storeToRefs(store)
-
-  const users = ref<User[]>([])
 
   const belongCondition = ref<BelongCondition>({
     startDate: '' as number | '',
@@ -83,59 +79,42 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   const chartCount = computed(() => chartSlots.value.length)
 
   const dialogVisible = ref(false)
-  const detailList = ref<any[]>([])
+  const detailList = ref<CategoryRecord[]>([])
   const loading = ref(false)
   const currentCategory = ref('')
-  const currentCategoryTotal = ref(0)
+  const currentCategoryTotal = ref<number | string>(0)
 
-  /** 点击饼图查看该类记账。明细金额用记账原金额，不再替换成分账份额 */
-  const handleChartClick = async (params: any, slot: ChartSlot) => {
-    const categoryName = params.name
-    currentCategory.value = categoryName
-    currentCategoryTotal.value = params.value
+  /** 点击饼图查看该类记账。与手机概览共用分类明细，金额是记账原金额 */
+  const handleChartClick = async (params: { name?: string; value?: number | string; data?: { costTypeId?: string } }, slot: ChartSlot) => {
+    const costTypeId = String(params.data?.costTypeId || '')
+    currentCategory.value = params.name || ''
+    currentCategoryTotal.value = params.value ?? 0
     dialogVisible.value = true
     loading.value = true
     detailList.value = []
 
-    const costType = bill.value?.costTypes.find((item: any) => item.name === categoryName)
-    if (!costType) {
+    if (!costTypeId || !belongCondition.value.startDate || !belongCondition.value.endDate) {
       loading.value = false
+      dialogVisible.value = false
       return
     }
 
-    const searchParams: any = {
-      beginDate: belongCondition.value.startDate ? dayStartTs(belongCondition.value.startDate) : '',
-      endDate: belongCondition.value.endDate ? dayEndTs(belongCondition.value.endDate) : '',
-      billId: (bill.value as Bill).id,
-      type: 1,
-      costTypeId: costType.id,
-      pageIndex: 1,
-      pageSize: 1000,
-      condition: 'gte',
-      rangeMoney: 0,
-    }
-
-    if (slot.key !== '全部' && slot.userId) {
-      searchParams.belongUserIds = [slot.userId, '']
-    }
-
-    const [err, res] = await getRecordList({ data: searchParams })
+    const [err, res] = await getCategoryRecords({
+      params: {
+        billId: billId.value,
+        beginDate: formatDate(belongCondition.value.startDate),
+        endDate: formatDate(belongCondition.value.endDate),
+        costTypeId,
+        ...(slot.userId ? { memberId: slot.userId } : {}),
+      },
+    })
     loading.value = false
-    if (err) return
-    if (res.retCode === 0) {
-      const datas = res.data.datas as any[]
-      detailList.value = datas
-        .filter((item: any) => {
-          if (slot.key === '全部') return true
-          const ids: string[] = item.belongUserIds || []
-          return ids.length === 0 || ids.includes(slot.userId)
-        })
-        .map((item: any) => {
-          item.userName = users.value.find((u: any) => u.id === item.userId)?.name || item.userName || '未知'
-          item.date = formatDate(item.date)
-          return item
-        })
+    if (err || !res || res.retCode !== 0) {
+      if (res && res.retCode !== 0) ElMessage.error(res.message || '查询明细失败')
+      dialogVisible.value = false
+      return
     }
+    detailList.value = res.data?.records || []
   }
 
   /** 用结算结果画饼图 */
@@ -148,7 +127,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       belongOptions.value.series[0].name = chartName
       belongOptions.value.series[0].data = (slices || []).map((item) => {
         total += Number(item.money)
-        return { value: Number(item.money).toFixed(2), name: item.name }
+        return { value: Number(item.money).toFixed(2), name: item.name, costTypeId: item.costTypeId }
       })
       belongOptions.value.legend.data = (slices || []).map((item) => item.name)
       belongOptions.value.title.subtext = '总花费：' + total.toFixed(2)
@@ -273,14 +252,13 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     setPieData()
   }
 
-  const initData = async (billData: Bill) => {
+  const initData = async () => {
     cumulativeIncome.value = false
     noteDirty.value = true
     serverNote.value = ''
     incomeLabel.value = '总收入'
     belongCondition.value.startDate = dayjs().startOf('year').valueOf()
     belongCondition.value.endDate = dayjs().valueOf()
-    users.value = billData.users
     await getBalanceAndPieData()
   }
 
@@ -308,7 +286,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
     bill,
     (val) => {
       if (!val) return
-      initData(val)
+      initData()
     },
     { immediate: true },
   )
@@ -318,7 +296,6 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
   })
 
   return {
-    users,
     quantityRules,
     belongCondition,
     belongUsers,

@@ -72,11 +72,11 @@ const verifyViewSignature = (id: string, exp: string | number, sig: string) => {
   if (!id || !exp || !sig) return false
   const expected = signViewParams(id, String(exp))
   if (!expected) return false
-  const a = Buffer.from(String(sig))
-  const b = Buffer.from(expected)
-  if (a.length !== b.length) return false
+  const requestSignature = Buffer.from(String(sig))
+  const expectedSignature = Buffer.from(expected)
+  if (requestSignature.length !== expectedSignature.length) return false
   // 定长比较，避免签名逐字节提前返回而泄露差异
-  return crypto.timingSafeEqual(a, b)
+  return crypto.timingSafeEqual(requestSignature, expectedSignature)
 }
 
 /** 生成指向本服务的短期查看地址，不含 object_key 与对象存储密钥 */
@@ -235,11 +235,11 @@ const attachImages = async ({
     })
     // 主键不会重复，条数对不上就是有 id 不存在
     if (rows.length !== ids.length) throw new Error('照片列表无效')
-    const byId = new Map(
+    const imagesById = new Map(
       rows.map((row: { id?: string; billId?: string; userId?: string; viewable?: boolean; transactionId?: string | null }) => [String(row.id), row])
     )
     for (const id of ids) {
-      const row = byId.get(id) as { billId?: string; userId?: string; viewable?: boolean; transactionId?: string | null } | undefined
+      const row = imagesById.get(id) as { billId?: string; userId?: string; viewable?: boolean; transactionId?: string | null } | undefined
       if (!row) throw new Error('照片列表无效')
       if (String(row.billId) !== String(billId)) throw new Error('照片列表无效')
       if (String(row.userId) !== String(userId)) throw new Error('照片列表无效')
@@ -297,21 +297,16 @@ const markImagesUnviewableByTransaction = async (transactionId: string | null | 
   return rows.map((r: { objectKey?: string }) => r.objectKey)
 }
 
-/** 为列表中的记账附加 images 字段 */
-const attachImagesToList = async (
-  datas: Row[] | null | undefined,
-  { billId, userId, origin }: { billId?: string | null; userId?: string | null; origin: ViewOrigin }
-) => {
+/** 列表里返回的一张照片 */
+type TransactionListImage = { id?: string; sort?: number; viewUrl: string }
+
+/** 为列表中的记账附加 images 字段。调用方须已确认查看者是账本成员 */
+const attachImagesToList = async (datas: Row[] | null | undefined, origin: ViewOrigin) => {
   const list = (datas || []).map((row) => {
     const plain = row && row.get ? row.get({ plain: true }) : { ...row }
     plain.images = []
     return plain
   })
-
-  if (!list.length || !billId || !userId) return list
-
-  const isMember = await assertBillMember(billId, userId)
-  if (!isMember) return list
 
   const ids = list.map((item) => item.id).filter((id): id is string => !!id)
   if (!ids.length) return list
@@ -327,21 +322,21 @@ const attachImagesToList = async (
     ]
   })
 
-  const byTx = new Map<string, { id?: string; sort?: number; viewUrl: string }[]>()
-  for (const img of images) {
-    const plain = img.get({ plain: true })
-    const txId = plain.transactionId || ''
-    const arr = byTx.get(txId) || []
-    arr.push({
+  const imagesByTransactionId = new Map<string, TransactionListImage[]>()
+  for (const image of images) {
+    const plain = image.get({ plain: true })
+    const transactionId = plain.transactionId || ''
+    const transactionImages = imagesByTransactionId.get(transactionId) || []
+    transactionImages.push({
       id: plain.id,
       sort: plain.sort,
       viewUrl: buildViewUrl(origin, plain.id || '')
     })
-    byTx.set(txId, arr)
+    imagesByTransactionId.set(transactionId, transactionImages)
   }
 
   for (const item of list) {
-    item.images = byTx.get(item.id || '') || []
+    item.images = imagesByTransactionId.get(item.id || '') || []
   }
   return list
 }
@@ -371,10 +366,10 @@ const getImageFile = async ({
   // 未挂到记账，或已标不可见的照片，不能靠签名地址打开
   if (!row || !row.viewable || !row.transactionId) return ['无权查看', null]
 
-  const tx = await Transaction.findOne({
+  const transaction = await Transaction.findOne({
     where: { id: row.transactionId, isDel: false }
   })
-  if (!tx) return ['无权查看', null]
+  if (!transaction) return ['无权查看', null]
 
   const client = createOssClient()
   if (!client) return ['无权查看', null]

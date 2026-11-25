@@ -198,12 +198,12 @@ export const getMobileOverview = async (query: Row, userId: string | null | unde
 }
 
 /**
- * 某一分类的原始支出。金额是记账原金额。
+ * 某一分类的原始支出。手机和电脑概览点分类都走这里。金额是记账原金额。
  * @param query 查询参数，memberId 为空表示全部
  * @param userId 当前用户
  * @returns 失败文案或明细
  */
-export const getMobileRecords = async (query: Row, userId: string | null | undefined) => {
+export const getCategoryRecords = async (query: Row, userId: string | null | undefined) => {
   const billId = String(query.billId || '')
   const costTypeId = String(query.costTypeId || '')
   if (!costTypeId) return ['分类不能为空', null]

@@ -1,4 +1,4 @@
-import { getMobileOverview, getMobileRecords } from '../../../apis/index'
+import { getMobileOverview, getCategoryRecords } from '../../../apis/index'
 import { appShareBehavior } from '../../../behaviors/app-share'
 import { guardPage } from '../../../utils/auth'
 
@@ -378,7 +378,7 @@ Page({
         costTypeId
       }
       if (this.data.memberId) query.memberId = this.data.memberId
-      const res = await getMobileRecords(query)
+      const res = await getCategoryRecords(query)
       if (res.retCode !== 0 || !res.data) {
         wx.showToast({ title: res.message || '加载失败', icon: 'none' })
         this.setData({ showRecords: false })

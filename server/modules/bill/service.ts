@@ -24,13 +24,6 @@ const nickNameOfUser = async (userId: string | null | undefined): Promise<[strin
   return [null, nickName]
 }
 
-/** 账本是否存在。不附带类型、预算或计划 */
-export const billExists = async (billId: string | null | undefined) => {
-  if (!billId) return false
-  const bill = await Bill.findOne({ where: { id: billId, isDel: false } })
-  return !!bill
-}
-
 /** 账本成员名单，只含编号和名称，不用于权限判断 */
 export const listMembers = async (billId: string | null | undefined) => {
   const rows = await BillUser.findAll({ where: { billId } })

@@ -109,7 +109,7 @@ export const useTypeChart = (options: { colorOptions: string[] }) => {
       billId: (bill.value as Bill).id,
       type: 1,
       costTypeId: costType.id,
-      pageIndex: 0,
+      pageIndex: 1,
       pageSize: 1000,
       condition: 'gte',
       rangeMoney: 0,
